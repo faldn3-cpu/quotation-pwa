@@ -1,0 +1,21 @@
+{
+  "name": "智慧報價擬稿系統",
+  "short_name": "報價擬稿",
+  "description": "業務專用手機端現場報價草稿工具",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#f8fafc",
+  "theme_color": "#2563eb",
+  "icons": [
+    {
+      "src": "icon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

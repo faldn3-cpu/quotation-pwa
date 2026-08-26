@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>智慧報價擬稿</title>
+  
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#2563eb">
+  <link rel="apple-touch-icon" href="icon-192x192.png">
+  
+  <!-- Google Fonts: Inter -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  
+  <header class="app-header">
+    <div class="header-content">
+      <h1>報價擬稿系統</h1>
+      <div style="display:flex; gap:10px;">
+        <button id="btnSync" class="btn-icon" aria-label="同步資料">
+          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 21v-5h5"/></svg>
+        </button>
+      </div>
+    </div>
+    <div id="offlineIndicator" class="offline-indicator hidden">
+      ⚠️ 離線模式：操作將於恢復連線後自動上傳
+    </div>
+  </header>
+
+  <main class="app-main">
+    
+    <!-- 登入卡片 -->
+    <section id="loginSection" class="card fade-in">
+      <h2>登入</h2>
+      <p>請使用您的 Google 帳號登入系統</p>
+      <button id="btnLogin" class="btn btn-primary btn-block">Google 登入</button>
+    </section>
+
+    <!-- 報價表單 -->
+    <section id="draftSection" class="card hidden fade-in">
+      <form id="draftForm">
+        
+        <div class="form-group" style="display:flex; align-items:flex-end; gap:10px;">
+          <div style="flex-grow: 1;">
+            <label for="customerName">客戶名稱</label>
+            <input type="text" id="customerName" placeholder="搜尋客戶名稱..." required autocomplete="off">
+            <div id="customerSuggestions" class="suggestions hidden"></div>
+          </div>
+          <button type="button" id="btnNewCustomer" class="btn btn-secondary" style="height: 48px; min-width: 120px;">
+            📸 拍名片建檔
+          </button>
+        </div>
+
+        <div class="form-group">
+          <label>報價品項</label>
+          <div id="itemsContainer" class="items-list">
+            <!-- 動態加入品項 -->
+          </div>
+          <button type="button" id="btnAddItem" class="btn btn-secondary btn-block mt-3">
+            + 新增品項
+          </button>
+        </div>
+
+        <div class="form-actions mt-4">
+          <button type="submit" id="btnSubmitDraft" class="btn btn-primary btn-block">
+            送出草稿
+          </button>
+        </div>
+      </form>
+    </section>
+
+    <!-- 成功畫面 -->
+    <section id="successSection" class="card hidden text-center fade-in">
+      <div class="success-icon mb-3">✅</div>
+      <h2>草稿已送出！</h2>
+      <p>您的報價草稿已成功傳送，請稍後至電腦端覆核。</p>
+      <button id="btnNewDraft" class="btn btn-primary btn-block mt-4">建立新草稿</button>
+    </section>
+    
+  </main>
+
+  <!-- 品項搜尋對話框 (Modal) -->
+  <div id="productModal" class="modal hidden">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>選擇產品</h3>
+        <button id="btnCloseModal" class="btn-close">&times;</button>
+      </div>
+      <div class="modal-body">
+        <input type="text" id="productSearch" class="search-input" placeholder="搜尋型號或品名...">
+        <div id="productResults" class="product-results mt-3">
+          <!-- 搜尋結果 -->
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 新增客戶對話框 (OCR) -->
+  <div id="customerOcrModal" class="modal hidden">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>AI 智慧建檔</h3>
+        <button id="btnCloseOcr" class="btn-close">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p>請上傳或拍攝名片，AI 將自動為您填入資料。</p>
+        
+        <input type="file" id="cameraInput" accept="image/*" capture="environment" class="hidden">
+        <button id="btnTriggerCamera" class="btn btn-secondary btn-block mb-3">
+          📷 開啟相機拍照
+        </button>
+        
+        <div id="ocrResultForm" class="hidden">
+          <hr>
+          <div class="form-group">
+            <label>公司名稱</label><input type="text" id="ocrCompany">
+          </div>
+          <div class="form-group">
+            <label>統一編號</label><input type="text" id="ocrTaxId">
+          </div>
+          <div class="form-group">
+            <label>聯絡人</label><input type="text" id="ocrContact">
+          </div>
+          <div class="form-group">
+            <label>地址</label><input type="text" id="ocrAddress">
+          </div>
+          <div class="form-group">
+            <label>電話</label><input type="text" id="ocrPhone">
+          </div>
+          <div class="form-group">
+            <label>手機</label><input type="text" id="ocrMobile">
+          </div>
+          <button id="btnSaveOcrCustomer" class="btn btn-primary btn-block mt-3">確認並寫入雲端資料庫</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Loading Overlay -->
+  <div id="loadingOverlay" class="loading-overlay hidden">
+    <div class="spinner"></div>
+    <p>處理中...</p>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
