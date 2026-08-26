@@ -7,6 +7,9 @@ const DRIVE_SCOPES = "https://www.googleapis.com/auth/drive.readonly profile ema
 const BACKUP_FOLDER_NAME = "報價系統備份";
 const CUSTOMERS_FILE_NAME = "customers.json";
 
+// 庫存對照表：產品型號(小寫) → 可用數量（從 L廠庫存試算表同步）
+let STOCK_MAP = {};
+
 // ====================================================
 // 全域狀態
 // ====================================================
@@ -208,7 +211,8 @@ document.addEventListener("DOMContentLoaded", () => {
   async function initData() {
     await Promise.allSettled([
       loadCustomersFromDrive(),
-      loadProductsFromGAS()
+      loadProductsFromGAS(),
+      loadInventoryFromGAS()
     ]);
   }
 
@@ -240,13 +244,19 @@ document.addEventListener("DOMContentLoaded", () => {
         `https://www.googleapis.com/drive/v3/files?q=${folderQuery}&spaces=drive&fields=files(id,name)`,
         { headers: { Authorization: `Bearer ${accessToken}` } }
       );
-      if (!folderRes.ok) throw new Error("Drive API 錯誤：" + folderRes.status);
+      if (!folderRes.ok) {
+        const errText = await folderRes.text();
+        throw new Error(`Drive API 錯誤 ${folderRes.status}：${errText.substring(0, 150)}`);
+      }
       const folderData = await folderRes.json();
       const folders = folderData.files || [];
 
       if (folders.length === 0) {
-        console.warn("[Drive] 找不到「報價系統備份」資料夾，改用快取");
+        console.warn("[Drive] 找不到「報價系統備份」資料夾");
         MOCK_CUSTOMERS = JSON.parse(localStorage.getItem("customers_cache") || "[]");
+        if (MOCK_CUSTOMERS.length === 0) {
+          showStatusBanner("⚠️ 尚無客戶資料：請先在電腦版執行一次 Google Drive 備份", "warn");
+        }
         return;
       }
 
@@ -285,7 +295,63 @@ document.addEventListener("DOMContentLoaded", () => {
     } catch (e) {
       console.error("[Drive] 讀取客戶資料失敗:", e);
       MOCK_CUSTOMERS = JSON.parse(localStorage.getItem("customers_cache") || "[]");
+      if (MOCK_CUSTOMERS.length === 0) {
+        showStatusBanner("❌ 客戶資料讀取失敗：" + e.message.substring(0, 80), "error");
+      }
     }
+  }
+
+  // ====================================================
+  // 從 GAS 代理讀取庫存對照表（L廠庫存數量報表）
+  // ====================================================
+  async function loadInventoryFromGAS() {
+    try {
+      const res = await fetch(`${GAS_URL}?action=get_inventory`);
+      const data = await res.json();
+      if (data.status === "ok" && data.data) {
+        STOCK_MAP = data.data;
+        console.log("[GAS] 庫存同步成功，共", Object.keys(STOCK_MAP).length, "筆");
+      } else {
+        console.warn("[GAS] 庫存讀取異常:", data.msg);
+      }
+    } catch(e) {
+      console.warn("[GAS] 庫存讀取失敗（使用離線模式）:", e.message);
+    }
+  }
+
+  // ====================================================
+  // 查詢某產品型號的實際庫存數量
+  // ====================================================
+  function getStockQty(code) {
+    if (!code || Object.keys(STOCK_MAP).length === 0) return null;
+    // 正規化：去除括號內容、非英數字元，轉小寫
+    const normalize = s => s.replace(/[（(].*?[)）]/g, "").replace(/[^a-zA-Z0-9.]/g, "").toLowerCase();
+    const key = normalize(code);
+    // 直接比對
+    if (STOCK_MAP[key] !== undefined) return STOCK_MAP[key];
+    // 原始小寫比對（保留連字號）
+    const keyRaw = code.replace(/[（(].*?[)）]/g, "").trim().toLowerCase();
+    if (STOCK_MAP[keyRaw] !== undefined) return STOCK_MAP[keyRaw];
+    return null;
+  }
+
+  // ====================================================
+  // 顯示狀態提示橫幅（非阻斷式，3 秒後消失）
+  // ====================================================
+  function showStatusBanner(msg, type = "info") {
+    let banner = document.getElementById("statusBanner");
+    if (!banner) {
+      banner = document.createElement("div");
+      banner.id = "statusBanner";
+      banner.style.cssText = "position:fixed;top:64px;left:0;right:0;z-index:300;padding:10px 16px;font-size:0.85rem;font-weight:600;text-align:center;transition:opacity 0.4s;";
+      document.body.appendChild(banner);
+    }
+    const colors = { info: "#2563eb", warn: "#d97706", error: "#dc2626" };
+    banner.style.background = colors[type] || colors.info;
+    banner.style.color = "#fff";
+    banner.style.opacity = "1";
+    banner.textContent = msg;
+    setTimeout(() => { banner.style.opacity = "0"; }, 5000);
   }
 
   // ====================================================
@@ -404,15 +470,37 @@ document.addEventListener("DOMContentLoaded", () => {
       return;
     }
     productResults.innerHTML = products.map(p => {
-      const stockClass = p.stock === "IN_STOCK" ? "stock-in" : "stock-out";
-      const stockText  = p.stock === "IN_STOCK" ? "現貨" : "期貨";
+      // 庫存：優先使用試算表即時數量，備援使用 DB 的 IN_STOCK 狀態
+      const qty = getStockQty(p.code);
+      let stockBadge;
+      if (qty !== null) {
+        if (qty > 0) {
+          stockBadge = `<span class="stock-badge stock-in">現貨 ${qty}</span>`;
+        } else {
+          stockBadge = `<span class="stock-badge stock-out">零庫存</span>`;
+        }
+      } else {
+        // 試算表未比對到，用 products.json 的 stock_status 顯示
+        stockBadge = p.stock === "IN_STOCK"
+          ? `<span class="stock-badge stock-in">現貨</span>`
+          : `<span class="stock-badge stock-out">期貨</span>`;
+      }
+
+      // 價格顯示
+      const dealerPrice = p.dealer_price ? `<span style="color:var(--primary-color);">經銷 $${Number(p.dealer_price).toLocaleString()}</span>` : "";
+      const listPrice   = p.list_price   ? `<span style="color:var(--text-muted);">定價 $${Number(p.list_price).toLocaleString()}</span>`   : "";
+      const priceLine   = (dealerPrice || listPrice)
+        ? `<div style="font-size:0.8rem; display:flex; gap:10px; margin-top:3px;">${dealerPrice}${listPrice}</div>`
+        : "";
+
       return `
         <div class="product-item" data-code="${p.code}" data-name="${p.name}">
           <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
             <strong>${p.code}</strong>
-            <span class="stock-badge ${stockClass}">${stockText}</span>
+            ${stockBadge}
           </div>
           <div style="color:var(--text-muted); font-size:0.875rem;">${p.name}</div>
+          ${priceLine}
         </div>
       `;
     }).join("");
