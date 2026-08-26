@@ -1,5 +1,5 @@
 // 配置 GAS Web App 的 URL
-const GAS_URL = "https://script.google.com/macros/s/AKfycby0A3Rmjb7n0a1hHsKHPpwEcyXU9BOXmtkzV-6A54M85ipXkX3N2ioxiLjjvi7wGjoKHg/exec";
+const GAS_URL = "https://script.google.com/macros/s/AKfycbx48PMWVPysN9gd4OcPq1JmzqkRzwu494C2jFxK71Al13Q4Lr2y5KP3RbS80pgs8CYxGg/exec";
 
 // 實際客戶與產品資料庫 (從雲端動態載入)
 let MOCK_CUSTOMERS = [];
