@@ -1,43 +1,58 @@
-// 配置 GAS Web App 的 URL
+// ====================================================
+// 系統設定
+// ====================================================
 const GAS_URL = "https://script.google.com/macros/s/AKfycbx48PMWVPysN9gd4OcPq1JmzqkRzwu494C2jFxK71Al13Q4Lr2y5KP3RbS80pgs8CYxGg/exec";
+const WEB_CLIENT_ID = "668571991428-ffjs6ud0apusi7akb0lmptae24qqtbto.apps.googleusercontent.com";
+const DRIVE_SCOPES = "https://www.googleapis.com/auth/drive.readonly profile email";
+const BACKUP_FOLDER_NAME = "報價系統備份";
+const CUSTOMERS_FILE_NAME = "customers.json";
 
-// 實際客戶與產品資料庫 (從雲端動態載入)
+// ====================================================
+// 全域狀態
+// ====================================================
 let MOCK_CUSTOMERS = [];
 let MOCK_PRODUCTS = [];
+let tokenClient = null;
+let accessToken = null;
+let userProfile = null;
 
 document.addEventListener("DOMContentLoaded", () => {
-  // DOM 元素
-  const loginSection = document.getElementById("loginSection");
-  const draftSection = document.getElementById("draftSection");
-  const successSection = document.getElementById("successSection");
-  const loadingOverlay = document.getElementById("loadingOverlay");
-  const offlineIndicator = document.getElementById("offlineIndicator");
-  
-  const btnLogin = document.getElementById("btnLogin");
-  const btnAddItem = document.getElementById("btnAddItem");
-  const btnSubmitDraft = document.getElementById("btnSubmitDraft");
-  const btnNewDraft = document.getElementById("btnNewDraft");
-  const itemsContainer = document.getElementById("itemsContainer");
-  
+
+  // --- DOM 元素 ---
+  const loginSection      = document.getElementById("loginSection");
+  const draftSection      = document.getElementById("draftSection");
+  const successSection    = document.getElementById("successSection");
+  const loadingOverlay    = document.getElementById("loadingOverlay");
+  const offlineIndicator  = document.getElementById("offlineIndicator");
+  const btnLogin          = document.getElementById("btnLogin");
+  const btnSync           = document.getElementById("btnSync");
+  const btnAddItem        = document.getElementById("btnAddItem");
+  const btnSubmitDraft    = document.getElementById("btnSubmitDraft");
+  const btnNewDraft       = document.getElementById("btnNewDraft");
+  const itemsContainer    = document.getElementById("itemsContainer");
   const customerNameInput = document.getElementById("customerName");
   const customerSuggestions = document.getElementById("customerSuggestions");
-  
-  const productModal = document.getElementById("productModal");
-  const btnCloseModal = document.getElementById("btnCloseModal");
-  const productSearch = document.getElementById("productSearch");
-  const productResults = document.getElementById("productResults");
+  const productModal      = document.getElementById("productModal");
+  const btnCloseModal     = document.getElementById("btnCloseModal");
+  const productSearch     = document.getElementById("productSearch");
+  const productResults    = document.getElementById("productResults");
+  const userInfoBadge     = document.getElementById("userInfoBadge");
 
   let currentEditingItemIndex = -1;
   let itemCount = 0;
 
-  // 註冊 Service Worker
+  // ====================================================
+  // Service Worker 註冊
+  // ====================================================
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('./sw.js')
-      .then(reg => console.log('Service Worker Registered!', reg))
-      .catch(err => console.error('Service Worker Registration Failed:', err));
+      .then(reg => console.log('[PWA] Service Worker 已註冊', reg))
+      .catch(err => console.error('[PWA] Service Worker 註冊失敗:', err));
   }
 
-  // 檢查網路連線狀態
+  // ====================================================
+  // 網路狀態監測
+  // ====================================================
   window.addEventListener('online', updateOnlineStatus);
   window.addEventListener('offline', updateOnlineStatus);
 
@@ -47,76 +62,264 @@ document.addEventListener("DOMContentLoaded", () => {
       if ('serviceWorker' in navigator && 'SyncManager' in window) {
         navigator.serviceWorker.ready.then(reg => reg.sync.register('sync-drafts'));
       }
-      initData(); // 恢復連線時嘗試更新資料
     } else {
       offlineIndicator.classList.remove("hidden");
     }
   }
+  updateOnlineStatus();
 
-  // 0. 初始化載入雲端資料
-  async function initData() {
-    try {
-      if (!navigator.onLine) throw new Error("Offline");
-      
-      const resManifest = await fetch(`${GAS_URL}?action=get_manifest`);
-      const manifest = await resManifest.json();
-      
-      if (manifest.products_file_id) {
-        const resP = await fetch(`https://drive.google.com/uc?export=download&id=${manifest.products_file_id}`);
-        if (resP.ok) {
-          MOCK_PRODUCTS = await resP.json();
-          localStorage.setItem("products_cache", JSON.stringify(MOCK_PRODUCTS));
-        }
-      }
-      
-      if (manifest.customers_file_id) {
-        const resC = await fetch(`https://drive.google.com/uc?export=download&id=${manifest.customers_file_id}`);
-        if (resC.ok) {
-          MOCK_CUSTOMERS = await resC.json();
-          localStorage.setItem("customers_cache", JSON.stringify(MOCK_CUSTOMERS));
-        }
-      }
-      console.log("資料庫同步成功！", MOCK_PRODUCTS.length, "項產品");
-    } catch (e) {
-      console.log("無法連線雲端，讀取本機快取資料...");
-      try {
-        MOCK_PRODUCTS = JSON.parse(localStorage.getItem("products_cache") || "[]");
-        MOCK_CUSTOMERS = JSON.parse(localStorage.getItem("customers_cache") || "[]");
-      } catch(err) {}
+  // ====================================================
+  // Google Identity Services 初始化
+  // 使用 Token Model (Implicit Flow)，適合純前端 PWA
+  // ====================================================
+  function initGoogleAuth() {
+    if (typeof google === "undefined" || !google.accounts) {
+      // GIS SDK 尚未載入完成，稍後重試
+      setTimeout(initGoogleAuth, 300);
+      return;
+    }
+
+    tokenClient = google.accounts.oauth2.initTokenClient({
+      client_id: WEB_CLIENT_ID,
+      scope: DRIVE_SCOPES,
+      callback: handleTokenResponse,
+    });
+    console.log("[Auth] Google Identity Services 初始化完成");
+  }
+
+  // GIS SDK 非同步載入，DOMContentLoaded 時可能還未就緒
+  if (typeof google !== "undefined" && google.accounts) {
+    initGoogleAuth();
+  } else {
+    // 等待 script onload
+    const gisScript = document.querySelector('script[src*="accounts.google.com/gsi/client"]');
+    if (gisScript) {
+      gisScript.addEventListener('load', initGoogleAuth);
+    } else {
+      setTimeout(initGoogleAuth, 1000);
     }
   }
 
-  // 初始化狀態
-  updateOnlineStatus();
-
-  // 1. 登入邏輯 (簡化模擬)
+  // ====================================================
+  // 登入按鈕點擊
+  // ====================================================
   btnLogin.addEventListener("click", () => {
-    loadingOverlay.classList.remove("hidden");
-    
-    // 若尚未載入資料，嘗試由快取載入
-    if (MOCK_PRODUCTS.length === 0) {
-      try {
-        MOCK_PRODUCTS = JSON.parse(localStorage.getItem("products_cache") || "[]");
-        MOCK_CUSTOMERS = JSON.parse(localStorage.getItem("customers_cache") || "[]");
-      } catch(e) {}
+    if (!tokenClient) {
+      alert("Google 登入模組尚在載入中，請稍後再試。");
+      return;
     }
-
-    setTimeout(() => {
-      loadingOverlay.classList.add("hidden");
-      loginSection.classList.add("hidden");
-      draftSection.classList.remove("hidden");
-      addBlankItem(); // 預設給一個空白品項
-    }, 800);
+    if (!navigator.onLine) {
+      // 離線：嘗試讀取快取資料直接進入
+      loadFromCache();
+      enterDraftMode("離線使用者");
+      return;
+    }
+    // 發起 OAuth 授權請求（彈出 Google 選帳號視窗）
+    tokenClient.requestAccessToken({ prompt: 'select_account' });
   });
 
-  // 2. 客戶名稱搜尋提示
+  // ====================================================
+  // OAuth 授權回呼
+  // ====================================================
+  async function handleTokenResponse(response) {
+    if (response.error) {
+      console.error("[Auth] 授權失敗:", response.error, response.error_description);
+      alert("Google 登入失敗：" + (response.error_description || response.error));
+      return;
+    }
+
+    accessToken = response.access_token;
+    console.log("[Auth] 已取得存取權杖");
+
+    // 顯示載入畫面
+    loadingOverlay.classList.remove("hidden");
+
+    try {
+      // 1. 取得使用者基本資料
+      userProfile = await fetchUserProfile();
+      console.log("[Auth] 使用者：", userProfile.name, "/", userProfile.email);
+
+      // 2. 載入資料（客戶 + 產品）
+      await initData();
+
+      // 3. 進入報價表單
+      enterDraftMode(userProfile.name || userProfile.email);
+
+    } catch (err) {
+      console.error("[Auth] 登入後初始化失敗:", err);
+      alert("資料載入失敗，請重新整理後再試。\n錯誤：" + err.message);
+    } finally {
+      loadingOverlay.classList.add("hidden");
+    }
+  }
+
+  // ====================================================
+  // 取得使用者個人資料
+  // ====================================================
+  async function fetchUserProfile() {
+    const res = await fetch("https://www.googleapis.com/oauth2/v3/userinfo", {
+      headers: { Authorization: `Bearer ${accessToken}` }
+    });
+    if (!res.ok) throw new Error("無法取得使用者資料");
+    return await res.json();
+  }
+
+  // ====================================================
+  // 進入報價草稿模式（切換畫面）
+  // ====================================================
+  function enterDraftMode(displayName) {
+    // 顯示使用者徽章
+    userInfoBadge.textContent = "👤 " + displayName;
+    userInfoBadge.classList.remove("hidden");
+    btnSync.classList.remove("hidden");
+
+    // 切換區塊
+    loginSection.classList.add("hidden");
+    draftSection.classList.remove("hidden");
+    successSection.classList.add("hidden");
+
+    // 清除並預設一個空白品項
+    itemsContainer.innerHTML = "";
+    itemCount = 0;
+    addBlankItem();
+  }
+
+  // ====================================================
+  // 同步資料（右上角重新整理按鈕）
+  // ====================================================
+  btnSync.addEventListener("click", async () => {
+    if (!navigator.onLine) {
+      alert("目前為離線狀態，無法同步。");
+      return;
+    }
+    if (!accessToken) {
+      alert("請先登入。");
+      return;
+    }
+    loadingOverlay.classList.remove("hidden");
+    await initData();
+    loadingOverlay.classList.add("hidden");
+    alert("✅ 資料同步完成！\n客戶：" + MOCK_CUSTOMERS.length + " 筆 / 產品：" + MOCK_PRODUCTS.length + " 筆");
+  });
+
+  // ====================================================
+  // 初始化雲端資料載入
+  // ====================================================
+  async function initData() {
+    await Promise.allSettled([
+      loadCustomersFromDrive(),
+      loadProductsFromGAS()
+    ]);
+  }
+
+  // ====================================================
+  // 從快取讀取（離線模式）
+  // ====================================================
+  function loadFromCache() {
+    try {
+      MOCK_CUSTOMERS = JSON.parse(localStorage.getItem("customers_cache") || "[]");
+      MOCK_PRODUCTS  = JSON.parse(localStorage.getItem("products_cache")  || "[]");
+      console.log("[快取] 客戶:", MOCK_CUSTOMERS.length, "筆 / 產品:", MOCK_PRODUCTS.length, "筆");
+    } catch (e) {
+      console.error("[快取] 讀取失敗:", e);
+    }
+  }
+
+  // ====================================================
+  // 從業務員個人 Google Drive 讀取客戶資料
+  // 路徑：報價系統備份 / customers.json
+  // ====================================================
+  async function loadCustomersFromDrive() {
+    if (!accessToken) return;
+    try {
+      // Step 1：搜尋「報價系統備份」資料夾
+      const folderQuery = encodeURIComponent(
+        `name='${BACKUP_FOLDER_NAME}' and mimeType='application/vnd.google-apps.folder' and trashed=false`
+      );
+      const folderRes = await fetch(
+        `https://www.googleapis.com/drive/v3/files?q=${folderQuery}&spaces=drive&fields=files(id,name)`,
+        { headers: { Authorization: `Bearer ${accessToken}` } }
+      );
+      if (!folderRes.ok) throw new Error("Drive API 錯誤：" + folderRes.status);
+      const folderData = await folderRes.json();
+      const folders = folderData.files || [];
+
+      if (folders.length === 0) {
+        console.warn("[Drive] 找不到「報價系統備份」資料夾，改用快取");
+        MOCK_CUSTOMERS = JSON.parse(localStorage.getItem("customers_cache") || "[]");
+        return;
+      }
+
+      const folderId = folders[0].id;
+
+      // Step 2：搜尋 customers.json
+      const fileQuery = encodeURIComponent(
+        `name='${CUSTOMERS_FILE_NAME}' and '${folderId}' in parents and trashed=false`
+      );
+      const fileRes = await fetch(
+        `https://www.googleapis.com/drive/v3/files?q=${fileQuery}&spaces=drive&fields=files(id,name,modifiedTime)`,
+        { headers: { Authorization: `Bearer ${accessToken}` } }
+      );
+      const fileData = await fileRes.json();
+      const files = fileData.files || [];
+
+      if (files.length === 0) {
+        console.warn("[Drive] 找不到 customers.json，改用快取");
+        MOCK_CUSTOMERS = JSON.parse(localStorage.getItem("customers_cache") || "[]");
+        return;
+      }
+
+      const fileId = files[0].id;
+
+      // Step 3：下載檔案內容
+      const downloadRes = await fetch(
+        `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`,
+        { headers: { Authorization: `Bearer ${accessToken}` } }
+      );
+      if (!downloadRes.ok) throw new Error("下載失敗：" + downloadRes.status);
+
+      MOCK_CUSTOMERS = await downloadRes.json();
+      localStorage.setItem("customers_cache", JSON.stringify(MOCK_CUSTOMERS));
+      console.log("[Drive] 客戶資料同步成功，共", MOCK_CUSTOMERS.length, "筆");
+
+    } catch (e) {
+      console.error("[Drive] 讀取客戶資料失敗:", e);
+      MOCK_CUSTOMERS = JSON.parse(localStorage.getItem("customers_cache") || "[]");
+    }
+  }
+
+  // ====================================================
+  // 透過 GAS 代理讀取共用產品資料
+  // （GAS 以專案擁有者身分存取，不受業務員帳號權限限制）
+  // ====================================================
+  async function loadProductsFromGAS() {
+    try {
+      const res = await fetch(`${GAS_URL}?action=get_products`);
+      if (!res.ok) throw new Error("GAS 回應錯誤：" + res.status);
+      const data = await res.json();
+
+      if (data.status === "ok" && Array.isArray(data.data)) {
+        MOCK_PRODUCTS = data.data;
+        localStorage.setItem("products_cache", JSON.stringify(MOCK_PRODUCTS));
+        console.log("[GAS] 產品資料同步成功，共", MOCK_PRODUCTS.length, "筆");
+      } else {
+        throw new Error(data.msg || "GAS 回傳格式異常");
+      }
+    } catch (e) {
+      console.error("[GAS] 讀取產品資料失敗:", e);
+      MOCK_PRODUCTS = JSON.parse(localStorage.getItem("products_cache") || "[]");
+    }
+  }
+
+  // ====================================================
+  // 客戶名稱搜尋提示
+  // ====================================================
   customerNameInput.addEventListener("input", (e) => {
     const val = e.target.value.toLowerCase();
     if (!val) {
       customerSuggestions.classList.add("hidden");
       return;
     }
-    
     const matches = MOCK_CUSTOMERS.filter(c => {
       const name = typeof c === 'string' ? c : (c.name || "");
       return name.toLowerCase().includes(val);
@@ -139,7 +342,9 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
-  // 3. 產品品項操作
+  // ====================================================
+  // 新增品項
+  // ====================================================
   function addBlankItem() {
     itemCount++;
     const itemId = `item-${itemCount}`;
@@ -164,8 +369,7 @@ document.addEventListener("DOMContentLoaded", () => {
       </div>
     `;
     itemsContainer.insertAdjacentHTML('beforeend', itemHTML);
-    
-    // 綁定點擊事件以打開產品選擇 Modal
+
     const titleEl = document.getElementById(`${itemId}-title`);
     titleEl.style.cursor = "pointer";
     titleEl.style.color = "var(--primary-color)";
@@ -180,15 +384,16 @@ document.addEventListener("DOMContentLoaded", () => {
 
   btnAddItem.addEventListener("click", addBlankItem);
 
-  // 4. Modal 與產品搜尋
-  btnCloseModal.addEventListener("click", () => {
-    productModal.classList.add("hidden");
-  });
+  // ====================================================
+  // 產品選擇 Modal
+  // ====================================================
+  btnCloseModal.addEventListener("click", () => productModal.classList.add("hidden"));
 
   productSearch.addEventListener("input", (e) => {
     const val = e.target.value.toLowerCase();
-    const matches = MOCK_PRODUCTS.filter(p => 
-      p.code.toLowerCase().includes(val) || p.name.toLowerCase().includes(val)
+    const matches = MOCK_PRODUCTS.filter(p =>
+      (p.code || "").toLowerCase().includes(val) ||
+      (p.name || "").toLowerCase().includes(val)
     );
     renderProducts(matches);
   });
@@ -198,10 +403,9 @@ document.addEventListener("DOMContentLoaded", () => {
       productResults.innerHTML = `<div class="text-center text-muted mt-3">找不到符合的產品</div>`;
       return;
     }
-
     productResults.innerHTML = products.map(p => {
       const stockClass = p.stock === "IN_STOCK" ? "stock-in" : "stock-out";
-      const stockText = p.stock === "IN_STOCK" ? "現貨" : "期貨";
+      const stockText  = p.stock === "IN_STOCK" ? "現貨" : "期貨";
       return `
         <div class="product-item" data-code="${p.code}" data-name="${p.name}">
           <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
@@ -219,25 +423,24 @@ document.addEventListener("DOMContentLoaded", () => {
     if (item && currentEditingItemIndex) {
       const code = item.dataset.code;
       const name = item.dataset.name;
-      
       document.getElementById(`${currentEditingItemIndex}-title`).textContent = `[${code}] ${name}`;
       document.getElementById(`${currentEditingItemIndex}-title`).style.color = "var(--text-main)";
       document.getElementById(`${currentEditingItemIndex}-code`).value = code;
       document.getElementById(`${currentEditingItemIndex}-name`).value = name;
-      
       productModal.classList.add("hidden");
     }
   });
 
-  // 5. 送出草稿
+  // ====================================================
+  // 送出草稿
+  // ====================================================
   document.getElementById("draftForm").addEventListener("submit", async (e) => {
     e.preventDefault();
-    
-    // 收集資料
+
     const customer = customerNameInput.value;
     const items = [];
     const itemRows = itemsContainer.querySelectorAll(".item-row");
-    
+
     if (itemRows.length === 0) {
       alert("請至少加入一個品項");
       return;
@@ -245,11 +448,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
     let hasError = false;
     itemRows.forEach(row => {
-      const code = row.querySelector("input[name='item_code']").value;
-      const name = row.querySelector("input[name='item_name']").value;
-      const qty = row.querySelector("input[name='quantity']").value;
+      const code     = row.querySelector("input[name='item_code']").value;
+      const name     = row.querySelector("input[name='item_name']").value;
+      const qty      = row.querySelector("input[name='quantity']").value;
       const refPrice = row.querySelector("input[name='ref_price']").value;
-      
       if (!code) {
         hasError = true;
       } else {
@@ -263,30 +465,23 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     const draftData = {
-      email: "sales@example.com", // 實務上從 OAuth 取得
-      customer: customer,
-      items: items,
+      email:     userProfile ? userProfile.email : "unknown",
+      name:      userProfile ? (userProfile.name || userProfile.email) : "unknown",
+      customer:  customer,
+      items:     items,
       timestamp: new Date().toISOString()
     };
 
     if (navigator.onLine) {
-      // 連線狀態，直接發送
       loadingOverlay.classList.remove("hidden");
       try {
-        // 實務上呼叫 GAS_URL
         const res = await fetch(`${GAS_URL}?action=draft`, {
           method: 'POST',
           body: JSON.stringify(draftData),
-          headers: {
-            'Content-Type': 'text/plain;charset=utf-8' // 避免 CORS preflight option 問題
-          }
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' }
         });
-        
         const resData = await res.json();
-        if (resData.status !== "ok") {
-          throw new Error(resData.msg || "未知錯誤");
-        }
-        
+        if (resData.status !== "ok") throw new Error(resData.msg || "未知錯誤");
         loadingOverlay.classList.add("hidden");
         draftSection.classList.add("hidden");
         successSection.classList.remove("hidden");
@@ -295,33 +490,32 @@ document.addEventListener("DOMContentLoaded", () => {
         alert("上傳失敗，請稍後再試: " + err.message);
       }
     } else {
-      // 離線狀態，存入 localStorage
       let drafts = JSON.parse(localStorage.getItem("offlineDrafts") || "[]");
       drafts.push(draftData);
       localStorage.setItem("offlineDrafts", JSON.stringify(drafts));
-      
       draftSection.classList.add("hidden");
       successSection.classList.remove("hidden");
-      // 可在此註冊 Background Sync
     }
   });
 
   btnNewDraft.addEventListener("click", () => {
     customerNameInput.value = "";
     itemsContainer.innerHTML = "";
+    itemCount = 0;
     addBlankItem();
-    
     successSection.classList.add("hidden");
     draftSection.classList.remove("hidden");
   });
 
-  // ========== OCR 邏輯 ==========
-  const btnNewCustomer = document.getElementById("btnNewCustomer");
-  const customerOcrModal = document.getElementById("customerOcrModal");
-  const btnCloseOcr = document.getElementById("btnCloseOcr");
-  const cameraInput = document.getElementById("cameraInput");
-  const btnTriggerCamera = document.getElementById("btnTriggerCamera");
-  const ocrResultForm = document.getElementById("ocrResultForm");
+  // ====================================================
+  // OCR 名片辨識邏輯
+  // ====================================================
+  const btnNewCustomer    = document.getElementById("btnNewCustomer");
+  const customerOcrModal  = document.getElementById("customerOcrModal");
+  const btnCloseOcr       = document.getElementById("btnCloseOcr");
+  const cameraInput       = document.getElementById("cameraInput");
+  const btnTriggerCamera  = document.getElementById("btnTriggerCamera");
+  const ocrResultForm     = document.getElementById("ocrResultForm");
   const btnSaveOcrCustomer = document.getElementById("btnSaveOcrCustomer");
 
   if (btnNewCustomer) {
@@ -329,24 +523,17 @@ document.addEventListener("DOMContentLoaded", () => {
       customerOcrModal.classList.remove("hidden");
       ocrResultForm.classList.add("hidden");
     });
-    
-    btnCloseOcr.addEventListener("click", () => {
-      customerOcrModal.classList.add("hidden");
-    });
-    
-    btnTriggerCamera.addEventListener("click", () => {
-      cameraInput.click();
-    });
-    
+
+    btnCloseOcr.addEventListener("click", () => customerOcrModal.classList.add("hidden"));
+    btnTriggerCamera.addEventListener("click", () => cameraInput.click());
+
     cameraInput.addEventListener("change", (e) => {
       const file = e.target.files[0];
       if (!file) return;
-
       const reader = new FileReader();
       reader.onload = async (event) => {
         const base64Str = event.target.result.split(',')[1];
         const mimeType = file.type;
-        
         loadingOverlay.classList.remove("hidden");
         try {
           await processOcr(base64Str, mimeType);
@@ -354,94 +541,73 @@ document.addEventListener("DOMContentLoaded", () => {
           alert("OCR 辨識失敗：" + err.message);
         } finally {
           loadingOverlay.classList.add("hidden");
-          cameraInput.value = ""; 
+          cameraInput.value = "";
         }
       };
       reader.readAsDataURL(file);
     });
 
     async function processOcr(base64Str, mimeType) {
-      const url = `${GAS_URL}?action=ocr_card`;
-      
-      const body = {
-        data: base64Str,
-        mimeType: mimeType
-      };
-
-      const res = await fetch(url, {
+      const res = await fetch(`${GAS_URL}?action=ocr_card`, {
         method: "POST",
-        headers: {"Content-Type": "text/plain;charset=utf-8"},
-        body: JSON.stringify(body)
+        headers: { "Content-Type": "text/plain;charset=utf-8" },
+        body: JSON.stringify({ data: base64Str, mimeType: mimeType })
       });
-      
       if (!res.ok) throw new Error(`網路錯誤: ${res.status}`);
-      
       const resData = await res.json();
-      if (resData.status !== "ok") {
-        throw new Error(resData.msg || "未知錯誤");
-      }
-      
+      if (resData.status !== "ok") throw new Error(resData.msg || "未知錯誤");
       const result = resData.data;
-      
-      document.getElementById("ocrCompany").value = result.name || "";
-      document.getElementById("ocrTaxId").value = result.tax_id || "";
-      document.getElementById("ocrContact").value = result.contact || "";
-      document.getElementById("ocrAddress").value = result.address || "";
-      document.getElementById("ocrPhone").value = result.phone || "";
-      document.getElementById("ocrMobile").value = result.mobile || "";
-      
+      document.getElementById("ocrCompany").value  = result.name    || "";
+      document.getElementById("ocrTaxId").value    = result.tax_id  || "";
+      document.getElementById("ocrContact").value  = result.contact || "";
+      document.getElementById("ocrAddress").value  = result.address || "";
+      document.getElementById("ocrPhone").value    = result.phone   || "";
+      document.getElementById("ocrMobile").value   = result.mobile  || "";
       ocrResultForm.classList.remove("hidden");
     }
 
     btnSaveOcrCustomer.addEventListener("click", async () => {
       const name = document.getElementById("ocrCompany").value.trim();
-      if (!name) {
-        alert("公司名稱不能為空");
-        return;
-      }
-      
+      if (!name) { alert("公司名稱不能為空"); return; }
+
       const newCustomer = {
         id: "C" + Date.now(),
         name: name,
-        tax_id: document.getElementById("ocrTaxId").value.trim(),
-        phone: document.getElementById("ocrPhone").value.trim(),
+        tax_id:  document.getElementById("ocrTaxId").value.trim(),
+        phone:   document.getElementById("ocrPhone").value.trim(),
         fax: "",
         address: document.getElementById("ocrAddress").value.trim(),
         payment_terms: "現金",
         status: "active",
         default_discount: 1.0,
-        contacts: [
-          {
-            id: "CT" + Date.now(),
-            name: document.getElementById("ocrContact").value.trim(),
-            email: "",
-            mobile: document.getElementById("ocrMobile").value.trim()
-          }
-        ]
+        contacts: [{
+          id: "CT" + Date.now(),
+          name:   document.getElementById("ocrContact").value.trim(),
+          email: "",
+          mobile: document.getElementById("ocrMobile").value.trim()
+        }]
       };
-      
+
       MOCK_CUSTOMERS.push(newCustomer);
-      
       loadingOverlay.classList.remove("hidden");
       try {
-          const res = await fetch(`${GAS_URL}?action=save_customers`, {
-            method: 'POST',
-            body: JSON.stringify(MOCK_CUSTOMERS),
-            headers: { 'Content-Type': 'text/plain;charset=utf-8' }
-          });
-          const resData = await res.json();
-          if (resData.status !== "ok") throw new Error(resData.msg);
-          
-          alert("客戶建檔成功！已寫入雲端");
-          customerOcrModal.classList.add("hidden");
-          customerNameInput.value = name;
-          localStorage.setItem("customers_cache", JSON.stringify(MOCK_CUSTOMERS));
-      } catch(e) {
-          alert("儲存至雲端失敗: " + e.message + "\n(請確認後端 GAS 已更新版本)");
+        const res = await fetch(`${GAS_URL}?action=save_customers`, {
+          method: 'POST',
+          body: JSON.stringify(MOCK_CUSTOMERS),
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' }
+        });
+        const resData = await res.json();
+        if (resData.status !== "ok") throw new Error(resData.msg);
+        alert("客戶建檔成功！已寫入雲端");
+        customerOcrModal.classList.add("hidden");
+        customerNameInput.value = name;
+        localStorage.setItem("customers_cache", JSON.stringify(MOCK_CUSTOMERS));
+      } catch (e) {
+        alert("儲存至雲端失敗: " + e.message);
       } finally {
-          loadingOverlay.classList.add("hidden");
+        loadingOverlay.classList.add("hidden");
       }
     });
   }
 
-});
+}); // end DOMContentLoaded
