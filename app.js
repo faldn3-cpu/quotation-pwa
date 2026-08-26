@@ -22,24 +22,32 @@ let userProfile = null;
 document.addEventListener("DOMContentLoaded", () => {
 
   // --- DOM 元素 ---
-  const loginSection      = document.getElementById("loginSection");
-  const draftSection      = document.getElementById("draftSection");
-  const successSection    = document.getElementById("successSection");
-  const loadingOverlay    = document.getElementById("loadingOverlay");
-  const offlineIndicator  = document.getElementById("offlineIndicator");
-  const btnLogin          = document.getElementById("btnLogin");
-  const btnSync           = document.getElementById("btnSync");
-  const btnAddItem        = document.getElementById("btnAddItem");
-  const btnSubmitDraft    = document.getElementById("btnSubmitDraft");
-  const btnNewDraft       = document.getElementById("btnNewDraft");
-  const itemsContainer    = document.getElementById("itemsContainer");
-  const customerNameInput = document.getElementById("customerName");
-  const customerSuggestions = document.getElementById("customerSuggestions");
-  const productModal      = document.getElementById("productModal");
-  const btnCloseModal     = document.getElementById("btnCloseModal");
-  const productSearch     = document.getElementById("productSearch");
-  const productResults    = document.getElementById("productResults");
-  const userInfoBadge     = document.getElementById("userInfoBadge");
+  const loginSection        = document.getElementById("loginSection");
+  const draftSection        = document.getElementById("draftSection");
+  const successSection      = document.getElementById("successSection");
+  const loadingOverlay      = document.getElementById("loadingOverlay");
+  const offlineIndicator    = document.getElementById("offlineIndicator");
+  const btnLogin            = document.getElementById("btnLogin");
+  const btnSync             = document.getElementById("btnSync");
+  const btnAddItem          = document.getElementById("btnAddItem");
+  const btnSubmitDraft      = document.getElementById("btnSubmitDraft");
+  const btnNewDraft         = document.getElementById("btnNewDraft");
+  const itemsContainer      = document.getElementById("itemsContainer");
+  const customerNameInput   = document.getElementById("customerName");
+  const userInfoBadge       = document.getElementById("userInfoBadge");
+
+  // 客戶 Modal
+  const customerModal       = document.getElementById("customerModal");
+  const btnCloseCustomerModal = document.getElementById("btnCloseCustomerModal");
+  const customerModalSearch = document.getElementById("customerModalSearch");
+  const customerModalResults= document.getElementById("customerModalResults");
+  const customerModalCount  = document.getElementById("customerModalCount");
+
+  // 產品 Modal
+  const productModal        = document.getElementById("productModal");
+  const btnCloseModal       = document.getElementById("btnCloseModal");
+  const productSearch       = document.getElementById("productSearch");
+  const productResults      = document.getElementById("productResults");
 
   let currentEditingItemIndex = -1;
   let itemCount = 0;
@@ -73,11 +81,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // ====================================================
   // Google Identity Services 初始化
-  // 使用 Token Model (Implicit Flow)，適合純前端 PWA
   // ====================================================
   function initGoogleAuth() {
     if (typeof google === "undefined" || !google.accounts) {
-      // GIS SDK 尚未載入完成，稍後重試
       setTimeout(initGoogleAuth, 300);
       return;
     }
@@ -90,11 +96,9 @@ document.addEventListener("DOMContentLoaded", () => {
     console.log("[Auth] Google Identity Services 初始化完成");
   }
 
-  // GIS SDK 非同步載入，DOMContentLoaded 時可能還未就緒
   if (typeof google !== "undefined" && google.accounts) {
     initGoogleAuth();
   } else {
-    // 等待 script onload
     const gisScript = document.querySelector('script[src*="accounts.google.com/gsi/client"]');
     if (gisScript) {
       gisScript.addEventListener('load', initGoogleAuth);
@@ -108,16 +112,14 @@ document.addEventListener("DOMContentLoaded", () => {
   // ====================================================
   btnLogin.addEventListener("click", () => {
     if (!tokenClient) {
-      alert("Google 登入模組尚在載入中，請稍後再試。");
+      alert("Google 登入模組尚在載入中，請稍候再試。");
       return;
     }
     if (!navigator.onLine) {
-      // 離線：嘗試讀取快取資料直接進入
       loadFromCache();
       enterDraftMode("離線使用者");
       return;
     }
-    // 發起 OAuth 授權請求（彈出 Google 選帳號視窗）
     tokenClient.requestAccessToken({ prompt: 'select_account' });
   });
 
@@ -133,19 +135,16 @@ document.addEventListener("DOMContentLoaded", () => {
 
     accessToken = response.access_token;
     console.log("[Auth] 已取得存取權杖");
-
-    // 顯示載入畫面
     loadingOverlay.classList.remove("hidden");
 
     try {
-      // 1. 取得使用者基本資料
       userProfile = await fetchUserProfile();
       console.log("[Auth] 使用者：", userProfile.name, "/", userProfile.email);
 
-      // 2. 載入資料（客戶 + 產品）
+      // 載入資料（客戶 + 產品 + 庫存）
       await initData();
 
-      // 3. 進入報價表單
+      // 進入報價表單
       enterDraftMode(userProfile.name || userProfile.email);
 
     } catch (err) {
@@ -171,17 +170,14 @@ document.addEventListener("DOMContentLoaded", () => {
   // 進入報價草稿模式（切換畫面）
   // ====================================================
   function enterDraftMode(displayName) {
-    // 顯示使用者徽章
     userInfoBadge.textContent = "👤 " + displayName;
     userInfoBadge.classList.remove("hidden");
     btnSync.classList.remove("hidden");
 
-    // 切換區塊
     loginSection.classList.add("hidden");
     draftSection.classList.remove("hidden");
     successSection.classList.add("hidden");
 
-    // 清除並預設一個空白品項
     itemsContainer.innerHTML = "";
     itemCount = 0;
     addBlankItem();
@@ -255,9 +251,6 @@ document.addEventListener("DOMContentLoaded", () => {
       if (folders.length === 0) {
         console.warn("[Drive] 找不到「報價系統備份」資料夾");
         MOCK_CUSTOMERS = JSON.parse(localStorage.getItem("customers_cache") || "[]");
-        if (MOCK_CUSTOMERS.length === 0) {
-          showStatusBanner("⚠️ 尚無客戶資料：請先在電腦版執行一次 Google Drive 備份", "warn");
-        }
         return;
       }
 
@@ -296,9 +289,28 @@ document.addEventListener("DOMContentLoaded", () => {
     } catch (e) {
       console.error("[Drive] 讀取客戶資料失敗:", e);
       MOCK_CUSTOMERS = JSON.parse(localStorage.getItem("customers_cache") || "[]");
-      if (MOCK_CUSTOMERS.length === 0) {
-        showStatusBanner("❌ 客戶資料讀取失敗：" + e.message.substring(0, 80), "error");
+    }
+  }
+
+  // ====================================================
+  // 從 GAS 代理讀取產品資料
+  // ====================================================
+  async function loadProductsFromGAS() {
+    try {
+      const res = await fetch(`${GAS_URL}?action=get_products`);
+      if (!res.ok) throw new Error("GAS 回應錯誤：" + res.status);
+      const data = await res.json();
+
+      if (data.status === "ok" && Array.isArray(data.data)) {
+        MOCK_PRODUCTS = data.data;
+        localStorage.setItem("products_cache", JSON.stringify(MOCK_PRODUCTS));
+        console.log("[GAS] 產品資料同步成功，共", MOCK_PRODUCTS.length, "筆");
+      } else {
+        throw new Error(data.msg || "GAS 回傳格式異常");
       }
+    } catch (e) {
+      console.error("[GAS] 讀取產品資料失敗:", e);
+      MOCK_PRODUCTS = JSON.parse(localStorage.getItem("products_cache") || "[]");
     }
   }
 
@@ -325,118 +337,75 @@ document.addEventListener("DOMContentLoaded", () => {
   // ====================================================
   function getStockQty(code) {
     if (!code || Object.keys(STOCK_MAP).length === 0) return null;
-    // 正規化：去除括號內容、非英數字元，轉小寫
     const normalize = s => s.replace(/[（(].*?[)）]/g, "").replace(/[^a-zA-Z0-9.]/g, "").toLowerCase();
     const key = normalize(code);
-    // 直接比對
     if (STOCK_MAP[key] !== undefined) return STOCK_MAP[key];
-    // 原始小寫比對（保留連字號）
     const keyRaw = code.replace(/[（(].*?[)）]/g, "").trim().toLowerCase();
     if (STOCK_MAP[keyRaw] !== undefined) return STOCK_MAP[keyRaw];
     return null;
   }
 
   // ====================================================
-  // 顯示狀態提示橫幅（非阻斷式，3 秒後消失）
+  // 客戶選擇對話框 (Modal) 邏輯
   // ====================================================
-  function showStatusBanner(msg, type = "info") {
-    let banner = document.getElementById("statusBanner");
-    if (!banner) {
-      banner = document.createElement("div");
-      banner.id = "statusBanner";
-      banner.style.cssText = "position:fixed;top:64px;left:0;right:0;z-index:300;padding:10px 16px;font-size:0.85rem;font-weight:600;text-align:center;transition:opacity 0.4s;";
-      document.body.appendChild(banner);
-    }
-    const colors = { info: "#2563eb", warn: "#d97706", error: "#dc2626" };
-    banner.style.background = colors[type] || colors.info;
-    banner.style.color = "#fff";
-    banner.style.opacity = "1";
-    banner.textContent = msg;
-    setTimeout(() => { banner.style.opacity = "0"; }, 5000);
-  }
+  customerNameInput.addEventListener("click", () => {
+    customerModalCount.textContent = MOCK_CUSTOMERS.length;
+    customerModalSearch.value = "";
+    renderCustomerModal(MOCK_CUSTOMERS);
+    customerModal.classList.remove("hidden");
+    setTimeout(() => customerModalSearch.focus(), 100);
+  });
 
-  // ====================================================
-  // 透過 GAS 代理讀取共用產品資料
-  // （GAS 以專案擁有者身分存取，不受業務員帳號權限限制）
-  // ====================================================
-  async function loadProductsFromGAS() {
-    try {
-      const res = await fetch(`${GAS_URL}?action=get_products`);
-      if (!res.ok) throw new Error("GAS 回應錯誤：" + res.status);
-      const data = await res.json();
+  btnCloseCustomerModal.addEventListener("click", () => {
+    customerModal.classList.add("hidden");
+  });
 
-      if (data.status === "ok" && Array.isArray(data.data)) {
-        MOCK_PRODUCTS = data.data;
-        localStorage.setItem("products_cache", JSON.stringify(MOCK_PRODUCTS));
-        console.log("[GAS] 產品資料同步成功，共", MOCK_PRODUCTS.length, "筆");
-      } else {
-        throw new Error(data.msg || "GAS 回傳格式異常");
-      }
-    } catch (e) {
-      console.error("[GAS] 讀取產品資料失敗:", e);
-      MOCK_PRODUCTS = JSON.parse(localStorage.getItem("products_cache") || "[]");
-    }
-  }
-
-  // ====================================================
-  // 客戶名稱搜尋提示與自動補全
-  // ====================================================
-  function showCustomerSuggestions(filterText = "") {
-    const val = filterText.trim().toLowerCase();
-    let matches = [];
+  customerModalSearch.addEventListener("input", (e) => {
+    const val = e.target.value.trim().toLowerCase();
     if (!val) {
-      // 未輸入文字時，預設顯示前 20 筆
-      matches = MOCK_CUSTOMERS.slice(0, 20);
-    } else {
-      matches = MOCK_CUSTOMERS.filter(c => {
-        const name = typeof c === 'string' ? c : (c.name || "");
-        const taxId = typeof c === 'object' && c.tax_id ? c.tax_id : "";
-        return name.toLowerCase().includes(val) || taxId.includes(val);
-      }).slice(0, 25);
+      renderCustomerModal(MOCK_CUSTOMERS);
+      return;
+    }
+    const matches = MOCK_CUSTOMERS.filter(c => {
+      const name = typeof c === 'string' ? c : (c.name || "");
+      const taxId = typeof c === 'object' && c.tax_id ? String(c.tax_id) : "";
+      const phone = typeof c === 'object' && c.phone ? String(c.phone) : "";
+      return name.toLowerCase().includes(val) || taxId.includes(val) || phone.includes(val);
+    });
+    renderCustomerModal(matches);
+  });
+
+  function renderCustomerModal(customers) {
+    if (!customers || customers.length === 0) {
+      customerModalResults.innerHTML = `<div class="text-center text-muted mt-3">找不到符合的客戶資料</div>`;
+      return;
     }
 
-    if (matches.length > 0) {
-      customerSuggestions.innerHTML = matches.map(c => {
-        const name = typeof c === 'string' ? c : (c.name || "");
-        const taxId = typeof c === 'object' && c.tax_id ? ` <span style="color:#64748b;font-size:0.75rem;">(${c.tax_id})</span>` : "";
-        return `<div class="suggestion-item" data-name="${name}">${name}${taxId}</div>`;
-      }).join("");
-      customerSuggestions.classList.remove("hidden");
-    } else {
-      if (val) {
-        customerSuggestions.innerHTML = `<div class="suggestion-item text-muted" style="color:#94a3b8;">找不到相符客戶（可直接輸入新客戶名稱）</div>`;
-        customerSuggestions.classList.remove("hidden");
-      } else {
-        customerSuggestions.classList.add("hidden");
-      }
-    }
+    customerModalResults.innerHTML = customers.map(c => {
+      const name = typeof c === 'string' ? c : (c.name || "");
+      const taxId = typeof c === 'object' && c.tax_id ? `統編: ${c.tax_id}` : "";
+      const phone = typeof c === 'object' && c.phone ? `電話: ${c.phone}` : "";
+      const subInfo = [taxId, phone].filter(Boolean).join(" | ");
+
+      return `
+        <div class="customer-item" data-name="${name}">
+          <div class="customer-item-name">${name}</div>
+          ${subInfo ? `<div class="customer-item-sub">${subInfo}</div>` : ""}
+        </div>
+      `;
+    }).join("");
   }
 
-  customerNameInput.addEventListener("focus", () => {
-    showCustomerSuggestions(customerNameInput.value);
-  });
-
-  customerNameInput.addEventListener("input", (e) => {
-    showCustomerSuggestions(e.target.value);
-  });
-
-  // 點擊外部關閉客戶選單
-  document.addEventListener("click", (e) => {
-    if (!customerNameInput.contains(e.target) && !customerSuggestions.contains(e.target)) {
-      customerSuggestions.classList.add("hidden");
-    }
-  });
-
-  customerSuggestions.addEventListener("click", (e) => {
-    const item = e.target.closest(".suggestion-item");
+  customerModalResults.addEventListener("click", (e) => {
+    const item = e.target.closest(".customer-item");
     if (item && item.dataset.name) {
       customerNameInput.value = item.dataset.name;
-      customerSuggestions.classList.add("hidden");
+      customerModal.classList.add("hidden");
     }
   });
 
   // ====================================================
-  // 新增品項
+  // 新增品項（2x2 欄位直接呈現）
   // ====================================================
   function addBlankItem() {
     itemCount++;
@@ -447,8 +416,15 @@ document.addEventListener("DOMContentLoaded", () => {
           <div class="item-title" id="${itemId}-title">點擊選擇產品...</div>
           <button type="button" class="item-remove" onclick="document.getElementById('${itemId}').remove()">&times;</button>
         </div>
-        <div id="${itemId}-info" style="font-size:0.8rem; color:#2563eb; margin: 4px 0 8px 0; display:none;"></div>
-        <div class="item-details">
+        <div class="item-grid">
+          <div>
+            <label>經銷價 (未稅)</label>
+            <input type="text" id="${itemId}-dealer-price" placeholder="-" readonly class="field-readonly price-field">
+          </div>
+          <div>
+            <label>L廠即時庫存</label>
+            <input type="text" id="${itemId}-stock-qty" placeholder="-" readonly class="field-readonly stock-field">
+          </div>
           <div>
             <label>數量</label>
             <input type="number" name="quantity" min="1" value="1" required>
@@ -498,23 +474,18 @@ document.addEventListener("DOMContentLoaded", () => {
       return;
     }
     productResults.innerHTML = products.map(p => {
-      // 庫存：優先使用試算表即時數量，備援使用 DB 的 IN_STOCK 狀態
       const qty = getStockQty(p.code);
       let stockBadge;
       if (qty !== null) {
-        if (qty > 0) {
-          stockBadge = `<span class="stock-badge stock-in">現貨 ${qty}</span>`;
-        } else {
-          stockBadge = `<span class="stock-badge stock-out">零庫存</span>`;
-        }
+        stockBadge = qty > 0
+          ? `<span class="stock-badge stock-in">現貨 ${qty}</span>`
+          : `<span class="stock-badge stock-out">零庫存</span>`;
       } else {
-        // 試算表未比對到，用 products.json 的 stock_status 顯示
         stockBadge = p.stock === "IN_STOCK"
           ? `<span class="stock-badge stock-in">現貨</span>`
           : `<span class="stock-badge stock-out">期貨</span>`;
       }
 
-      // 價格顯示
       const dealerPrice = p.dealer_price ? `<span style="color:var(--primary-color);">經銷 $${Number(p.dealer_price).toLocaleString()}</span>` : "";
       const listPrice   = p.list_price   ? `<span style="color:var(--text-muted);">定價 $${Number(p.list_price).toLocaleString()}</span>`   : "";
       const priceLine   = (dealerPrice || listPrice)
@@ -544,29 +515,32 @@ document.addEventListener("DOMContentLoaded", () => {
       const qty = getStockQty(code);
       let stockStr = "";
       if (qty !== null) {
-        stockStr = qty > 0 ? `現貨: ${qty}` : "零庫存";
+        stockStr = qty > 0 ? `現貨 ${qty}` : "零庫存";
       } else {
         stockStr = productObj.stock === "IN_STOCK" ? "現貨" : "期貨";
       }
       
-      const dPrice = productObj.dealer_price ? Number(productObj.dealer_price).toLocaleString() : "";
+      const dPrice = productObj.dealer_price ? `$${Number(productObj.dealer_price).toLocaleString()}` : "未定";
       
+      // 更新品項標題
       document.getElementById(`${currentEditingItemIndex}-title`).textContent = `[${code}] ${name}`;
       document.getElementById(`${currentEditingItemIndex}-title`).style.color = "var(--text-main)";
       document.getElementById(`${currentEditingItemIndex}-code`).value = code;
       document.getElementById(`${currentEditingItemIndex}-name`).value = name;
       
-      // 更新即時資訊列
-      const infoEl = document.getElementById(`${currentEditingItemIndex}-info`);
-      if (infoEl) {
-        infoEl.textContent = `經銷價: $${dPrice || '未定'} | 庫存: ${stockStr}`;
-        infoEl.style.display = "block";
+      // 直接填入 2x2 介面欄位
+      const dPriceEl = document.getElementById(`${currentEditingItemIndex}-dealer-price`);
+      if (dPriceEl) dPriceEl.value = dPrice;
+      
+      const stockEl = document.getElementById(`${currentEditingItemIndex}-stock-qty`);
+      if (stockEl) {
+        stockEl.value = stockStr;
+        stockEl.style.color = (qty !== null && qty > 0) || productObj.stock === "IN_STOCK" ? "#059669" : "#dc2626";
       }
       
-      // 填入參考價預設 placeholder
       const refInput = document.getElementById(`${currentEditingItemIndex}-ref-price`);
       if (refInput && productObj.dealer_price) {
-        refInput.placeholder = `經銷 $${dPrice}`;
+        refInput.placeholder = `經銷 ${dPrice}`;
       }
       
       productModal.classList.add("hidden");

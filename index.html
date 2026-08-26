@@ -48,8 +48,7 @@
         <div class="form-group" style="display:flex; align-items:flex-end; gap:10px;">
           <div style="flex-grow: 1;">
             <label for="customerName">客戶名稱</label>
-            <input type="text" id="customerName" placeholder="搜尋客戶名稱..." required autocomplete="off">
-            <div id="customerSuggestions" class="suggestions hidden"></div>
+            <input type="text" id="customerName" placeholder="點擊選擇客戶..." required readonly style="cursor:pointer; background:#ffffff;">
           </div>
           <button type="button" id="btnNewCustomer" class="btn btn-secondary" style="height: 48px; min-width: 120px;">
             📸 拍名片建檔
@@ -83,6 +82,22 @@
     </section>
     
   </main>
+
+  <!-- 客戶搜尋對話框 (Modal) -->
+  <div id="customerModal" class="modal hidden">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>選擇客戶 (<span id="customerModalCount">0</span>)</h3>
+        <button id="btnCloseCustomerModal" class="btn-close">&times;</button>
+      </div>
+      <div class="modal-body">
+        <input type="text" id="customerModalSearch" class="search-input" placeholder="搜尋客戶名稱、統編、電話...">
+        <div id="customerModalResults" class="customer-results mt-3">
+          <!-- 搜尋結果 -->
+        </div>
+      </div>
+    </div>
+  </div>
 
   <!-- 品項搜尋對話框 (Modal) -->
   <div id="productModal" class="modal hidden">
