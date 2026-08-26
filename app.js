@@ -202,7 +202,8 @@ document.addEventListener("DOMContentLoaded", () => {
     loadingOverlay.classList.remove("hidden");
     await initData();
     loadingOverlay.classList.add("hidden");
-    alert("✅ 資料同步完成！\n客戶：" + MOCK_CUSTOMERS.length + " 筆 / 產品：" + MOCK_PRODUCTS.length + " 筆");
+    const stockCount = Object.keys(STOCK_MAP).length;
+    alert(`✅ 資料同步完成！\n\n• 客戶資料：${MOCK_CUSTOMERS.length} 筆\n• 產品項目：${MOCK_PRODUCTS.length} 筆\n• 庫存報表：${stockCount} 筆`);
   });
 
   // ====================================================
@@ -378,32 +379,58 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   // ====================================================
-  // 客戶名稱搜尋提示
+  // 客戶名稱搜尋提示與自動補全
   // ====================================================
-  customerNameInput.addEventListener("input", (e) => {
-    const val = e.target.value.toLowerCase();
+  function showCustomerSuggestions(filterText = "") {
+    const val = filterText.trim().toLowerCase();
+    let matches = [];
     if (!val) {
-      customerSuggestions.classList.add("hidden");
-      return;
+      // 未輸入文字時，預設顯示前 20 筆
+      matches = MOCK_CUSTOMERS.slice(0, 20);
+    } else {
+      matches = MOCK_CUSTOMERS.filter(c => {
+        const name = typeof c === 'string' ? c : (c.name || "");
+        const taxId = typeof c === 'object' && c.tax_id ? c.tax_id : "";
+        return name.toLowerCase().includes(val) || taxId.includes(val);
+      }).slice(0, 25);
     }
-    const matches = MOCK_CUSTOMERS.filter(c => {
-      const name = typeof c === 'string' ? c : (c.name || "");
-      return name.toLowerCase().includes(val);
-    });
+
     if (matches.length > 0) {
       customerSuggestions.innerHTML = matches.map(c => {
         const name = typeof c === 'string' ? c : (c.name || "");
-        return `<div class="suggestion-item">${name}</div>`;
+        const taxId = typeof c === 'object' && c.tax_id ? ` <span style="color:#64748b;font-size:0.75rem;">(${c.tax_id})</span>` : "";
+        return `<div class="suggestion-item" data-name="${name}">${name}${taxId}</div>`;
       }).join("");
       customerSuggestions.classList.remove("hidden");
     } else {
+      if (val) {
+        customerSuggestions.innerHTML = `<div class="suggestion-item text-muted" style="color:#94a3b8;">找不到相符客戶（可直接輸入新客戶名稱）</div>`;
+        customerSuggestions.classList.remove("hidden");
+      } else {
+        customerSuggestions.classList.add("hidden");
+      }
+    }
+  }
+
+  customerNameInput.addEventListener("focus", () => {
+    showCustomerSuggestions(customerNameInput.value);
+  });
+
+  customerNameInput.addEventListener("input", (e) => {
+    showCustomerSuggestions(e.target.value);
+  });
+
+  // 點擊外部關閉客戶選單
+  document.addEventListener("click", (e) => {
+    if (!customerNameInput.contains(e.target) && !customerSuggestions.contains(e.target)) {
       customerSuggestions.classList.add("hidden");
     }
   });
 
   customerSuggestions.addEventListener("click", (e) => {
-    if (e.target.classList.contains("suggestion-item")) {
-      customerNameInput.value = e.target.textContent;
+    const item = e.target.closest(".suggestion-item");
+    if (item && item.dataset.name) {
+      customerNameInput.value = item.dataset.name;
       customerSuggestions.classList.add("hidden");
     }
   });
@@ -420,6 +447,7 @@ document.addEventListener("DOMContentLoaded", () => {
           <div class="item-title" id="${itemId}-title">點擊選擇產品...</div>
           <button type="button" class="item-remove" onclick="document.getElementById('${itemId}').remove()">&times;</button>
         </div>
+        <div id="${itemId}-info" style="font-size:0.8rem; color:#2563eb; margin: 4px 0 8px 0; display:none;"></div>
         <div class="item-details">
           <div>
             <label>數量</label>
@@ -427,7 +455,7 @@ document.addEventListener("DOMContentLoaded", () => {
           </div>
           <div>
             <label>現場參考價</label>
-            <input type="number" name="ref_price" placeholder="選填">
+            <input type="number" name="ref_price" id="${itemId}-ref-price" placeholder="選填">
           </div>
         </div>
         <input type="hidden" name="item_code" id="${itemId}-code">
@@ -511,10 +539,36 @@ document.addEventListener("DOMContentLoaded", () => {
     if (item && currentEditingItemIndex) {
       const code = item.dataset.code;
       const name = item.dataset.name;
+      const productObj = MOCK_PRODUCTS.find(p => p.code === code) || {};
+      
+      const qty = getStockQty(code);
+      let stockStr = "";
+      if (qty !== null) {
+        stockStr = qty > 0 ? `現貨: ${qty}` : "零庫存";
+      } else {
+        stockStr = productObj.stock === "IN_STOCK" ? "現貨" : "期貨";
+      }
+      
+      const dPrice = productObj.dealer_price ? Number(productObj.dealer_price).toLocaleString() : "";
+      
       document.getElementById(`${currentEditingItemIndex}-title`).textContent = `[${code}] ${name}`;
       document.getElementById(`${currentEditingItemIndex}-title`).style.color = "var(--text-main)";
       document.getElementById(`${currentEditingItemIndex}-code`).value = code;
       document.getElementById(`${currentEditingItemIndex}-name`).value = name;
+      
+      // 更新即時資訊列
+      const infoEl = document.getElementById(`${currentEditingItemIndex}-info`);
+      if (infoEl) {
+        infoEl.textContent = `經銷價: $${dPrice || '未定'} | 庫存: ${stockStr}`;
+        infoEl.style.display = "block";
+      }
+      
+      // 填入參考價預設 placeholder
+      const refInput = document.getElementById(`${currentEditingItemIndex}-ref-price`);
+      if (refInput && productObj.dealer_price) {
+        refInput.placeholder = `經銷 $${dPrice}`;
+      }
+      
       productModal.classList.add("hidden");
     }
   });
