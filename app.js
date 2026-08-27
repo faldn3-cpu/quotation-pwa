@@ -402,38 +402,30 @@ document.addEventListener("DOMContentLoaded", () => {
   customerModalResults.addEventListener("click", (e) => {
     const item = e.target.closest(".customer-item");
     if (item && item.dataset.name) {
-      customerNameInput.value = item.dataset.name;
-      
       const customer = MOCK_CUSTOMERS.find(c => (c.name || c) === item.dataset.name);
       if (customer && typeof customer === 'object') {
-        document.getElementById("customerDetailCard").classList.remove("hidden");
         const contact = customer.contacts && customer.contacts[0] ? customer.contacts[0].name : "";
-        document.getElementById("customerDetailSummary").textContent = `${customer.name} - ${contact}`;
-        document.getElementById("cdCompany").textContent = customer.name || "";
-        document.getElementById("cdTaxId").textContent = customer.tax_id || "";
-        document.getElementById("cdContact").textContent = contact;
-        document.getElementById("cdPhone").textContent = customer.phone || "";
-        document.getElementById("cdAddress").textContent = customer.address || "";
+        customerNameInput.value = contact ? `${customer.name} - ${contact}` : customer.name;
       } else {
-        document.getElementById("customerDetailCard").classList.add("hidden");
+        customerNameInput.value = item.dataset.name;
       }
-
       customerModal.classList.add("hidden");
     }
   });
 
-  const btnToggleCustomerDetail = document.getElementById("btnToggleCustomerDetail");
-  if (btnToggleCustomerDetail) {
-    btnToggleCustomerDetail.addEventListener("click", () => {
-      const body = document.getElementById("customerDetailBody");
-      if (body.classList.contains("hidden")) {
-        body.classList.remove("hidden");
-        btnToggleCustomerDetail.textContent = "▲";
-      } else {
-        body.classList.add("hidden");
-        btnToggleCustomerDetail.textContent = "▼";
+  function calculateTotal() {
+    let total = 0;
+    const itemRows = document.querySelectorAll('.item-row');
+    itemRows.forEach(row => {
+      const finalPriceInput = row.querySelector('.final-price-field');
+      if (finalPriceInput && finalPriceInput.value) {
+        total += parseFloat(finalPriceInput.value.replace(/[^0-9.-]+/g, "")) || 0;
       }
     });
+    const totalAmountEl = document.getElementById('totalAmount');
+    if (totalAmountEl) {
+      totalAmountEl.textContent = total.toLocaleString();
+    }
   }
 
   // ====================================================
@@ -450,24 +442,28 @@ document.addEventListener("DOMContentLoaded", () => {
         </div>
         <div class="item-grid">
           <div>
-            <label>經銷價(未稅)</label>
-            <input type="text" id="${itemId}-dealer-price" placeholder="-" readonly class="field-readonly price-field">
-          </div>
-          <div>
             <label id="${itemId}-stock-label">庫存表</label>
             <input type="text" id="${itemId}-stock-qty" placeholder="-" readonly class="field-readonly stock-field">
           </div>
           <div>
-            <label>數量</label>
-            <input type="number" name="quantity" min="1" value="1" required>
+            <label>經銷價(未稅)</label>
+            <input type="text" id="${itemId}-dealer-price" placeholder="-" readonly class="field-readonly price-field">
+          </div>
+          <div>
+            <label>建議折數(%)</label>
+            <input type="number" name="suggested_discount" id="${itemId}-sug-discount" placeholder="輸入折數">
           </div>
           <div>
             <label>建議報價(元)</label>
             <input type="number" name="suggested_price" id="${itemId}-sug-price" placeholder="輸入報價">
           </div>
-          <div style="grid-column: span 2;">
-            <label>建議折數(%)</label>
-            <input type="number" name="suggested_discount" id="${itemId}-sug-discount" placeholder="輸入折數">
+          <div>
+            <label>需求數量</label>
+            <input type="number" name="quantity" id="${itemId}-qty" min="1" value="1" required>
+          </div>
+          <div>
+            <label>最終售價(元)</label>
+            <input type="text" id="${itemId}-final-price" placeholder="-" readonly class="field-readonly final-price-field">
           </div>
         </div>
         <input type="hidden" name="item_code" id="${itemId}-code">
@@ -479,6 +475,19 @@ document.addEventListener("DOMContentLoaded", () => {
     const sugPriceInput = document.getElementById(`${itemId}-sug-price`);
     const sugDiscountInput = document.getElementById(`${itemId}-sug-discount`);
     const dealerPriceInput = document.getElementById(`${itemId}-dealer-price`);
+    const qtyInput = document.getElementById(`${itemId}-qty`);
+    const finalPriceInput = document.getElementById(`${itemId}-final-price`);
+
+    function updateFinalPrice() {
+      const sp = parseFloat(sugPriceInput.value);
+      const q = parseInt(qtyInput.value) || 0;
+      if (!isNaN(sp) && q > 0) {
+        finalPriceInput.value = Math.round(sp * q).toLocaleString();
+      } else {
+        finalPriceInput.value = "";
+      }
+      calculateTotal();
+    }
 
     sugPriceInput.addEventListener("input", (e) => {
       const sp = parseFloat(e.target.value);
@@ -490,6 +499,7 @@ document.addEventListener("DOMContentLoaded", () => {
       } else {
         sugDiscountInput.value = "";
       }
+      updateFinalPrice();
     });
 
     sugDiscountInput.addEventListener("input", (e) => {
@@ -502,7 +512,17 @@ document.addEventListener("DOMContentLoaded", () => {
       } else {
         sugPriceInput.value = "";
       }
+      updateFinalPrice();
     });
+
+    qtyInput.addEventListener("input", updateFinalPrice);
+
+    const removeBtn = document.querySelector(`#${itemId} .item-remove`);
+    if(removeBtn) {
+      removeBtn.addEventListener("click", () => {
+        setTimeout(calculateTotal, 50);
+      });
+    }
 
     const titleEl = document.getElementById(`${itemId}-title`);
     titleEl.style.cursor = "pointer";
@@ -579,15 +599,15 @@ document.addEventListener("DOMContentLoaded", () => {
       const qty = getStockQty(code);
       let stockStr = "";
       if (qty !== null) {
-        stockStr = qty > 0 ? `現貨 ${qty}` : "零庫存";
+        stockStr = String(qty);
       } else {
-        stockStr = productObj.stock === "IN_STOCK" ? "現貨" : "期貨";
+        stockStr = "-";
       }
       
       const dPrice = productObj.dealer_price ? `$${Number(productObj.dealer_price).toLocaleString()}` : "未定";
       
-      // 更新品項標題
-      document.getElementById(`${currentEditingItemIndex}-title`).textContent = `[${code}] ${name}`;
+      // 更新品項標題，僅顯示 [型號]
+      document.getElementById(`${currentEditingItemIndex}-title`).textContent = `[${code}]`;
       document.getElementById(`${currentEditingItemIndex}-title`).style.color = "var(--text-main)";
       document.getElementById(`${currentEditingItemIndex}-code`).value = code;
       document.getElementById(`${currentEditingItemIndex}-name`).value = name;
