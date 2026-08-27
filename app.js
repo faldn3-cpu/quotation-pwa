@@ -483,6 +483,7 @@ document.addEventListener("DOMContentLoaded", () => {
       const data = await res.json();
       if (data.status === "ok" && data.data) {
         STOCK_MAP = data.data;
+        localStorage.setItem("inventory_cache", JSON.stringify(STOCK_MAP));
         if (data.last_updated) {
           localStorage.setItem("inventory_last_updated", data.last_updated);
           const timeLabel = document.getElementById("inventoryUpdateTime");
@@ -491,19 +492,35 @@ document.addEventListener("DOMContentLoaded", () => {
         console.log("[GAS] 庫存同步成功，共", Object.keys(STOCK_MAP).length, "筆");
       } else {
         console.warn("[GAS] 庫存讀取異常:", data.msg);
+        STOCK_MAP = JSON.parse(localStorage.getItem("inventory_cache") || "{}");
       }
     } catch(e) {
-      console.warn("[GAS] 庫存讀取失敗（使用離線模式）:", e.message);
+      console.warn("[GAS] 庫存讀取失敗（使用離線快取）:", e.message);
+      STOCK_MAP = JSON.parse(localStorage.getItem("inventory_cache") || "{}");
     }
   }
 
   // ====================================================
-  // 查詢某產品型號的實際庫存數量
+  // 查詢某產品型號的實際庫存數量 (多重純化比對)
   // ====================================================
   function getStockQty(code) {
-    if (!code || Object.keys(STOCK_MAP).length === 0) return null;
-    const key = String(code).replace(/[（(].*?[)）]/g, "").trim().toLowerCase();
-    if (STOCK_MAP[key] !== undefined) return STOCK_MAP[key];
+    if (!code) return null;
+    if (Object.keys(STOCK_MAP).length === 0) {
+      try {
+        STOCK_MAP = JSON.parse(localStorage.getItem("inventory_cache") || "{}");
+      } catch(e) {}
+    }
+    if (Object.keys(STOCK_MAP).length === 0) return null;
+
+    const raw = String(code).trim().toLowerCase();
+    if (STOCK_MAP[raw] !== undefined) return STOCK_MAP[raw];
+
+    const noParen = String(code).replace(/[（(].*?[)）]/g, "").trim().toLowerCase();
+    if (STOCK_MAP[noParen] !== undefined) return STOCK_MAP[noParen];
+
+    const alphaNum = String(code).replace(/[^a-zA-Z0-9]/g, "").toLowerCase();
+    if (STOCK_MAP[alphaNum] !== undefined) return STOCK_MAP[alphaNum];
+
     return null;
   }
 
@@ -883,6 +900,7 @@ document.addEventListener("DOMContentLoaded", () => {
       try {
         await uploadDraftToDrive(draftData);
         loadingOverlay.classList.add("hidden");
+        resetDraftForm();
         draftSection.classList.add("hidden");
         successSection.classList.remove("hidden");
       } catch (err) {
@@ -894,16 +912,24 @@ document.addEventListener("DOMContentLoaded", () => {
       let drafts = JSON.parse(localStorage.getItem("offlineDrafts") || "[]");
       drafts.push(draftData);
       localStorage.setItem("offlineDrafts", JSON.stringify(drafts));
+      resetDraftForm();
       draftSection.classList.add("hidden");
       successSection.classList.remove("hidden");
     }
   });
 
-  btnNewDraft.addEventListener("click", () => {
+  function resetDraftForm() {
     customerNameInput.value = "";
+    const card = document.getElementById("customerDetailCard");
+    if (card) card.classList.add("hidden");
     itemsContainer.innerHTML = "";
     itemCount = 0;
     addBlankItem();
+    calculateTotal();
+  }
+
+  btnNewDraft.addEventListener("click", () => {
+    resetDraftForm();
     successSection.classList.add("hidden");
     draftSection.classList.remove("hidden");
   });
