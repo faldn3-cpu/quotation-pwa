@@ -323,6 +323,9 @@ document.addEventListener("DOMContentLoaded", () => {
       const data = await res.json();
       if (data.status === "ok" && data.data) {
         STOCK_MAP = data.data;
+        if (data.last_updated) {
+          localStorage.setItem("inventory_last_updated", data.last_updated);
+        }
         console.log("[GAS] 庫存同步成功，共", Object.keys(STOCK_MAP).length, "筆");
       } else {
         console.warn("[GAS] 庫存讀取異常:", data.msg);
@@ -400,9 +403,38 @@ document.addEventListener("DOMContentLoaded", () => {
     const item = e.target.closest(".customer-item");
     if (item && item.dataset.name) {
       customerNameInput.value = item.dataset.name;
+      
+      const customer = MOCK_CUSTOMERS.find(c => (c.name || c) === item.dataset.name);
+      if (customer && typeof customer === 'object') {
+        document.getElementById("customerDetailCard").classList.remove("hidden");
+        const contact = customer.contacts && customer.contacts[0] ? customer.contacts[0].name : "";
+        document.getElementById("customerDetailSummary").textContent = `${customer.name} - ${contact}`;
+        document.getElementById("cdCompany").textContent = customer.name || "";
+        document.getElementById("cdTaxId").textContent = customer.tax_id || "";
+        document.getElementById("cdContact").textContent = contact;
+        document.getElementById("cdPhone").textContent = customer.phone || "";
+        document.getElementById("cdAddress").textContent = customer.address || "";
+      } else {
+        document.getElementById("customerDetailCard").classList.add("hidden");
+      }
+
       customerModal.classList.add("hidden");
     }
   });
+
+  const btnToggleCustomerDetail = document.getElementById("btnToggleCustomerDetail");
+  if (btnToggleCustomerDetail) {
+    btnToggleCustomerDetail.addEventListener("click", () => {
+      const body = document.getElementById("customerDetailBody");
+      if (body.classList.contains("hidden")) {
+        body.classList.remove("hidden");
+        btnToggleCustomerDetail.textContent = "▲";
+      } else {
+        body.classList.add("hidden");
+        btnToggleCustomerDetail.textContent = "▼";
+      }
+    });
+  }
 
   // ====================================================
   // 新增品項（2x2 欄位直接呈現）
@@ -418,11 +450,11 @@ document.addEventListener("DOMContentLoaded", () => {
         </div>
         <div class="item-grid">
           <div>
-            <label>經銷價 (未稅)</label>
+            <label>經銷價(未稅)</label>
             <input type="text" id="${itemId}-dealer-price" placeholder="-" readonly class="field-readonly price-field">
           </div>
           <div>
-            <label>L廠即時庫存</label>
+            <label id="${itemId}-stock-label">庫存表</label>
             <input type="text" id="${itemId}-stock-qty" placeholder="-" readonly class="field-readonly stock-field">
           </div>
           <div>
@@ -430,8 +462,12 @@ document.addEventListener("DOMContentLoaded", () => {
             <input type="number" name="quantity" min="1" value="1" required>
           </div>
           <div>
-            <label>現場參考價</label>
-            <input type="number" name="ref_price" id="${itemId}-ref-price" placeholder="選填">
+            <label>建議報價(元)</label>
+            <input type="number" name="suggested_price" id="${itemId}-sug-price" placeholder="輸入報價">
+          </div>
+          <div style="grid-column: span 2;">
+            <label>建議折數(%)</label>
+            <input type="number" name="suggested_discount" id="${itemId}-sug-discount" placeholder="輸入折數">
           </div>
         </div>
         <input type="hidden" name="item_code" id="${itemId}-code">
@@ -439,6 +475,34 @@ document.addEventListener("DOMContentLoaded", () => {
       </div>
     `;
     itemsContainer.insertAdjacentHTML('beforeend', itemHTML);
+
+    const sugPriceInput = document.getElementById(`${itemId}-sug-price`);
+    const sugDiscountInput = document.getElementById(`${itemId}-sug-discount`);
+    const dealerPriceInput = document.getElementById(`${itemId}-dealer-price`);
+
+    sugPriceInput.addEventListener("input", (e) => {
+      const sp = parseFloat(e.target.value);
+      const dpStr = dealerPriceInput.value.replace(/[^0-9.]/g, '');
+      const dp = parseFloat(dpStr);
+      if (!isNaN(sp) && !isNaN(dp) && dp > 0) {
+        const discount = (sp / dp) * 100;
+        sugDiscountInput.value = discount.toFixed(2);
+      } else {
+        sugDiscountInput.value = "";
+      }
+    });
+
+    sugDiscountInput.addEventListener("input", (e) => {
+      const disc = parseFloat(e.target.value);
+      const dpStr = dealerPriceInput.value.replace(/[^0-9.]/g, '');
+      const dp = parseFloat(dpStr);
+      if (!isNaN(disc) && !isNaN(dp)) {
+        const sp = dp * (disc / 100);
+        sugPriceInput.value = Math.round(sp);
+      } else {
+        sugPriceInput.value = "";
+      }
+    });
 
     const titleEl = document.getElementById(`${itemId}-title`);
     titleEl.style.cursor = "pointer";
@@ -537,10 +601,11 @@ document.addEventListener("DOMContentLoaded", () => {
         stockEl.value = stockStr;
         stockEl.style.color = (qty !== null && qty > 0) || productObj.stock === "IN_STOCK" ? "#059669" : "#dc2626";
       }
-      
-      const refInput = document.getElementById(`${currentEditingItemIndex}-ref-price`);
-      if (refInput && productObj.dealer_price) {
-        refInput.placeholder = `經銷 ${dPrice}`;
+
+      const lastUpdated = localStorage.getItem("inventory_last_updated");
+      const stockLabel = document.getElementById(`${currentEditingItemIndex}-stock-label`);
+      if (stockLabel) {
+        stockLabel.textContent = lastUpdated ? `庫存表(${lastUpdated})` : "庫存表";
       }
       
       productModal.classList.add("hidden");
@@ -567,11 +632,18 @@ document.addEventListener("DOMContentLoaded", () => {
       const code     = row.querySelector("input[name='item_code']").value;
       const name     = row.querySelector("input[name='item_name']").value;
       const qty      = row.querySelector("input[name='quantity']").value;
-      const refPrice = row.querySelector("input[name='ref_price']").value;
+      const sugPrice = row.querySelector("input[name='suggested_price']").value;
+      const sugDiscount = row.querySelector("input[name='suggested_discount']").value;
       if (!code) {
         hasError = true;
       } else {
-        items.push({ code, name, quantity: parseInt(qty), ref_price: parseFloat(refPrice) || null });
+        items.push({ 
+          code, 
+          name, 
+          quantity: parseInt(qty), 
+          suggested_price: parseFloat(sugPrice) || null,
+          suggested_discount: parseFloat(sugDiscount) || null
+        });
       }
     });
 
@@ -622,108 +694,5 @@ document.addEventListener("DOMContentLoaded", () => {
     successSection.classList.add("hidden");
     draftSection.classList.remove("hidden");
   });
-
-  // ====================================================
-  // OCR 名片辨識邏輯
-  // ====================================================
-  const btnNewCustomer    = document.getElementById("btnNewCustomer");
-  const customerOcrModal  = document.getElementById("customerOcrModal");
-  const btnCloseOcr       = document.getElementById("btnCloseOcr");
-  const cameraInput       = document.getElementById("cameraInput");
-  const btnTriggerCamera  = document.getElementById("btnTriggerCamera");
-  const ocrResultForm     = document.getElementById("ocrResultForm");
-  const btnSaveOcrCustomer = document.getElementById("btnSaveOcrCustomer");
-
-  if (btnNewCustomer) {
-    btnNewCustomer.addEventListener("click", () => {
-      customerOcrModal.classList.remove("hidden");
-      ocrResultForm.classList.add("hidden");
-    });
-
-    btnCloseOcr.addEventListener("click", () => customerOcrModal.classList.add("hidden"));
-    btnTriggerCamera.addEventListener("click", () => cameraInput.click());
-
-    cameraInput.addEventListener("change", (e) => {
-      const file = e.target.files[0];
-      if (!file) return;
-      const reader = new FileReader();
-      reader.onload = async (event) => {
-        const base64Str = event.target.result.split(',')[1];
-        const mimeType = file.type;
-        loadingOverlay.classList.remove("hidden");
-        try {
-          await processOcr(base64Str, mimeType);
-        } catch (err) {
-          alert("OCR 辨識失敗：" + err.message);
-        } finally {
-          loadingOverlay.classList.add("hidden");
-          cameraInput.value = "";
-        }
-      };
-      reader.readAsDataURL(file);
-    });
-
-    async function processOcr(base64Str, mimeType) {
-      const res = await fetch(`${GAS_URL}?action=ocr_card`, {
-        method: "POST",
-        headers: { "Content-Type": "text/plain;charset=utf-8" },
-        body: JSON.stringify({ data: base64Str, mimeType: mimeType })
-      });
-      if (!res.ok) throw new Error(`網路錯誤: ${res.status}`);
-      const resData = await res.json();
-      if (resData.status !== "ok") throw new Error(resData.msg || "未知錯誤");
-      const result = resData.data;
-      document.getElementById("ocrCompany").value  = result.name    || "";
-      document.getElementById("ocrTaxId").value    = result.tax_id  || "";
-      document.getElementById("ocrContact").value  = result.contact || "";
-      document.getElementById("ocrAddress").value  = result.address || "";
-      document.getElementById("ocrPhone").value    = result.phone   || "";
-      document.getElementById("ocrMobile").value   = result.mobile  || "";
-      ocrResultForm.classList.remove("hidden");
-    }
-
-    btnSaveOcrCustomer.addEventListener("click", async () => {
-      const name = document.getElementById("ocrCompany").value.trim();
-      if (!name) { alert("公司名稱不能為空"); return; }
-
-      const newCustomer = {
-        id: "C" + Date.now(),
-        name: name,
-        tax_id:  document.getElementById("ocrTaxId").value.trim(),
-        phone:   document.getElementById("ocrPhone").value.trim(),
-        fax: "",
-        address: document.getElementById("ocrAddress").value.trim(),
-        payment_terms: "現金",
-        status: "active",
-        default_discount: 1.0,
-        contacts: [{
-          id: "CT" + Date.now(),
-          name:   document.getElementById("ocrContact").value.trim(),
-          email: "",
-          mobile: document.getElementById("ocrMobile").value.trim()
-        }]
-      };
-
-      MOCK_CUSTOMERS.push(newCustomer);
-      loadingOverlay.classList.remove("hidden");
-      try {
-        const res = await fetch(`${GAS_URL}?action=save_customers`, {
-          method: 'POST',
-          body: JSON.stringify(MOCK_CUSTOMERS),
-          headers: { 'Content-Type': 'text/plain;charset=utf-8' }
-        });
-        const resData = await res.json();
-        if (resData.status !== "ok") throw new Error(resData.msg);
-        alert("客戶建檔成功！已寫入雲端");
-        customerOcrModal.classList.add("hidden");
-        customerNameInput.value = name;
-        localStorage.setItem("customers_cache", JSON.stringify(MOCK_CUSTOMERS));
-      } catch (e) {
-        alert("儲存至雲端失敗: " + e.message);
-      } finally {
-        loadingOverlay.classList.add("hidden");
-      }
-    });
-  }
 
 }); // end DOMContentLoaded

@@ -45,14 +45,25 @@
     <section id="draftSection" class="card hidden fade-in">
       <form id="draftForm">
         
-        <div class="form-group" style="display:flex; align-items:flex-end; gap:10px;">
-          <div style="flex-grow: 1;">
-            <label for="customerName">客戶名稱</label>
-            <input type="text" id="customerName" placeholder="點擊選擇客戶..." required readonly style="cursor:pointer; background:#ffffff;">
+        <div class="form-group">
+          <label for="customerName">客戶名稱</label>
+          <input type="text" id="customerName" placeholder="點擊選擇客戶..." required readonly style="cursor:pointer; background:#ffffff;">
+          
+          <div id="customerDetailCard" class="customer-detail-card hidden">
+            <div class="customer-detail-header">
+              <span id="customerDetailSummary"></span>
+              <button type="button" id="btnToggleCustomerDetail" class="btn-icon" aria-label="展開資訊">
+                ▼
+              </button>
+            </div>
+            <div id="customerDetailBody" class="customer-detail-body hidden">
+              <div class="detail-row"><span class="detail-label">公司名稱</span><span id="cdCompany"></span></div>
+              <div class="detail-row"><span class="detail-label">統一編號</span><span id="cdTaxId"></span></div>
+              <div class="detail-row"><span class="detail-label">聯絡人員</span><span id="cdContact"></span></div>
+              <div class="detail-row"><span class="detail-label">聯絡電話</span><span id="cdPhone"></span></div>
+              <div class="detail-row"><span class="detail-label">公司地址</span><span id="cdAddress"></span></div>
+            </div>
           </div>
-          <button type="button" id="btnNewCustomer" class="btn btn-secondary" style="height: 48px; min-width: 120px;">
-            📸 拍名片建檔
-          </button>
         </div>
 
         <div class="form-group">
@@ -110,47 +121,6 @@
         <input type="text" id="productSearch" class="search-input" placeholder="搜尋型號或品名...">
         <div id="productResults" class="product-results mt-3">
           <!-- 搜尋結果 -->
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- 新增客戶對話框 (OCR) -->
-  <div id="customerOcrModal" class="modal hidden">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h3>AI 智慧建檔</h3>
-        <button id="btnCloseOcr" class="btn-close">&times;</button>
-      </div>
-      <div class="modal-body">
-        <p>請上傳或拍攝名片，AI 將自動為您填入資料。</p>
-        
-        <input type="file" id="cameraInput" accept="image/*" capture="environment" class="hidden">
-        <button id="btnTriggerCamera" class="btn btn-secondary btn-block mb-3">
-          📷 開啟相機拍照
-        </button>
-        
-        <div id="ocrResultForm" class="hidden">
-          <hr>
-          <div class="form-group">
-            <label>公司名稱</label><input type="text" id="ocrCompany">
-          </div>
-          <div class="form-group">
-            <label>統一編號</label><input type="text" id="ocrTaxId">
-          </div>
-          <div class="form-group">
-            <label>聯絡人</label><input type="text" id="ocrContact">
-          </div>
-          <div class="form-group">
-            <label>地址</label><input type="text" id="ocrAddress">
-          </div>
-          <div class="form-group">
-            <label>電話</label><input type="text" id="ocrPhone">
-          </div>
-          <div class="form-group">
-            <label>手機</label><input type="text" id="ocrMobile">
-          </div>
-          <button id="btnSaveOcrCustomer" class="btn btn-primary btn-block mt-3">確認並寫入雲端資料庫</button>
         </div>
       </div>
     </div>
