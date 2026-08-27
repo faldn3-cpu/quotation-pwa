@@ -3,7 +3,7 @@
 // ====================================================
 const GAS_URL = "https://script.google.com/macros/s/AKfycbx48PMWVPysN9gd4OcPq1JmzqkRzwu494C2jFxK71Al13Q4Lr2y5KP3RbS80pgs8CYxGg/exec";
 const WEB_CLIENT_ID = "668571991428-ffjs6ud0apusi7akb0lmptae24qqtbto.apps.googleusercontent.com";
-const DRIVE_SCOPES = "https://www.googleapis.com/auth/drive.readonly profile email";
+const DRIVE_SCOPES = "https://www.googleapis.com/auth/drive.file profile email";
 const BACKUP_FOLDER_NAME = "報價系統備份";
 const CUSTOMERS_FILE_NAME = "customers.json";
 
@@ -213,13 +213,130 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   // ====================================================
+  // 取得或建立「報價系統備份」資料夾 (Google Drive REST API)
+  // ====================================================
+  async function getOrCreateBackupFolderId() {
+    if (!accessToken) throw new Error("尚未登入 Google 帳號");
+
+    const folderQuery = encodeURIComponent(
+      `name='${BACKUP_FOLDER_NAME}' and mimeType='application/vnd.google-apps.folder' and trashed=false`
+    );
+    const searchRes = await fetch(
+      `https://www.googleapis.com/drive/v3/files?q=${folderQuery}&spaces=drive&fields=files(id,name)`,
+      { headers: { Authorization: `Bearer ${accessToken}` } }
+    );
+    if (!searchRes.ok) {
+      const errText = await searchRes.text();
+      throw new Error(`查詢雲端資料夾失敗 (${searchRes.status})：${errText.substring(0, 100)}`);
+    }
+    const searchData = await searchRes.json();
+    if (searchData.files && searchData.files.length > 0) {
+      return searchData.files[0].id;
+    }
+
+    // 若資料夾不存在，前端直接透過 Drive API 建立
+    const createRes = await fetch("https://www.googleapis.com/drive/v3/files", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        name: BACKUP_FOLDER_NAME,
+        mimeType: "application/vnd.google-apps.folder"
+      })
+    });
+    if (!createRes.ok) {
+      const errText = await createRes.text();
+      throw new Error(`建立雲端資料夾失敗 (${createRes.status})：${errText.substring(0, 100)}`);
+    }
+    const createData = await createRes.json();
+    return createData.id;
+  }
+
+  // ====================================================
+  // 直連 Google Drive API 上傳草稿 JSON 檔案
+  // ====================================================
+  async function uploadDraftToDrive(draftData) {
+    if (!accessToken) throw new Error("尚未登入 Google 帳號，無法送出草稿");
+
+    const folderId = await getOrCreateBackupFolderId();
+    const timestamp = Date.now();
+    const uuid = Math.random().toString(36).substring(2, 10);
+    const fileName = `draft_${timestamp}_${uuid}.json`;
+
+    draftData.draft_id = fileName;
+    const fileContent = JSON.stringify(draftData, null, 2);
+
+    const boundary = "-------314159265358979323846";
+    const delimiter = "\r\n--" + boundary + "\r\n";
+    const close_delim = "\r\n--" + boundary + "--";
+
+    const metadata = {
+      name: fileName,
+      mimeType: "application/json",
+      parents: [folderId]
+    };
+
+    const multipartRequestBody =
+      delimiter +
+      "Content-Type: application/json; charset=UTF-8\r\n\r\n" +
+      JSON.stringify(metadata) +
+      delimiter +
+      "Content-Type: application/json; charset=UTF-8\r\n\r\n" +
+      fileContent +
+      close_delim;
+
+    const res = await fetch("https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": `multipart/related; boundary=${boundary}`
+      },
+      body: multipartRequestBody
+    });
+
+    if (!res.ok) {
+      const errText = await res.text();
+      throw new Error(`Google Drive 上傳失敗 (${res.status})：${errText.substring(0, 150)}`);
+    }
+
+    return await res.json();
+  }
+
+  // ====================================================
+  // 同步本機離線暫存草稿至 Google Drive
+  // ====================================================
+  async function syncOfflineDraftsToDrive() {
+    if (!accessToken || !navigator.onLine) return;
+    const offlineDrafts = JSON.parse(localStorage.getItem("offlineDrafts") || "[]");
+    if (offlineDrafts.length === 0) return;
+
+    console.log(`[Sync] 正在上傳 ${offlineDrafts.length} 筆離線草稿至 Google Drive...`);
+    const remaining = [];
+    for (const draft of offlineDrafts) {
+      try {
+        await uploadDraftToDrive(draft);
+      } catch (err) {
+        console.error("[Sync] 離線草稿上傳失敗:", err);
+        remaining.push(draft);
+      }
+    }
+    localStorage.setItem("offlineDrafts", JSON.stringify(remaining));
+    if (remaining.length < offlineDrafts.length) {
+      console.log(`[Sync] 成功上傳 ${offlineDrafts.length - remaining.length} 筆離線草稿！`);
+    }
+  }
+
+  // ====================================================
   // 初始化雲端資料載入
   // ====================================================
   async function initData() {
     await Promise.allSettled([
       loadCustomersFromDrive(),
       loadProductsFromGAS(),
-      loadInventoryFromGAS()
+      loadInventoryFromGAS(),
+      syncOfflineDraftsToDrive()
     ]);
   }
 
@@ -731,19 +848,14 @@ document.addEventListener("DOMContentLoaded", () => {
     if (navigator.onLine) {
       loadingOverlay.classList.remove("hidden");
       try {
-        const res = await fetch(`${GAS_URL}?action=draft`, {
-          method: 'POST',
-          body: JSON.stringify(draftData),
-          headers: { 'Content-Type': 'text/plain;charset=utf-8' }
-        });
-        const resData = await res.json();
-        if (resData.status !== "ok") throw new Error(resData.msg || "未知錯誤");
+        await uploadDraftToDrive(draftData);
         loadingOverlay.classList.add("hidden");
         draftSection.classList.add("hidden");
         successSection.classList.remove("hidden");
       } catch (err) {
         loadingOverlay.classList.add("hidden");
-        alert("上傳失敗，請稍後再試: " + err.message);
+        console.error("[Draft] 送出草稿失敗:", err);
+        alert("上傳草稿至 Google 雲端失敗，請稍後再試：\n" + err.message);
       }
     } else {
       let drafts = JSON.parse(localStorage.getItem("offlineDrafts") || "[]");
