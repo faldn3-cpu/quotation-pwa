@@ -48,10 +48,26 @@
         <div class="form-group">
           <label for="customerName">客戶名稱</label>
           <input type="text" id="customerName" placeholder="點擊選擇客戶..." required readonly style="cursor:pointer; background:#ffffff;">
+          
+          <div id="customerDetailCard" class="customer-detail-card hidden">
+            <div class="customer-detail-header">
+              <span id="customerDetailSummary"></span>
+              <button type="button" id="btnToggleCustomerDetail" class="btn-icon" aria-label="展開資訊">
+                ▼
+              </button>
+            </div>
+            <div id="customerDetailBody" class="customer-detail-body hidden">
+              <div class="detail-row"><span class="detail-label">公司名稱</span><span id="cdCompany"></span></div>
+              <div class="detail-row"><span class="detail-label">統一編號</span><span id="cdTaxId"></span></div>
+              <div class="detail-row"><span class="detail-label">聯絡人員</span><span id="cdContact"></span></div>
+              <div class="detail-row"><span class="detail-label">聯絡電話</span><span id="cdPhone"></span></div>
+              <div class="detail-row"><span class="detail-label">公司地址</span><span id="cdAddress"></span></div>
+            </div>
+          </div>
         </div>
 
         <div class="form-group">
-          <label>報價品項</label>
+          <label>報價品項 <span id="inventoryUpdateTime" style="font-size:0.8rem; color:var(--text-muted); font-weight:normal; margin-left:8px;"></span></label>
           <div id="itemsContainer" class="items-list">
             <!-- 動態加入品項 -->
           </div>

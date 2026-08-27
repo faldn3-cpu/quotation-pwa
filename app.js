@@ -181,6 +181,13 @@ document.addEventListener("DOMContentLoaded", () => {
     itemsContainer.innerHTML = "";
     itemCount = 0;
     addBlankItem();
+
+    // 顯示庫存更新時間
+    const lastUpdated = localStorage.getItem("inventory_last_updated");
+    const timeLabel = document.getElementById("inventoryUpdateTime");
+    if (timeLabel && lastUpdated) {
+      timeLabel.textContent = `(庫存更新於 ${lastUpdated})`;
+    }
   }
 
   // ====================================================
@@ -325,6 +332,8 @@ document.addEventListener("DOMContentLoaded", () => {
         STOCK_MAP = data.data;
         if (data.last_updated) {
           localStorage.setItem("inventory_last_updated", data.last_updated);
+          const timeLabel = document.getElementById("inventoryUpdateTime");
+          if (timeLabel) timeLabel.textContent = `(庫存更新於 ${data.last_updated})`;
         }
         console.log("[GAS] 庫存同步成功，共", Object.keys(STOCK_MAP).length, "筆");
       } else {
@@ -340,11 +349,8 @@ document.addEventListener("DOMContentLoaded", () => {
   // ====================================================
   function getStockQty(code) {
     if (!code || Object.keys(STOCK_MAP).length === 0) return null;
-    const normalize = s => s.replace(/[（(].*?[)）]/g, "").replace(/[^a-zA-Z0-9.]/g, "").toLowerCase();
-    const key = normalize(code);
+    const key = String(code).replace(/[（(].*?[)）]/g, "").trim().toLowerCase();
     if (STOCK_MAP[key] !== undefined) return STOCK_MAP[key];
-    const keyRaw = code.replace(/[（(].*?[)）]/g, "").trim().toLowerCase();
-    if (STOCK_MAP[keyRaw] !== undefined) return STOCK_MAP[keyRaw];
     return null;
   }
 
@@ -386,9 +392,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
     customerModalResults.innerHTML = customers.map(c => {
       const name = typeof c === 'string' ? c : (c.name || "");
-      const taxId = typeof c === 'object' && c.tax_id ? `統編: ${c.tax_id}` : "";
-      const phone = typeof c === 'object' && c.phone ? `電話: ${c.phone}` : "";
-      const subInfo = [taxId, phone].filter(Boolean).join(" | ");
+      const contact = typeof c === 'object' && c.contacts && c.contacts[0] ? `聯絡人: ${c.contacts[0].name}` : "";
+      const subInfo = contact;
 
       return `
         <div class="customer-item" data-name="${name}">
@@ -406,12 +411,35 @@ document.addEventListener("DOMContentLoaded", () => {
       if (customer && typeof customer === 'object') {
         const contact = customer.contacts && customer.contacts[0] ? customer.contacts[0].name : "";
         customerNameInput.value = contact ? `${customer.name} - ${contact}` : customer.name;
+        
+        document.getElementById("customerDetailCard").classList.remove("hidden");
+        document.getElementById("customerDetailSummary").textContent = `${customer.name} - ${contact}`;
+        document.getElementById("cdCompany").textContent = customer.name || "";
+        document.getElementById("cdTaxId").textContent = customer.tax_id || "";
+        document.getElementById("cdContact").textContent = contact;
+        document.getElementById("cdPhone").textContent = customer.phone || "";
+        document.getElementById("cdAddress").textContent = customer.address || "";
       } else {
         customerNameInput.value = item.dataset.name;
+        document.getElementById("customerDetailCard").classList.add("hidden");
       }
       customerModal.classList.add("hidden");
     }
   });
+
+  const btnToggleCustomerDetail = document.getElementById("btnToggleCustomerDetail");
+  if (btnToggleCustomerDetail) {
+    btnToggleCustomerDetail.addEventListener("click", () => {
+      const body = document.getElementById("customerDetailBody");
+      if (body.classList.contains("hidden")) {
+        body.classList.remove("hidden");
+        btnToggleCustomerDetail.textContent = "▲";
+      } else {
+        body.classList.add("hidden");
+        btnToggleCustomerDetail.textContent = "▼";
+      }
+    });
+  }
 
   function calculateTotal() {
     let total = 0;
@@ -620,12 +648,6 @@ document.addEventListener("DOMContentLoaded", () => {
       if (stockEl) {
         stockEl.value = stockStr;
         stockEl.style.color = (qty !== null && qty > 0) || productObj.stock === "IN_STOCK" ? "#059669" : "#dc2626";
-      }
-
-      const lastUpdated = localStorage.getItem("inventory_last_updated");
-      const stockLabel = document.getElementById(`${currentEditingItemIndex}-stock-label`);
-      if (stockLabel) {
-        stockLabel.textContent = lastUpdated ? `庫存表(${lastUpdated})` : "庫存表";
       }
       
       productModal.classList.add("hidden");

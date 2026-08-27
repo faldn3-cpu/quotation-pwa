@@ -1,4 +1,4 @@
-const CACHE_NAME = 'quote-draft-v5';
+const CACHE_NAME = 'quote-draft-v7';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',

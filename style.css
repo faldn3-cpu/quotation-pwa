@@ -416,6 +416,53 @@ input:focus {
 }
 .btn-icon:hover { background: rgba(255, 255, 255, 0.28); }
 
+/* 客戶詳細資訊區塊 */
+.customer-detail-card {
+  margin-top: 10px;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background-color: #f8fafc;
+  overflow: hidden;
+}
+
+.customer-detail-header {
+  padding: 10px 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-weight: 600;
+  font-size: 0.95rem;
+  color: var(--primary-color);
+  background-color: #eff6ff;
+}
+
+.customer-detail-header .btn-icon {
+  color: var(--primary-color);
+  background: none;
+  border: none;
+  padding: 4px;
+}
+
+.customer-detail-body {
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 0.85rem;
+  border-top: 1px solid var(--border-color);
+}
+
+.detail-row {
+  display: flex;
+}
+
+.detail-label {
+  color: var(--text-muted);
+  font-weight: 500;
+  width: 70px;
+  flex-shrink: 0;
+}
+
 /* 小計區塊 */
 .total-summary-card {
   padding: 1rem;
