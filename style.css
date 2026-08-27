@@ -315,6 +315,13 @@ input:focus {
   margin-bottom: 1rem;
 }
 
+.modal-body {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
 .btn-close {
   background: none;
   border: none;
