@@ -301,9 +301,11 @@ input:focus {
 .modal-content {
   background: white;
   width: 100%;
-  max-height: 80vh;
+  height: 85vh;
+  height: 85dvh;
+  max-height: 90vh;
   border-radius: 20px 20px 0 0;
-  padding: 1.5rem;
+  padding: 1.25rem 1.25rem 1rem 1.25rem;
   display: flex;
   flex-direction: column;
 }
@@ -312,7 +314,8 @@ input:focus {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 1rem;
+  margin-bottom: 0.75rem;
+  flex-shrink: 0;
 }
 
 .modal-body {
@@ -320,22 +323,32 @@ input:focus {
   flex-direction: column;
   flex: 1;
   min-height: 0;
+  overflow: hidden;
 }
 
-.btn-close {
-  background: none;
-  border: none;
-  font-size: 1.5rem;
-  cursor: pointer;
-  color: var(--text-muted);
+.search-input {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  font-size: 1rem;
+  flex-shrink: 0;
+  margin-bottom: 0.75rem;
+  outline: none;
+}
+.search-input:focus {
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.2);
 }
 
-.product-results {
+.customer-results, .product-results {
   overflow-y: auto;
   flex: 1;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
+  padding-bottom: 0.5rem;
 }
 
 .product-item {

@@ -546,10 +546,20 @@ document.addEventListener("DOMContentLoaded", () => {
       return;
     }
     const matches = MOCK_CUSTOMERS.filter(c => {
-      const name = typeof c === 'string' ? c : (c.name || "");
-      const taxId = typeof c === 'object' && c.tax_id ? String(c.tax_id) : "";
-      const phone = typeof c === 'object' && c.phone ? String(c.phone) : "";
-      return name.toLowerCase().includes(val) || taxId.includes(val) || phone.includes(val);
+      if (typeof c === 'string') return c.toLowerCase().includes(val);
+      const name = String(c.name || "").toLowerCase();
+      const taxId = String(c.tax_id || "").toLowerCase();
+      const phone = String(c.phone || "").toLowerCase();
+      const addr = String(c.address || "").toLowerCase();
+      
+      const hasContactMatch = Array.isArray(c.contacts) && c.contacts.some(ct => {
+        const ctName = String(ct.name || "").toLowerCase();
+        const ctPhone = String(ct.phone || "").toLowerCase();
+        const ctEmail = String(ct.email || "").toLowerCase();
+        return ctName.includes(val) || ctPhone.includes(val) || ctEmail.includes(val);
+      });
+
+      return name.includes(val) || taxId.includes(val) || phone.includes(val) || addr.includes(val) || hasContactMatch;
     });
     renderCustomerModal(matches);
   });
@@ -562,8 +572,12 @@ document.addEventListener("DOMContentLoaded", () => {
 
     customerModalResults.innerHTML = customers.map(c => {
       const name = typeof c === 'string' ? c : (c.name || "");
-      const contact = typeof c === 'object' && c.contacts && c.contacts[0] ? `聯絡人: ${c.contacts[0].name}` : "";
-      const subInfo = contact;
+      let subInfo = "";
+      if (typeof c === 'object' && c.contacts && c.contacts.length > 0) {
+        subInfo = c.contacts.map(ct => `聯絡人: ${ct.name}${ct.phone ? ` (${ct.phone})` : ''}`).join(" | ");
+      } else if (typeof c === 'object' && c.phone) {
+        subInfo = `電話: ${c.phone}`;
+      }
 
       return `
         <div class="customer-item" data-name="${name}">
@@ -729,16 +743,42 @@ document.addEventListener("DOMContentLoaded", () => {
       currentEditingItemIndex = itemId;
       selectedProductCode = null;
       selectedProductName = null;
-      if (btnConfirmProduct) btnConfirmProduct.classList.add("hidden");
+      const title = document.getElementById("productModalTitle");
+      if (title) title.textContent = "選擇產品";
+      if (btnConfirmProduct) {
+        btnConfirmProduct.textContent = "確認選擇";
+        btnConfirmProduct.classList.add("hidden");
+      }
 
       productModal.classList.remove("hidden");
       productSearch.value = "";
       renderProducts(MOCK_PRODUCTS);
-      productSearch.focus();
+      setTimeout(() => productSearch.focus(), 100);
     });
   }
 
   btnAddItem.addEventListener("click", addBlankItem);
+
+  // 快速查價 / 庫存按鈕
+  const btnQuickSearch = document.getElementById("btnQuickSearch");
+  if (btnQuickSearch) {
+    btnQuickSearch.addEventListener("click", () => {
+      currentEditingItemIndex = null;
+      selectedProductCode = null;
+      selectedProductName = null;
+      const title = document.getElementById("productModalTitle");
+      if (title) title.textContent = "🔍 快速查價 / 查庫存";
+      if (btnConfirmProduct) {
+        btnConfirmProduct.textContent = "➕ 加入報價草稿";
+        btnConfirmProduct.classList.add("hidden");
+      }
+
+      productModal.classList.remove("hidden");
+      productSearch.value = "";
+      renderProducts(MOCK_PRODUCTS);
+      setTimeout(() => productSearch.focus(), 100);
+    });
+  }
 
   // ====================================================
   // 產品選擇 Modal
@@ -797,7 +837,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   productResults.addEventListener("click", (e) => {
     const item = e.target.closest(".product-item");
-    if (item && currentEditingItemIndex) {
+    if (item) {
       const allItems = productResults.querySelectorAll(".product-item");
       allItems.forEach(el => el.classList.remove("selected"));
       
@@ -811,7 +851,14 @@ document.addEventListener("DOMContentLoaded", () => {
 
   if (btnConfirmProduct) {
     btnConfirmProduct.addEventListener("click", () => {
-      if (!selectedProductCode || !currentEditingItemIndex) return;
+      if (!selectedProductCode) return;
+
+      let targetItemId = currentEditingItemIndex;
+      if (!targetItemId) {
+        // 若在快速查價模式下點擊加入，自動新增一列品項
+        addBlankItem();
+        targetItemId = `item-${itemCount}`;
+      }
 
       const code = selectedProductCode;
       const name = selectedProductName;
@@ -828,16 +875,21 @@ document.addEventListener("DOMContentLoaded", () => {
       const dPrice = productObj.dealer_price ? `$${Number(productObj.dealer_price).toLocaleString()}` : "未定";
       
       // 更新品項標題，僅顯示 [型號]
-      document.getElementById(`${currentEditingItemIndex}-title`).textContent = `[${code}]`;
-      document.getElementById(`${currentEditingItemIndex}-title`).style.color = "var(--text-main)";
-      document.getElementById(`${currentEditingItemIndex}-code`).value = code;
-      document.getElementById(`${currentEditingItemIndex}-name`).value = name;
+      const titleField = document.getElementById(`${targetItemId}-title`);
+      if (titleField) {
+        titleField.textContent = `[${code}]`;
+        titleField.style.color = "var(--text-main)";
+      }
+      const codeField = document.getElementById(`${targetItemId}-code`);
+      if (codeField) codeField.value = code;
+      const nameField = document.getElementById(`${targetItemId}-name`);
+      if (nameField) nameField.value = name;
       
       // 直接填入 2x2 介面欄位
-      const dPriceEl = document.getElementById(`${currentEditingItemIndex}-dealer-price`);
+      const dPriceEl = document.getElementById(`${targetItemId}-dealer-price`);
       if (dPriceEl) dPriceEl.value = dPrice;
       
-      const stockEl = document.getElementById(`${currentEditingItemIndex}-stock-qty`);
+      const stockEl = document.getElementById(`${targetItemId}-stock-qty`);
       if (stockEl) {
         stockEl.value = stockStr;
         stockEl.style.color = (qty !== null && qty > 0) || productObj.stock === "IN_STOCK" ? "#059669" : "#dc2626";

@@ -11,7 +11,7 @@
   
   <!-- Google Fonts: Inter -->
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=12">
+  <link rel="stylesheet" href="style.css?v=13">
   <!-- Google Identity Services -->
   <script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
@@ -43,6 +43,12 @@
 
     <!-- 報價表單 -->
     <section id="draftSection" class="card hidden fade-in">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
+        <h2 style="font-size:1.25rem; margin:0;">新增報價草稿</h2>
+        <button type="button" id="btnQuickSearch" class="btn" style="font-size:0.85rem; padding:6px 12px; border-radius:20px; border:1px solid var(--primary-color); color:var(--primary-color); background:#eff6ff; font-weight:600; cursor:pointer;">
+          🔍 快速查價 / 庫存
+        </button>
+      </div>
       <form id="draftForm">
         
         <div class="form-group">
