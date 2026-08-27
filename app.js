@@ -144,17 +144,50 @@ document.addEventListener("DOMContentLoaded", () => {
       userProfile = await fetchUserProfile();
       console.log("[Auth] 使用者：", userProfile.name, "/", userProfile.email);
 
+      // 檢查使用者 Email 是否在管理者設定的白名單內
+      const checkResult = await checkWhitelist(userProfile.email);
+      if (!checkResult.allowed) {
+        accessToken = null;
+        alert(checkResult.msg || "❌ 存取受限：您的帳號尚未通過管理員審核。");
+        return;
+      }
+
       // 載入資料（客戶 + 產品 + 庫存）
       await initData();
 
-      // 進入報價表單
-      enterDraftMode(userProfile.name || userProfile.email);
+      // 進入報價表單（優先顯示白名單中設定的業務姓名）
+      enterDraftMode(checkResult.name || userProfile.name || userProfile.email);
 
     } catch (err) {
       console.error("[Auth] 登入後初始化失敗:", err);
       alert("資料載入失敗，請重新整理後再試。\n錯誤：" + err.message);
     } finally {
       loadingOverlay.classList.add("hidden");
+    }
+  }
+
+  // ====================================================
+  // 檢查白名單權限 (呼叫 GAS check_whitelist)
+  // ====================================================
+  async function checkWhitelist(email) {
+    if (!email) return { allowed: false, msg: "無效的使用者帳號" };
+    try {
+      const res = await fetch(`${GAS_URL}?action=check_whitelist&email=${encodeURIComponent(email)}`);
+      if (!res.ok) {
+        console.warn("[Auth] GAS 白名單檢查 HTTP 錯誤:", res.status);
+        // 連線異常時，若有本機快取可允許離線使用
+        return { allowed: true };
+      }
+      const data = await res.json();
+      if (data.status === "ok") {
+        return { allowed: true, name: data.name };
+      } else if (data.status === "rejected") {
+        return { allowed: false, msg: data.msg };
+      }
+      return { allowed: false, msg: data.msg || "驗證失敗" };
+    } catch(err) {
+      console.warn("[Auth] 白名單連線檢查異常，離線模式允許存取:", err);
+      return { allowed: true };
     }
   }
 
