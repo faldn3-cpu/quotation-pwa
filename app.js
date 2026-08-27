@@ -48,8 +48,11 @@ document.addEventListener("DOMContentLoaded", () => {
   const btnCloseModal       = document.getElementById("btnCloseModal");
   const productSearch       = document.getElementById("productSearch");
   const productResults      = document.getElementById("productResults");
+  const btnConfirmProduct   = document.getElementById("btnConfirmProduct");
 
   let currentEditingItemIndex = -1;
+  let selectedProductCode = null;
+  let selectedProductName = null;
   let itemCount = 0;
 
   // ====================================================
@@ -557,6 +560,10 @@ document.addEventListener("DOMContentLoaded", () => {
     titleEl.style.color = "var(--primary-color)";
     titleEl.addEventListener("click", () => {
       currentEditingItemIndex = itemId;
+      selectedProductCode = null;
+      selectedProductName = null;
+      if (btnConfirmProduct) btnConfirmProduct.classList.add("hidden");
+
       productModal.classList.remove("hidden");
       productSearch.value = "";
       renderProducts(MOCK_PRODUCTS);
@@ -581,6 +588,10 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   function renderProducts(products) {
+    selectedProductCode = null;
+    selectedProductName = null;
+    if (btnConfirmProduct) btnConfirmProduct.classList.add("hidden");
+
     if (products.length === 0) {
       productResults.innerHTML = `<div class="text-center text-muted mt-3">找不到符合的產品</div>`;
       return;
@@ -620,8 +631,23 @@ document.addEventListener("DOMContentLoaded", () => {
   productResults.addEventListener("click", (e) => {
     const item = e.target.closest(".product-item");
     if (item && currentEditingItemIndex) {
-      const code = item.dataset.code;
-      const name = item.dataset.name;
+      const allItems = productResults.querySelectorAll(".product-item");
+      allItems.forEach(el => el.classList.remove("selected"));
+      
+      item.classList.add("selected");
+      selectedProductCode = item.dataset.code;
+      selectedProductName = item.dataset.name;
+      
+      if (btnConfirmProduct) btnConfirmProduct.classList.remove("hidden");
+    }
+  });
+
+  if (btnConfirmProduct) {
+    btnConfirmProduct.addEventListener("click", () => {
+      if (!selectedProductCode || !currentEditingItemIndex) return;
+
+      const code = selectedProductCode;
+      const name = selectedProductName;
       const productObj = MOCK_PRODUCTS.find(p => p.code === code) || {};
       
       const qty = getStockQty(code);
@@ -651,8 +677,8 @@ document.addEventListener("DOMContentLoaded", () => {
       }
       
       productModal.classList.add("hidden");
-    }
-  });
+    });
+  }
 
   // ====================================================
   // 送出草稿

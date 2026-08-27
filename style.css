@@ -341,6 +341,12 @@ input:focus {
   background-color: #eff6ff;
 }
 
+.product-item.selected {
+  border-color: var(--primary-color);
+  background-color: #eff6ff;
+  box-shadow: 0 0 0 1px var(--primary-color);
+}
+
 /* Loading Overlay */
 .loading-overlay {
   position: fixed;
