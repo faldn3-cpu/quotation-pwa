@@ -56,12 +56,37 @@ document.addEventListener("DOMContentLoaded", () => {
   let itemCount = 0;
 
   // ====================================================
-  // Service Worker 註冊
+  // Service Worker 註冊與自動更新偵測
   // ====================================================
   if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('./sw.js')
-      .then(reg => console.log('[PWA] Service Worker 已註冊', reg))
+    navigator.serviceWorker.register('./sw.js?v=15')
+      .then(reg => {
+        console.log('[PWA] Service Worker 已註冊 (v15)', reg);
+        // 主動檢查伺服器端是否有新版 sw.js
+        reg.update();
+
+        reg.addEventListener('updatefound', () => {
+          const newWorker = reg.installing;
+          if (newWorker) {
+            newWorker.addEventListener('statechange', () => {
+              if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                console.log('[PWA] 偵測到新版本已安裝，即將自動重新整理...');
+                window.location.reload();
+              }
+            });
+          }
+        });
+      })
       .catch(err => console.error('[PWA] Service Worker 註冊失敗:', err));
+
+    let isRefreshing = false;
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (!isRefreshing) {
+        isRefreshing = true;
+        console.log('[PWA] Service Worker 控制權已更新，自動重載畫面');
+        window.location.reload();
+      }
+    });
   }
 
   // ====================================================
@@ -244,6 +269,47 @@ document.addEventListener("DOMContentLoaded", () => {
     const stockCount = Object.keys(STOCK_MAP).length;
     alert(`✅ 資料同步完成！\n\n• 客戶資料：${MOCK_CUSTOMERS.length} 筆\n• 產品項目：${MOCK_PRODUCTS.length} 筆\n• 庫存報表：${stockCount} 筆`);
   });
+
+  // ====================================================
+  // 強制清除快取並重新載入按鈕
+  // ====================================================
+  const btnClearCache = document.getElementById("btnClearCache");
+  if (btnClearCache) {
+    btnClearCache.addEventListener("click", async () => {
+      const confirmClear = confirm("確定要強制清除本機所有快取（包含 Service Worker 與快取資料）並重新載入最新版本嗎？");
+      if (!confirmClear) return;
+
+      loadingOverlay.classList.remove("hidden");
+      try {
+        // 1. 註銷所有 Service Worker
+        if ('serviceWorker' in navigator) {
+          const registrations = await navigator.serviceWorker.getRegistrations();
+          for (let reg of registrations) {
+            await reg.unregister();
+            console.log('[快取清理] Service Worker 已註銷');
+          }
+        }
+        // 2. 刪除所有 CacheStorage 快取儲存庫
+        if ('caches' in window) {
+          const keys = await caches.keys();
+          await Promise.all(keys.map(k => caches.delete(k)));
+          console.log('[快取清理] CacheStorage 已全數清空');
+        }
+        // 3. 清空 localStorage 快取資料
+        localStorage.removeItem("products_cache");
+        localStorage.removeItem("customers_cache");
+        localStorage.removeItem("inventory_cache");
+        localStorage.removeItem("inventory_last_updated");
+        console.log('[快取清理] localStorage 快取已清空');
+
+        // 4. 加入時間戳記突破所有瀏覽器與代理快取
+        window.location.href = window.location.pathname + '?t=' + Date.now();
+      } catch (err) {
+        console.error('[快取清理] 清除失敗:', err);
+        window.location.reload();
+      }
+    });
+  }
 
   // ====================================================
   // 取得或建立「報價系統備份」資料夾 (Google Drive REST API)
