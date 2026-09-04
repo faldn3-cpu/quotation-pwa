@@ -503,14 +503,22 @@ document.addEventListener("DOMContentLoaded", () => {
   // ====================================================
   // 查詢某產品型號的實際庫存數量 (多重純化比對)
   // ====================================================
+  let isStockMapLoaded = false;
+  function ensureStockMapLoaded() {
+    if (!isStockMapLoaded) {
+      if (!STOCK_MAP || typeof STOCK_MAP !== 'object' || Object.keys(STOCK_MAP).length === 0) {
+        try {
+          STOCK_MAP = JSON.parse(localStorage.getItem("inventory_cache") || "{}");
+        } catch(e) {}
+      }
+      isStockMapLoaded = true;
+    }
+  }
+
   function getStockQty(code) {
     if (!code) return null;
-    if (Object.keys(STOCK_MAP).length === 0) {
-      try {
-        STOCK_MAP = JSON.parse(localStorage.getItem("inventory_cache") || "{}");
-      } catch(e) {}
-    }
-    if (Object.keys(STOCK_MAP).length === 0) return null;
+    ensureStockMapLoaded();
+    if (!STOCK_MAP) return null;
 
     const raw = String(code).trim().toLowerCase();
     if (STOCK_MAP[raw] !== undefined) return STOCK_MAP[raw];
@@ -539,8 +547,28 @@ document.addEventListener("DOMContentLoaded", () => {
     customerModal.classList.add("hidden");
   });
 
+  let customerDebounceTimer = null;
+  let isCustomerComposing = false;
+
+  customerModalSearch.addEventListener("compositionstart", () => {
+    isCustomerComposing = true;
+  });
+
+  customerModalSearch.addEventListener("compositionend", (e) => {
+    isCustomerComposing = false;
+    filterCustomers(e.target.value);
+  });
+
   customerModalSearch.addEventListener("input", (e) => {
-    const val = e.target.value.trim().toLowerCase();
+    if (isCustomerComposing) return;
+    clearTimeout(customerDebounceTimer);
+    customerDebounceTimer = setTimeout(() => {
+      filterCustomers(e.target.value);
+    }, 200);
+  });
+
+  function filterCustomers(keyword) {
+    const val = (keyword || "").trim().toLowerCase();
     if (!val) {
       renderCustomerModal(MOCK_CUSTOMERS);
       return;
@@ -562,7 +590,7 @@ document.addEventListener("DOMContentLoaded", () => {
       return name.includes(val) || taxId.includes(val) || phone.includes(val) || addr.includes(val) || hasContactMatch;
     });
     renderCustomerModal(matches);
-  });
+  }
 
   function renderCustomerModal(customers) {
     if (!customers || customers.length === 0) {
@@ -752,7 +780,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
       productModal.classList.remove("hidden");
       productSearch.value = "";
-      renderProducts(MOCK_PRODUCTS);
+      performProductFilter("");
       setTimeout(() => productSearch.focus(), 100);
     });
   }
@@ -775,65 +803,136 @@ document.addEventListener("DOMContentLoaded", () => {
 
       productModal.classList.remove("hidden");
       productSearch.value = "";
-      renderProducts(MOCK_PRODUCTS);
+      performProductFilter("");
       setTimeout(() => productSearch.focus(), 100);
     });
   }
 
   // ====================================================
-  // 產品選擇 Modal
+  // 產品選擇 Modal（防抖 250ms + 分批加載 50 筆 + 滾動加載）
   // ====================================================
+  const PRODUCT_PAGE_SIZE = 50;
+  let currentProductMatches = [];
+  let renderedProductCount = 0;
+  let productDebounceTimer = null;
+  let isProductComposing = false;
+
   btnCloseModal.addEventListener("click", () => productModal.classList.add("hidden"));
 
-  productSearch.addEventListener("input", (e) => {
-    const val = e.target.value.toLowerCase();
-    const matches = MOCK_PRODUCTS.filter(p =>
-      (p.code || "").toLowerCase().includes(val) ||
-      (p.name || "").toLowerCase().includes(val)
-    );
-    renderProducts(matches);
+  // 輸入法合成事件監聽（防止中文注音/拼音組字時頻繁計算）
+  productSearch.addEventListener("compositionstart", () => {
+    isProductComposing = true;
   });
 
-  function renderProducts(products) {
+  productSearch.addEventListener("compositionend", (e) => {
+    isProductComposing = false;
+    performProductFilter(e.target.value);
+  });
+
+  productSearch.addEventListener("input", (e) => {
+    if (isProductComposing) return;
+    clearTimeout(productDebounceTimer);
+    productDebounceTimer = setTimeout(() => {
+      performProductFilter(e.target.value);
+    }, 250);
+  });
+
+  function performProductFilter(keyword) {
+    const val = (keyword || "").trim().toLowerCase();
+    if (!val) {
+      currentProductMatches = MOCK_PRODUCTS;
+    } else {
+      currentProductMatches = MOCK_PRODUCTS.filter(p =>
+        (p.code && p.code.toLowerCase().includes(val)) ||
+        (p.name && p.name.toLowerCase().includes(val))
+      );
+    }
+    resetAndRenderProducts();
+  }
+
+  function resetAndRenderProducts() {
     selectedProductCode = null;
     selectedProductName = null;
     if (btnConfirmProduct) btnConfirmProduct.classList.add("hidden");
 
-    if (products.length === 0) {
+    renderedProductCount = 0;
+    productResults.innerHTML = "";
+    productResults.scrollTop = 0;
+
+    if (!currentProductMatches || currentProductMatches.length === 0) {
       productResults.innerHTML = `<div class="text-center text-muted mt-3">找不到符合的產品</div>`;
       return;
     }
-    productResults.innerHTML = products.map(p => {
-      const qty = getStockQty(p.code);
-      let stockBadge;
-      if (qty !== null) {
-        stockBadge = qty > 0
-          ? `<span class="stock-badge stock-in">現貨 ${qty}</span>`
-          : `<span class="stock-badge stock-out">零庫存</span>`;
-      } else {
-        stockBadge = p.stock === "IN_STOCK"
-          ? `<span class="stock-badge stock-in">現貨</span>`
-          : `<span class="stock-badge stock-out">期貨</span>`;
-      }
 
-      const dealerPrice = p.dealer_price ? `<span style="color:var(--primary-color);">經銷 $${Number(p.dealer_price).toLocaleString()}</span>` : "";
-      const listPrice   = p.list_price   ? `<span style="color:var(--text-muted);">定價 $${Number(p.list_price).toLocaleString()}</span>`   : "";
-      const priceLine   = (dealerPrice || listPrice)
-        ? `<div style="font-size:0.8rem; display:flex; gap:10px; margin-top:3px;">${dealerPrice}${listPrice}</div>`
-        : "";
+    appendNextProductBatch();
+  }
 
-      return `
-        <div class="product-item" data-code="${p.code}" data-name="${p.name}">
-          <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
-            <strong>${p.code}</strong>
-            ${stockBadge}
-          </div>
-          <div style="color:var(--text-muted); font-size:0.875rem;">${p.name}</div>
-          ${priceLine}
+  function buildProductItemHTML(p) {
+    const qty = getStockQty(p.code);
+    let stockBadge;
+    if (qty !== null) {
+      stockBadge = qty > 0
+        ? `<span class="stock-badge stock-in">現貨 ${qty}</span>`
+        : `<span class="stock-badge stock-out">零庫存</span>`;
+    } else {
+      stockBadge = p.stock === "IN_STOCK"
+        ? `<span class="stock-badge stock-in">現貨</span>`
+        : `<span class="stock-badge stock-out">期貨</span>`;
+    }
+
+    const dealerPrice = p.dealer_price ? `<span style="color:var(--primary-color);">經銷 $${Number(p.dealer_price).toLocaleString()}</span>` : "";
+    const listPrice   = p.list_price   ? `<span style="color:var(--text-muted);">定價 $${Number(p.list_price).toLocaleString()}</span>`   : "";
+    const priceLine   = (dealerPrice || listPrice)
+      ? `<div style="font-size:0.8rem; display:flex; gap:10px; margin-top:3px;">${dealerPrice}${listPrice}</div>`
+      : "";
+
+    return `
+      <div class="product-item" data-code="${p.code || ''}" data-name="${p.name || ''}">
+        <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+          <strong>${p.code || ''}</strong>
+          ${stockBadge}
+        </div>
+        <div style="color:var(--text-muted); font-size:0.875rem;">${p.name || ''}</div>
+        ${priceLine}
+      </div>
+    `;
+  }
+
+  function appendNextProductBatch() {
+    if (!currentProductMatches || renderedProductCount >= currentProductMatches.length) return;
+
+    const existingLoader = document.getElementById("productLoadingIndicator");
+    if (existingLoader) existingLoader.remove();
+
+    const nextBatch = currentProductMatches.slice(renderedProductCount, renderedProductCount + PRODUCT_PAGE_SIZE);
+    renderedProductCount += nextBatch.length;
+
+    const html = nextBatch.map(buildProductItemHTML).join("");
+    productResults.insertAdjacentHTML("beforeend", html);
+
+    if (renderedProductCount < currentProductMatches.length) {
+      const moreHTML = `
+        <div id="productLoadingIndicator" class="text-center text-muted" style="padding:12px; font-size:0.8rem;">
+          向下滑動載入更多 (${renderedProductCount} / ${currentProductMatches.length})
         </div>
       `;
-    }).join("");
+      productResults.insertAdjacentHTML("beforeend", moreHTML);
+    } else if (currentProductMatches.length > PRODUCT_PAGE_SIZE) {
+      const endHTML = `
+        <div id="productLoadingIndicator" class="text-center text-muted" style="padding:12px; font-size:0.8rem;">
+          已顯示全部 ${currentProductMatches.length} 筆產品
+        </div>
+      `;
+      productResults.insertAdjacentHTML("beforeend", endHTML);
+    }
   }
+
+  // 監聽滾動事件以觸發下一批次載入
+  productResults.addEventListener("scroll", () => {
+    if (productResults.scrollTop + productResults.clientHeight >= productResults.scrollHeight - 80) {
+      appendNextProductBatch();
+    }
+  });
 
   productResults.addEventListener("click", (e) => {
     const item = e.target.closest(".product-item");
