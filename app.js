@@ -59,9 +59,9 @@ document.addEventListener("DOMContentLoaded", () => {
   // Service Worker 註冊與自動更新偵測
   // ====================================================
   if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('./sw.js?v=15')
+    navigator.serviceWorker.register('./sw.js?v=1.15')
       .then(reg => {
-        console.log('[PWA] Service Worker 已註冊 (v15)', reg);
+        console.log('[PWA] Service Worker 已註冊 (v 1.15)', reg);
         // 主動檢查伺服器端是否有新版 sw.js
         reg.update();
 
