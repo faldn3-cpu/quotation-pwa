@@ -787,8 +787,11 @@ document.addEventListener("DOMContentLoaded", () => {
           </div>
         </div>
         <div class="item-delivery">
-          <label>交期</label>
-          <input type="text" name="delivery_time" id="${itemId}-delivery" placeholder="例：4-6 週／現貨／待詢" autocomplete="off">
+          <label>交期 / 備註</label>
+          <input type="text" name="delivery_time" id="${itemId}-delivery"
+            list="deliveryOptions"
+            placeholder="點擊選擇或自行輸入..."
+            autocomplete="off">
         </div>
         <input type="hidden" name="item_code" id="${itemId}-code">
         <input type="hidden" name="item_name" id="${itemId}-name">
