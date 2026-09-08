@@ -221,6 +221,22 @@ input:focus {
   display: block;
 }
 
+/* 交期欄位：橫跨全寬，位於 2x2 grid 下方 */
+.item-delivery {
+  margin-top: 0.75rem;
+}
+.item-delivery label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  margin-bottom: 0.25rem;
+  display: block;
+}
+.item-delivery input[type="text"] {
+  padding: 0.6rem 0.875rem;
+  font-size: 0.9rem;
+}
+
 .field-readonly {
   background-color: #f1f5f9 !important;
   color: var(--text-main) !important;

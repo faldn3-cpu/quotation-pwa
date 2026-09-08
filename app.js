@@ -786,6 +786,10 @@ document.addEventListener("DOMContentLoaded", () => {
             <input type="text" id="${itemId}-final-price" placeholder="-" readonly class="field-readonly final-price-field">
           </div>
         </div>
+        <div class="item-delivery">
+          <label>交期</label>
+          <input type="text" name="delivery_time" id="${itemId}-delivery" placeholder="例：4-6 週／現貨／待詢" autocomplete="off">
+        </div>
         <input type="hidden" name="item_code" id="${itemId}-code">
         <input type="hidden" name="item_name" id="${itemId}-name">
       </div>
@@ -1099,6 +1103,7 @@ document.addEventListener("DOMContentLoaded", () => {
       const qty      = row.querySelector("input[name='quantity']").value;
       const sugPrice = row.querySelector("input[name='suggested_price']").value;
       const sugDiscount = row.querySelector("input[name='suggested_discount']").value;
+      const deliveryTime = row.querySelector("input[name='delivery_time']")?.value || "";
       if (!code) {
         hasError = true;
       } else {
@@ -1107,7 +1112,8 @@ document.addEventListener("DOMContentLoaded", () => {
           name, 
           quantity: parseInt(qty), 
           suggested_price: parseFloat(sugPrice) || null,
-          suggested_discount: parseFloat(sugDiscount) || null
+          suggested_discount: parseFloat(sugDiscount) || null,
+          delivery_time: deliveryTime || null
         });
       }
     });
@@ -1181,8 +1187,9 @@ document.addEventListener("DOMContentLoaded", () => {
       const name = row.querySelector("input[name='item_name']")?.value || "";
       if (!code) return; // 未選取產品的行跳過
 
-      const qty      = row.querySelector("input[name='quantity']")?.value || "1";
-      const sugPrice = row.querySelector("input[name='suggested_price']")?.value || "";
+      const qty         = row.querySelector("input[name='quantity']")?.value || "1";
+      const sugPrice     = row.querySelector("input[name='suggested_price']")?.value || "";
+      const deliveryTime = row.querySelector("input[name='delivery_time']")?.value || "";
 
       let priceStr = "-";
       if (sugPrice) {
@@ -1190,12 +1197,14 @@ document.addEventListener("DOMContentLoaded", () => {
         if (!isNaN(priceNum)) priceStr = priceNum.toLocaleString();
       }
 
+      const deliveryStr = deliveryTime.trim() || "待確認";
+
       const block = [
         `產品：\t${code}`,
         `規格：\t${name}`,
         `數量：\t${qty}\tEA`,
         `貴司入手單價： ${priceStr} \t元(未稅)`,
-        `交期：\t待確認`
+        `交期：\t${deliveryStr}`
       ].join("\n");
       resultBlocks.push(block);
     });
