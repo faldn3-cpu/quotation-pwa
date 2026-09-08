@@ -50,6 +50,14 @@ document.addEventListener("DOMContentLoaded", () => {
   const productResults      = document.getElementById("productResults");
   const btnConfirmProduct   = document.getElementById("btnConfirmProduct");
 
+  // LINE Modal
+  const lineModal           = document.getElementById("lineModal");
+  const lineQuoteText       = document.getElementById("lineQuoteText");
+  const btnLineQuote        = document.getElementById("btnLineQuote");
+  const btnCopyLineQuote    = document.getElementById("btnCopyLineQuote");
+  const btnCancelLineQuote  = document.getElementById("btnCancelLineQuote");
+  const btnCloseLineModal   = document.getElementById("btnCloseLineModal");
+
   let currentEditingItemIndex = -1;
   let selectedProductCode = null;
   let selectedProductName = null;
@@ -59,9 +67,9 @@ document.addEventListener("DOMContentLoaded", () => {
   // Service Worker 註冊與自動更新偵測
   // ====================================================
   if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('./sw.js?v=1.15')
+    navigator.serviceWorker.register('./sw.js?v=1.16')
       .then(reg => {
-        console.log('[PWA] Service Worker 已註冊 (v 1.15)', reg);
+        console.log('[PWA] Service Worker 已註冊 (v 1.16)', reg);
         // 主動檢查伺服器端是否有新版 sw.js
         reg.update();
 
@@ -689,6 +697,8 @@ document.addEventListener("DOMContentLoaded", () => {
       if (customer && typeof customer === 'object') {
         const contact = customer.contacts && customer.contacts[0] ? customer.contacts[0].name : "";
         customerNameInput.value = contact ? `${customer.name} - ${contact}` : customer.name;
+        customerNameInput.dataset.company = customer.name || "";
+        customerNameInput.dataset.contact = contact || "";
         
         document.getElementById("customerDetailCard").classList.remove("hidden");
         document.getElementById("customerDetailSummary").textContent = `${customer.name} - ${contact}`;
@@ -699,6 +709,8 @@ document.addEventListener("DOMContentLoaded", () => {
         document.getElementById("cdAddress").textContent = customer.address || "";
       } else {
         customerNameInput.value = item.dataset.name;
+        customerNameInput.dataset.company = item.dataset.name || "";
+        customerNameInput.dataset.contact = "";
         document.getElementById("customerDetailCard").classList.add("hidden");
       }
       customerModal.classList.add("hidden");
@@ -743,8 +755,10 @@ document.addEventListener("DOMContentLoaded", () => {
     const itemHTML = `
       <div class="item-row" id="${itemId}">
         <div class="item-header">
-          <div class="item-title" id="${itemId}-title">點擊選擇產品...</div>
-          <button type="button" class="item-remove" onclick="document.getElementById('${itemId}').remove()">&times;</button>
+          <button type="button" class="product-picker-input" id="${itemId}-title">
+            點擊選擇產品...
+          </button>
+          <button type="button" class="item-remove" onclick="document.getElementById('${itemId}').remove(); setTimeout(calculateTotal, 50);">&times;</button>
         </div>
         <div class="item-grid">
           <div>
@@ -830,9 +844,8 @@ document.addEventListener("DOMContentLoaded", () => {
       });
     }
 
+    // 搜尋對話框觸發事件
     const titleEl = document.getElementById(`${itemId}-title`);
-    titleEl.style.cursor = "pointer";
-    titleEl.style.color = "var(--primary-color)";
     titleEl.addEventListener("click", () => {
       currentEditingItemIndex = itemId;
       selectedProductCode = null;
@@ -1039,11 +1052,11 @@ document.addEventListener("DOMContentLoaded", () => {
       
       const dPrice = productObj.dealer_price ? `$${Number(productObj.dealer_price).toLocaleString()}` : "未定";
       
-      // 更新品項標題，僅顯示 [型號]
+      // 更新 product-picker-input 顯示內容
       const titleField = document.getElementById(`${targetItemId}-title`);
       if (titleField) {
-        titleField.textContent = `[${code}]`;
-        titleField.style.color = "var(--text-main)";
+        titleField.textContent = `[${code}] ${name}`;
+        titleField.classList.add("selected");
       }
       const codeField = document.getElementById(`${targetItemId}-code`);
       if (codeField) codeField.value = code;
@@ -1104,10 +1117,15 @@ document.addEventListener("DOMContentLoaded", () => {
       return;
     }
 
+    const compName = customerNameInput.dataset.company || (customer.includes(" - ") ? customer.split(" - ")[0].trim() : customer);
+    const contName = customerNameInput.dataset.contact || (customer.includes(" - ") ? customer.split(" - ")[1].trim() : "");
+
     const draftData = {
       email:     userProfile ? userProfile.email : "unknown",
       name:      userProfile ? (userProfile.name || userProfile.email) : "unknown",
       customer:  customer,
+      company:   compName,
+      contact:   contName,
       items:     items,
       timestamp: new Date().toISOString()
     };
@@ -1150,5 +1168,109 @@ document.addEventListener("DOMContentLoaded", () => {
     successSection.classList.add("hidden");
     draftSection.classList.remove("hidden");
   });
+
+  // ====================================================
+  // LINE 報價生成與預覽對話框
+  // ====================================================
+  function generateLineQuoteText() {
+    const itemRows = itemsContainer.querySelectorAll(".item-row");
+    const resultBlocks = [];
+
+    itemRows.forEach(row => {
+      const code = row.querySelector("input[name='item_code']")?.value || "";
+      const name = row.querySelector("input[name='item_name']")?.value || "";
+      if (!code) return; // 未選取產品的行跳過
+
+      const qty      = row.querySelector("input[name='quantity']")?.value || "1";
+      const sugPrice = row.querySelector("input[name='suggested_price']")?.value || "";
+
+      let priceStr = "-";
+      if (sugPrice) {
+        const priceNum = parseFloat(sugPrice);
+        if (!isNaN(priceNum)) priceStr = priceNum.toLocaleString();
+      }
+
+      const block = [
+        `產品：\t${code}`,
+        `規格：\t${name}`,
+        `數量：\t${qty}\tEA`,
+        `貴司入手單價： ${priceStr} \t元(未稅)`,
+        `交期：\t待確認`
+      ].join("\n");
+      resultBlocks.push(block);
+    });
+
+    return resultBlocks.join("\n\n");
+  }
+
+  if (btnLineQuote) {
+    btnLineQuote.addEventListener("click", () => {
+      const itemRows = itemsContainer.querySelectorAll(".item-row");
+      const hasProduct = Array.from(itemRows).some(row =>
+        row.querySelector("input[name='item_code']")?.value
+      );
+      if (!hasProduct) {
+        alert("請先選取至少一個品項產品再複製報價。");
+        return;
+      }
+      const text = generateLineQuoteText();
+      lineQuoteText.value = text;
+      lineModal.classList.remove("hidden");
+      setTimeout(() => lineQuoteText.focus(), 100);
+    });
+  }
+
+  function closeLineModal() {
+    lineModal.classList.add("hidden");
+  }
+
+  if (btnCloseLineModal) btnCloseLineModal.addEventListener("click", closeLineModal);
+  if (btnCancelLineQuote) btnCancelLineQuote.addEventListener("click", closeLineModal);
+
+  // 點擊背景關閉 LINE Modal
+  lineModal.addEventListener("click", (e) => {
+    if (e.target === lineModal) closeLineModal();
+  });
+
+  if (btnCopyLineQuote) {
+    btnCopyLineQuote.addEventListener("click", async () => {
+      const text = lineQuoteText.value;
+      let copied = false;
+
+      // 方法 1：現代 Clipboard API (HTTPS 環境)
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        try {
+          await navigator.clipboard.writeText(text);
+          copied = true;
+        } catch (e) {
+          console.warn("[LINE] clipboard.writeText 失敗，嘗試舊方法", e);
+        }
+      }
+
+      // 方法 2：舊式 execCommand fallback (HTTP/舊瀏覽器)
+      if (!copied) {
+        try {
+          lineQuoteText.select();
+          document.execCommand("copy");
+          copied = true;
+        } catch (e) {
+          console.warn("[LINE] execCommand copy 失敗", e);
+        }
+      }
+
+      if (copied) {
+        const orig = btnCopyLineQuote.textContent;
+        btnCopyLineQuote.textContent = "✅ 已複製！";
+        btnCopyLineQuote.style.backgroundColor = "#059669";
+        setTimeout(() => {
+          closeLineModal();
+          btnCopyLineQuote.textContent = orig;
+          btnCopyLineQuote.style.backgroundColor = "";
+        }, 800);
+      } else {
+        alert("自動複製失敗，請長按文字區域手動全選後複製。");
+      }
+    });
+  }
 
 }); // end DOMContentLoaded

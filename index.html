@@ -11,7 +11,7 @@
   
   <!-- Google Fonts: Inter -->
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=1.15">
+  <link rel="stylesheet" href="style.css?v=1.16">
   <!-- Google Identity Services -->
   <script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
@@ -21,7 +21,7 @@
     <div class="header-content">
       <div style="display:flex; align-items:center; gap:8px;">
         <h1>報價擬稿系統</h1>
-        <span class="version-tag">v 1.15</span>
+        <span class="version-tag">v 1.16</span>
       </div>
       <div style="display:flex; gap:10px; align-items:center;">
         <span id="userInfoBadge" class="user-badge hidden"></span>
@@ -96,6 +96,9 @@
         </div>
 
         <div class="form-actions mt-4">
+          <button type="button" id="btnLineQuote" class="btn btn-line btn-block mb-3">
+            📱 複製 LINE 報價
+          </button>
           <button type="submit" id="btnSubmitDraft" class="btn btn-primary btn-block">
             送出草稿
           </button>
@@ -124,6 +127,26 @@
         <input type="text" id="customerModalSearch" class="search-input" placeholder="搜尋客戶名稱、統編、電話...">
         <div id="customerModalResults" class="customer-results mt-3">
           <!-- 搜尋結果 -->
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- LINE 報價預覽對話框 -->
+  <div id="lineModal" class="modal hidden">
+    <div class="modal-content line-modal-content">
+      <div class="modal-header">
+        <h3>📱 預覽 LINE 報價訊息</h3>
+        <button id="btnCloseLineModal" class="btn-close">&times;</button>
+      </div>
+      <div class="modal-body" style="overflow:visible;">
+        <p style="font-size:0.82rem; color:var(--text-muted); margin-bottom:0.5rem; flex-shrink:0;">
+          您可以在此修改文字，確認後點擊「一鍵複製」。
+        </p>
+        <textarea id="lineQuoteText" class="line-quote-textarea"></textarea>
+        <div style="display:flex; gap:0.75rem; margin-top:0.75rem; flex-shrink:0;">
+          <button type="button" id="btnCancelLineQuote" class="btn btn-secondary" style="flex:1;">取消</button>
+          <button type="button" id="btnCopyLineQuote" class="btn btn-line" style="flex:2;">📋 一鍵複製並關閉</button>
         </div>
       </div>
     </div>
