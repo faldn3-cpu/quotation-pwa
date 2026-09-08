@@ -1055,7 +1055,7 @@ document.addEventListener("DOMContentLoaded", () => {
       // 更新 product-picker-input 顯示內容
       const titleField = document.getElementById(`${targetItemId}-title`);
       if (titleField) {
-        titleField.textContent = `[${code}] ${name}`;
+        titleField.textContent = code;
         titleField.classList.add("selected");
       }
       const codeField = document.getElementById(`${targetItemId}-code`);
