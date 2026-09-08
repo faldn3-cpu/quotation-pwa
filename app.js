@@ -792,11 +792,11 @@ document.addEventListener("DOMContentLoaded", () => {
           </div>
           <div>
             <label>建議折數(%)</label>
-            <input type="number" name="suggested_discount" id="${itemId}-sug-discount" placeholder="輸入折數">
+            <input type="number" name="suggested_discount" id="${itemId}-sug-discount" placeholder="輸入折數" step="any">
           </div>
           <div>
             <label>建議報價(元)</label>
-            <input type="number" name="suggested_price" id="${itemId}-sug-price" placeholder="輸入報價">
+            <input type="number" name="suggested_price" id="${itemId}-sug-price" placeholder="輸入報價" step="any">
           </div>
           <div>
             <label>需求數量</label>
