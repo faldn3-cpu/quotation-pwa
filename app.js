@@ -67,9 +67,9 @@ document.addEventListener("DOMContentLoaded", () => {
   // Service Worker 註冊與自動更新偵測
   // ====================================================
   if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('./sw.js?v=1.17')
+    navigator.serviceWorker.register('./sw.js?v=1.18')
       .then(reg => {
-        console.log('[PWA] Service Worker 已註冊 (v 1.17)', reg);
+        console.log('[PWA] Service Worker 已註冊 (v 1.18)', reg);
         // 主動檢查伺服器端是否有新版 sw.js
         reg.update();
 
@@ -976,15 +976,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function buildProductItemHTML(p) {
     const qty = getStockQty(p.code);
-    let stockBadge;
-    if (qty !== null) {
-      stockBadge = qty > 0
-        ? `<span class="stock-badge stock-in">現貨 ${qty}</span>`
-        : `<span class="stock-badge stock-out">零庫存</span>`;
-    } else {
-      stockBadge = p.stock === "IN_STOCK"
-        ? `<span class="stock-badge stock-in">現貨</span>`
-        : `<span class="stock-badge stock-out">期貨</span>`;
+    let stockBadge = "";
+    if (qty !== null && qty > 0) {
+      stockBadge = `<span class="stock-badge stock-in">現貨 ${qty}</span>`;
     }
 
     const dealerPrice = p.dealer_price ? `<span style="color:var(--primary-color);">經銷 $${Number(p.dealer_price).toLocaleString()}</span>` : "";
