@@ -67,9 +67,9 @@ document.addEventListener("DOMContentLoaded", () => {
   // Service Worker 註冊與自動更新偵測
   // ====================================================
   if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('./sw.js?v=1.16')
+    navigator.serviceWorker.register('./sw.js?v=1.17')
       .then(reg => {
-        console.log('[PWA] Service Worker 已註冊 (v 1.16)', reg);
+        console.log('[PWA] Service Worker 已註冊 (v 1.17)', reg);
         // 主動檢查伺服器端是否有新版 sw.js
         reg.update();
 
@@ -323,7 +323,10 @@ document.addEventListener("DOMContentLoaded", () => {
   // 取得或建立「報價系統備份」資料夾 (Google Drive REST API)
   // ====================================================
   async function getOrCreateBackupFolderId() {
-    if (!accessToken) throw new Error("尚未登入 Google 帳號");
+    if (!accessToken) {
+      if (tokenClient) tokenClient.requestAccessToken({ prompt: '' });
+      throw new Error("尚未登入 Google 帳號或憑證已過期");
+    }
 
     const folderQuery = encodeURIComponent(
       `name='${BACKUP_FOLDER_NAME}' and mimeType='application/vnd.google-apps.folder' and trashed=false`
@@ -333,6 +336,11 @@ document.addEventListener("DOMContentLoaded", () => {
       { headers: { Authorization: `Bearer ${accessToken}` } }
     );
     if (!searchRes.ok) {
+      if (searchRes.status === 401) {
+        accessToken = null;
+        if (tokenClient) tokenClient.requestAccessToken({ prompt: '' });
+        throw new Error("Google 登入憑證已過期 (401)，已為您啟動重新授權，請完成登入後再次點擊送出。");
+      }
       const errText = await searchRes.text();
       throw new Error(`查詢雲端資料夾失敗 (${searchRes.status})：${errText.substring(0, 100)}`);
     }
@@ -354,6 +362,11 @@ document.addEventListener("DOMContentLoaded", () => {
       })
     });
     if (!createRes.ok) {
+      if (createRes.status === 401) {
+        accessToken = null;
+        if (tokenClient) tokenClient.requestAccessToken({ prompt: '' });
+        throw new Error("Google 登入憑證已過期 (401)，已為您啟動重新授權，請完成登入後再次點擊送出。");
+      }
       const errText = await createRes.text();
       throw new Error(`建立雲端資料夾失敗 (${createRes.status})：${errText.substring(0, 100)}`);
     }
@@ -365,7 +378,10 @@ document.addEventListener("DOMContentLoaded", () => {
   // 直連 Google Drive API 上傳草稿 JSON 檔案
   // ====================================================
   async function uploadDraftToDrive(draftData) {
-    if (!accessToken) throw new Error("尚未登入 Google 帳號，無法送出草稿");
+    if (!accessToken) {
+      if (tokenClient) tokenClient.requestAccessToken({ prompt: '' });
+      throw new Error("尚未登入 Google 帳號，無法送出草稿");
+    }
 
     const folderId = await getOrCreateBackupFolderId();
     const timestamp = Date.now();
@@ -404,6 +420,11 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
     if (!res.ok) {
+      if (res.status === 401) {
+        accessToken = null;
+        if (tokenClient) tokenClient.requestAccessToken({ prompt: '' });
+        throw new Error("Google 登入憑證已過期 (401)，已為您啟動重新授權，請完成登入後再次點擊送出。");
+      }
       const errText = await res.text();
       throw new Error(`Google Drive 上傳失敗 (${res.status})：${errText.substring(0, 150)}`);
     }
