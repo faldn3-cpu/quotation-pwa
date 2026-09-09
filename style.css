@@ -221,6 +221,34 @@ input:focus {
   display: block;
 }
 
+/* 庫存免責聲明與更新時間提示 (橫跨全寬) */
+.stock-disclaimer-box {
+  grid-column: 1 / -1;
+  background-color: #fffbeb;
+  border: 1px solid #fef3c7;
+  border-left: 3px solid var(--warning-color);
+  border-radius: 6px;
+  padding: 0.45rem 0.65rem;
+  font-size: 0.75rem;
+  line-height: 1.4;
+  color: #92400e;
+  margin: 0.1rem 0;
+}
+
+.stock-disclaimer-time {
+  font-weight: 600;
+  margin-bottom: 0.2rem;
+  color: #78350f;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 2px;
+}
+
+.stock-disclaimer-text {
+  color: #b45309;
+}
+
 /* 交期欄位：橫跨全寬，位於 2x2 grid 下方 */
 .item-delivery {
   margin-top: 0.75rem;

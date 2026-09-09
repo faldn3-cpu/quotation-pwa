@@ -67,9 +67,9 @@ document.addEventListener("DOMContentLoaded", () => {
   // Service Worker 註冊與自動更新偵測
   // ====================================================
   if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('./sw.js?v=1.18')
+    navigator.serviceWorker.register('./sw.js?v=1.19')
       .then(reg => {
-        console.log('[PWA] Service Worker 已註冊 (v 1.18)', reg);
+        console.log('[PWA] Service Worker 已註冊 (v 1.19)', reg);
         // 主動檢查伺服器端是否有新版 sw.js
         reg.update();
 
@@ -253,10 +253,17 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // 顯示庫存更新時間
     const lastUpdated = localStorage.getItem("inventory_last_updated");
+    updateAllInventoryTimeDisplays(lastUpdated);
+  }
+
+  function updateAllInventoryTimeDisplays(timeStr) {
     const timeLabel = document.getElementById("inventoryUpdateTime");
-    if (timeLabel && lastUpdated) {
-      timeLabel.textContent = `(庫存更新於 ${lastUpdated})`;
+    if (timeLabel) {
+      timeLabel.textContent = timeStr ? `(庫存更新於 ${timeStr})` : "";
     }
+    document.querySelectorAll(".inventory-time-text").forEach(el => {
+      el.textContent = timeStr || "待同步";
+    });
   }
 
   // ====================================================
@@ -275,6 +282,8 @@ document.addEventListener("DOMContentLoaded", () => {
     await initData();
     loadingOverlay.classList.add("hidden");
     const stockCount = Object.keys(STOCK_MAP).length;
+    const lastUpdated = localStorage.getItem("inventory_last_updated");
+    updateAllInventoryTimeDisplays(lastUpdated);
     alert(`✅ 資料同步完成！\n\n• 客戶資料：${MOCK_CUSTOMERS.length} 筆\n• 產品項目：${MOCK_PRODUCTS.length} 筆\n• 庫存報表：${stockCount} 筆`);
   });
 
@@ -581,8 +590,7 @@ document.addEventListener("DOMContentLoaded", () => {
         localStorage.setItem("inventory_cache", JSON.stringify(STOCK_MAP));
         if (data.last_updated) {
           localStorage.setItem("inventory_last_updated", data.last_updated);
-          const timeLabel = document.getElementById("inventoryUpdateTime");
-          if (timeLabel) timeLabel.textContent = `(庫存更新於 ${data.last_updated})`;
+          updateAllInventoryTimeDisplays(data.last_updated);
         }
         console.log("[GAS] 庫存同步成功，共", Object.keys(STOCK_MAP).length, "筆");
       } else {
@@ -773,6 +781,8 @@ document.addEventListener("DOMContentLoaded", () => {
   function addBlankItem() {
     itemCount++;
     const itemId = `item-${itemCount}`;
+    const lastUpdated = localStorage.getItem("inventory_last_updated") || "";
+    const updateTimeStr = lastUpdated ? lastUpdated : "待同步";
     const itemHTML = `
       <div class="item-row" id="${itemId}">
         <div class="item-header">
@@ -783,13 +793,23 @@ document.addEventListener("DOMContentLoaded", () => {
         </div>
         <div class="item-grid">
           <div>
-            <label id="${itemId}-stock-label">庫存表</label>
+            <label id="${itemId}-stock-label">庫存數量</label>
             <input type="text" id="${itemId}-stock-qty" placeholder="-" readonly class="field-readonly stock-field">
           </div>
           <div>
             <label>經銷價(未稅)</label>
             <input type="text" id="${itemId}-dealer-price" placeholder="-" readonly class="field-readonly price-field">
           </div>
+
+          <div class="stock-disclaimer-box">
+            <div class="stock-disclaimer-time">
+              <span>🕒 庫存更新時間：</span><strong class="inventory-time-text">${updateTimeStr}</strong>
+            </div>
+            <div class="stock-disclaimer-text">
+              ⚠️ 庫存非即時數量，若庫存數量偏低或屬大手案件，請再次查詢確認實際庫存。
+            </div>
+          </div>
+
           <div>
             <label>建議折數(%)</label>
             <input type="number" name="suggested_discount" id="${itemId}-sug-discount" placeholder="輸入折數" step="any">
