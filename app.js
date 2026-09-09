@@ -6,6 +6,7 @@ const WEB_CLIENT_ID = "668571991428-ffjs6ud0apusi7akb0lmptae24qqtbto.apps.google
 const DRIVE_SCOPES = "https://www.googleapis.com/auth/drive.file profile email";
 const BACKUP_FOLDER_NAME = "報價系統備份";
 const CUSTOMERS_FILE_NAME = "customers.json";
+const PRODUCTS_FILE_NAME = "products.json";
 
 // 庫存對照表：產品型號(小寫) → 可用數量（從 L廠庫存試算表同步）
 let STOCK_MAP = {};
@@ -83,9 +84,9 @@ document.addEventListener("DOMContentLoaded", () => {
   // Service Worker 註冊與自動更新偵測
   // ====================================================
   if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('./sw.js?v=1.26')
+    navigator.serviceWorker.register('./sw.js?v=1.28')
       .then(reg => {
-        console.log('[PWA] Service Worker 已註冊 (v 1.26)', reg);
+        console.log('[PWA] Service Worker 已註冊 (v 1.28)', reg);
         // 主動檢查伺服器端是否有新版 sw.js
         reg.update();
 
@@ -650,7 +651,7 @@ document.addEventListener("DOMContentLoaded", () => {
   async function initData() {
     await Promise.allSettled([
       loadCustomersFromDrive(),
-      loadProductsFromGAS(),
+      loadProductsFromDrive(),
       loadInventoryFromGAS(),
       syncOfflineDraftsToDrive()
     ]);
@@ -732,6 +733,87 @@ document.addEventListener("DOMContentLoaded", () => {
     } catch (e) {
       console.error("[Drive] 讀取客戶資料失敗:", e);
       MOCK_CUSTOMERS = JSON.parse(localStorage.getItem("customers_cache") || "[]");
+    }
+  }
+
+  // ====================================================
+  // 從業務員個人 Google Drive 讀取產品資料
+  // 路徑：報價系統備份 / products.json
+  // 若找不到個人備份檔或讀取失敗，自動降級調用 loadProductsFromGAS()
+  // 依據架構規範：庫存狀態一律不讀取個人硬碟，維持由公司 GAS 即時查詢
+  // ====================================================
+  async function loadProductsFromDrive() {
+    if (!accessToken) {
+      await loadProductsFromGAS();
+      return;
+    }
+    try {
+      // Step 1：搜尋「報價系統備份」資料夾
+      const folderQuery = encodeURIComponent(
+        `name='${BACKUP_FOLDER_NAME}' and mimeType='application/vnd.google-apps.folder' and trashed=false`
+      );
+      const folderRes = await fetch(
+        `https://www.googleapis.com/drive/v3/files?q=${folderQuery}&spaces=drive&fields=files(id,name)`,
+        { headers: { Authorization: `Bearer ${accessToken}` } }
+      );
+      if (!folderRes.ok) {
+        const errText = await folderRes.text();
+        throw new Error(`Drive API 錯誤 ${folderRes.status}：${errText.substring(0, 150)}`);
+      }
+      const folderData = await folderRes.json();
+      const folders = folderData.files || [];
+
+      if (folders.length === 0) {
+        console.warn("[Drive] 找不到「報價系統備份」資料夾，降級使用 GAS 公司產品庫");
+        await loadProductsFromGAS();
+        return;
+      }
+
+      const folderId = folders[0].id;
+
+      // Step 2：搜尋 products.json
+      const fileQuery = encodeURIComponent(
+        `name='${PRODUCTS_FILE_NAME}' and '${folderId}' in parents and trashed=false`
+      );
+      const fileRes = await fetch(
+        `https://www.googleapis.com/drive/v3/files?q=${fileQuery}&spaces=drive&fields=files(id,name,modifiedTime)`,
+        { headers: { Authorization: `Bearer ${accessToken}` } }
+      );
+      if (!fileRes.ok) {
+        const errText = await fileRes.text();
+        throw new Error(`Drive API 錯誤 ${fileRes.status}：${errText.substring(0, 150)}`);
+      }
+      const fileData = await fileRes.json();
+      const files = fileData.files || [];
+
+      if (files.length === 0) {
+        console.warn("[Drive] 找不到個人 products.json，自動降級載入 GAS 公司產品庫");
+        await loadProductsFromGAS();
+        return;
+      }
+
+      const fileId = files[0].id;
+
+      // Step 3：下載檔案內容
+      const downloadRes = await fetch(
+        `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`,
+        { headers: { Authorization: `Bearer ${accessToken}` } }
+      );
+      if (!downloadRes.ok) throw new Error("下載失敗：" + downloadRes.status);
+
+      const personalProducts = await downloadRes.json();
+      if (Array.isArray(personalProducts) && personalProducts.length > 0) {
+        MOCK_PRODUCTS = personalProducts;
+        localStorage.setItem("products_cache", JSON.stringify(MOCK_PRODUCTS));
+        console.log("[Drive] 個人產品資料同步成功，共", MOCK_PRODUCTS.length, "筆");
+      } else {
+        console.warn("[Drive] 個人產品檔案為空，降級使用 GAS 公司產品庫");
+        await loadProductsFromGAS();
+      }
+
+    } catch (e) {
+      console.error("[Drive] 讀取個人產品資料失敗，降級使用 GAS 公司產品庫:", e);
+      await loadProductsFromGAS();
     }
   }
 
