@@ -12,7 +12,7 @@
   
   <!-- Google Fonts: Inter -->
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=1.28">
+  <link rel="stylesheet" href="style.css?v=1.29">
   <!-- Google Identity Services -->
   <script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
@@ -22,7 +22,7 @@
     <div class="header-content">
       <div style="display:flex; align-items:center; gap:8px;">
         <h1>報價擬稿系統</h1>
-        <span class="version-tag">v 1.28</span>
+        <span class="version-tag">v 1.29</span>
       </div>
       <div style="display:flex; gap:10px; align-items:center;">
         <span id="userInfoBadge" class="user-badge hidden" title="點擊可登出帳號" style="cursor:pointer;"></span>
@@ -167,30 +167,30 @@
     </div>
   </div>
 
-  <!-- 交期選項共用 datalist（與桌面端 remark_options 一致）-->
-  <datalist id="deliveryOptions">
-    <option value="交期待確認">
-    <option value="目前現貨">
-    <option value="下單後1~3個工作天">
-    <option value="下單後3~5個工作天">
-    <option value="下單後5~7個工作天">
-    <option value="下單後1~2週">
-    <option value="下單後2~3週">
-    <option value="下單後3~4週">
-    <option value="下單後1~2個月">
-    <option value="下單後2~3個月">
-    <option value="下單後3~4個月">
-    <option value="下單後4~5個月">
-    <option value="下單後5~6個月">
-    <option value="下單後6~8個月">
-    <option value="下單後8~10個月">
-    <option value="下單後10~12個月">
-    <option value="標準交期2個月以上，若有需求建議較早下單。">
-    <option value="標準交期3個月以上，若有需求建議較早下單。">
-    <option value="標準交期4個月以上，若有需求建議較早下單。">
-    <option value="標準交期5個月以上，若有需求建議較早下單。">
-    <option value="標準交期6個月以上，若有需求建議較早下單。">
-  </datalist>
+  <!-- 交期 / 備註選擇對話框 (Modal) -->
+  <div id="deliveryModal" class="modal hidden">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>選擇交期 / 備註</h3>
+        <button id="btnCloseDeliveryModal" class="btn-close">&times;</button>
+      </div>
+      <div class="modal-body">
+        <!-- 自行手動輸入區 (置頂) -->
+        <label style="font-size:0.85rem; font-weight:600; color:var(--text-muted); display:block; margin-bottom:6px;">✍️ 自行手動輸入：</label>
+        <div class="custom-delivery-box">
+          <input type="text" id="customDeliveryInput" class="search-input" placeholder="輸入自訂交期或特殊備註...">
+          <button type="button" id="btnConfirmCustomDelivery" class="btn btn-primary" style="white-space:nowrap; padding:0.75rem 1.2rem;">確認</button>
+        </div>
+        
+        <div class="delivery-list-header mt-3">
+          <span style="font-size:0.85rem; font-weight:600; color:var(--text-muted);">📋 常用預設選項 (點擊直接帶入)：</span>
+        </div>
+        <div id="deliveryModalResults" class="delivery-results mt-2">
+          <!-- 預設選項由 JS 動態產生 -->
+        </div>
+      </div>
+    </div>
+  </div>
 
   <!-- Loading Overlay -->
   <div id="loadingOverlay" class="loading-overlay hidden">
@@ -198,6 +198,6 @@
     <p>處理中...</p>
   </div>
 
-  <script src="app.js?v=1.28"></script>
+  <script src="app.js?v=1.29"></script>
 </body>
 </html>

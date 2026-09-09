@@ -66,7 +66,15 @@ document.addEventListener("DOMContentLoaded", () => {
   const btnCancelLineQuote  = document.getElementById("btnCancelLineQuote");
   const btnCloseLineModal   = document.getElementById("btnCloseLineModal");
 
+  // 交期 Modal
+  const deliveryModal            = document.getElementById("deliveryModal");
+  const btnCloseDeliveryModal     = document.getElementById("btnCloseDeliveryModal");
+  const customDeliveryInput      = document.getElementById("customDeliveryInput");
+  const btnConfirmCustomDelivery = document.getElementById("btnConfirmCustomDelivery");
+  const deliveryModalResults     = document.getElementById("deliveryModalResults");
+
   let currentEditingItemIndex = -1;
+  let currentEditingDeliveryItemId = null;
   let selectedProductCode = null;
   let selectedProductName = null;
   let itemCount = 0;
@@ -84,9 +92,9 @@ document.addEventListener("DOMContentLoaded", () => {
   // Service Worker 註冊與自動更新偵測
   // ====================================================
   if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('./sw.js?v=1.28')
+    navigator.serviceWorker.register('./sw.js?v=1.29')
       .then(reg => {
-        console.log('[PWA] Service Worker 已註冊 (v 1.28)', reg);
+        console.log('[PWA] Service Worker 已註冊 (v 1.29)', reg);
         // 主動檢查伺服器端是否有新版 sw.js
         reg.update();
 
@@ -1082,6 +1090,104 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   // ====================================================
+  // 交期 / 備註選擇對話框 (Modal) 邏輯
+  // ====================================================
+  const PRESET_DELIVERY_OPTIONS = [
+    "交期待確認",
+    "目前現貨",
+    "下單後1~3個工作天",
+    "下單後3~5個工作天",
+    "下單後5~7個工作天",
+    "下單後1~2週",
+    "下單後2~3週",
+    "下單後3~4週",
+    "下單後1~2個月",
+    "下單後2~3個月",
+    "下單後3~4個月",
+    "下單後4~5個月",
+    "下單後5~6個月",
+    "下單後6~8個月",
+    "下單後8~10個月",
+    "下單後10~12個月",
+    "標準交期2個月以上，若有需求建議較早下單。",
+    "標準交期3個月以上，若有需求建議較早下單。",
+    "標準交期4個月以上，若有需求建議較早下單。",
+    "標準交期5個月以上，若有需求建議較早下單。",
+    "標準交期6個月以上，若有需求建議較早下單。"
+  ];
+
+  function openDeliveryModal(itemId) {
+    currentEditingDeliveryItemId = itemId;
+    const currentInput = document.getElementById(`${itemId}-delivery`);
+    const currentVal = currentInput ? currentInput.value.trim() : "";
+    if (customDeliveryInput) customDeliveryInput.value = currentVal;
+    renderDeliveryModal(currentVal);
+    if (deliveryModal) deliveryModal.classList.remove("hidden");
+  }
+
+  function closeDeliveryModal() {
+    if (deliveryModal) deliveryModal.classList.add("hidden");
+    currentEditingDeliveryItemId = null;
+  }
+
+  function renderDeliveryModal(selectedVal) {
+    if (!deliveryModalResults) return;
+    deliveryModalResults.innerHTML = PRESET_DELIVERY_OPTIONS.map(opt => {
+      const isSel = opt === selectedVal;
+      return `
+        <div class="delivery-item ${isSel ? 'selected' : ''}" data-value="${opt}">
+          ${opt}
+        </div>
+      `;
+    }).join("");
+  }
+
+  if (btnCloseDeliveryModal) {
+    btnCloseDeliveryModal.addEventListener("click", closeDeliveryModal);
+  }
+
+  if (deliveryModal) {
+    deliveryModal.addEventListener("click", (e) => {
+      if (e.target === deliveryModal) {
+        closeDeliveryModal();
+      }
+    });
+  }
+
+  if (deliveryModalResults) {
+    deliveryModalResults.addEventListener("click", (e) => {
+      const item = e.target.closest(".delivery-item");
+      if (item && item.dataset.value && currentEditingDeliveryItemId) {
+        const targetInput = document.getElementById(`${currentEditingDeliveryItemId}-delivery`);
+        if (targetInput) {
+          targetInput.value = item.dataset.value;
+        }
+        closeDeliveryModal();
+      }
+    });
+  }
+
+  if (btnConfirmCustomDelivery) {
+    btnConfirmCustomDelivery.addEventListener("click", () => {
+      if (!currentEditingDeliveryItemId) return;
+      const targetInput = document.getElementById(`${currentEditingDeliveryItemId}-delivery`);
+      if (targetInput && customDeliveryInput) {
+        targetInput.value = customDeliveryInput.value.trim();
+      }
+      closeDeliveryModal();
+    });
+  }
+
+  if (customDeliveryInput) {
+    customDeliveryInput.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        if (btnConfirmCustomDelivery) btnConfirmCustomDelivery.click();
+      }
+    });
+  }
+
+  // ====================================================
   // 新增品項（2x2 欄位直接呈現）
   // ====================================================
   function addBlankItem() {
@@ -1138,9 +1244,9 @@ document.addEventListener("DOMContentLoaded", () => {
         <div class="item-delivery">
           <label>交期 / 備註</label>
           <input type="text" name="delivery_time" id="${itemId}-delivery"
-            list="deliveryOptions"
-            placeholder="點擊選擇或自行輸入..."
-            autocomplete="off">
+            placeholder="點擊選擇交期 / 備註..."
+            readonly
+            style="cursor:pointer; background:#ffffff;">
         </div>
         <input type="hidden" name="item_code" id="${itemId}-code">
         <input type="hidden" name="item_name" id="${itemId}-name">
@@ -1148,6 +1254,13 @@ document.addEventListener("DOMContentLoaded", () => {
     `;
     itemsContainer.insertAdjacentHTML('beforeend', itemHTML);
     refreshItemIndices();
+
+    const deliveryInput = document.getElementById(`${itemId}-delivery`);
+    if (deliveryInput) {
+      deliveryInput.addEventListener("click", () => {
+        openDeliveryModal(itemId);
+      });
+    }
 
     const sugPriceInput = document.getElementById(`${itemId}-sug-price`);
     const sugDiscountInput = document.getElementById(`${itemId}-sug-discount`);
