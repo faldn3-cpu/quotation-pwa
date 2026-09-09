@@ -67,9 +67,9 @@ document.addEventListener("DOMContentLoaded", () => {
   // Service Worker 註冊與自動更新偵測
   // ====================================================
   if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('./sw.js?v=1.21')
+    navigator.serviceWorker.register('./sw.js?v=1.22')
       .then(reg => {
-        console.log('[PWA] Service Worker 已註冊 (v 1.21)', reg);
+        console.log('[PWA] Service Worker 已註冊 (v 1.22)', reg);
         // 主動檢查伺服器端是否有新版 sw.js
         reg.update();
 
@@ -328,10 +328,6 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function updateAllInventoryTimeDisplays(timeStr) {
-    const timeLabel = document.getElementById("inventoryUpdateTime");
-    if (timeLabel) {
-      timeLabel.textContent = timeStr ? `(庫存更新於 ${timeStr})` : "";
-    }
     document.querySelectorAll(".inventory-time-text").forEach(el => {
       el.textContent = timeStr || "待同步";
     });
