@@ -18,6 +18,13 @@ let MOCK_PRODUCTS = [];
 let tokenClient = null;
 let accessToken = null;
 let userProfile = null;
+let pendingDraftAfterAuth = null;
+
+function isTokenValid() {
+  if (!accessToken) return false;
+  const exp = parseInt(localStorage.getItem("google_token_expires_at") || "0", 10);
+  return Date.now() < exp;
+}
 
 document.addEventListener("DOMContentLoaded", () => {
 
@@ -76,9 +83,9 @@ document.addEventListener("DOMContentLoaded", () => {
   // Service Worker 註冊與自動更新偵測
   // ====================================================
   if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('./sw.js?v=1.24')
+    navigator.serviceWorker.register('./sw.js?v=1.25')
       .then(reg => {
-        console.log('[PWA] Service Worker 已註冊 (v 1.24)', reg);
+        console.log('[PWA] Service Worker 已註冊 (v 1.25)', reg);
         // 主動檢查伺服器端是否有新版 sw.js
         reg.update();
 
@@ -113,6 +120,14 @@ document.addEventListener("DOMContentLoaded", () => {
   const hasLoggedIn = localStorage.getItem("has_logged_in") === "true";
   const savedDisplayName = localStorage.getItem("saved_display_name") || "已登入業務";
 
+  // 檢查是否有儲存且尚未過期的 Token
+  const savedToken = localStorage.getItem("google_access_token");
+  const savedExpiresAt = parseInt(localStorage.getItem("google_token_expires_at") || "0", 10);
+  if (savedToken && Date.now() < savedExpiresAt) {
+    accessToken = savedToken;
+    console.log("[Auth] 已復原有效之 Google Access Token (剩餘有效時間約", Math.round((savedExpiresAt - Date.now()) / 60000), "分鐘)");
+  }
+
   // 嘗試載入離線快取資料以驗證本機是否具備品項/客戶資料
   loadFromCache();
   const hasLocalData = (MOCK_CUSTOMERS && MOCK_CUSTOMERS.length > 0) || (MOCK_PRODUCTS && MOCK_PRODUCTS.length > 0);
@@ -133,7 +148,7 @@ document.addEventListener("DOMContentLoaded", () => {
   // 點擊使用者標籤可切換帳號或登出（若權杖失效則直接觸發重新授權）
   if (userInfoBadge) {
     userInfoBadge.addEventListener("click", () => {
-      if (!accessToken) {
+      if (!isTokenValid()) {
         if (tokenClient) {
           isSilentAuth = false;
           tokenClient.requestAccessToken({ prompt: 'select_account' });
@@ -144,6 +159,9 @@ document.addEventListener("DOMContentLoaded", () => {
         localStorage.removeItem("has_logged_in");
         localStorage.removeItem("saved_display_name");
         localStorage.removeItem("saved_user_profile");
+        localStorage.removeItem("google_access_token");
+        localStorage.removeItem("google_token_expires_at");
+        localStorage.removeItem("cached_backup_folder_id");
         accessToken = null;
         userProfile = null;
         showLoginSection();
@@ -236,11 +254,17 @@ document.addEventListener("DOMContentLoaded", () => {
         alert("Google 登入失敗：" + (response.error_description || response.error));
       }
       isSilentAuth = false;
+      pendingDraftAfterAuth = null;
       return;
     }
 
     accessToken = response.access_token;
-    console.log("[Auth] 已取得存取權杖 (靜默模式:", isSilentAuth, ")");
+    const expiresIn = parseInt(response.expires_in, 10) || 3600;
+    const expiresAt = Date.now() + (expiresIn - 60) * 1000;
+    localStorage.setItem("google_access_token", accessToken);
+    localStorage.setItem("google_token_expires_at", expiresAt.toString());
+    console.log("[Auth] 已取得存取權杖 (靜默模式:", isSilentAuth, ", 效期:", expiresIn, "秒)");
+
     if (!isSilentAuth) {
       loadingOverlay.classList.remove("hidden");
     }
@@ -253,9 +277,13 @@ document.addEventListener("DOMContentLoaded", () => {
       const checkResult = await checkWhitelist(userProfile.email);
       if (!checkResult.allowed) {
         accessToken = null;
+        pendingDraftAfterAuth = null;
+        localStorage.removeItem("google_access_token");
+        localStorage.removeItem("google_token_expires_at");
         if (!isSilentAuth) {
           alert(checkResult.msg || "❌ 存取受限：您的帳號尚未通過管理員審核。");
         }
+        showLoginSection();
         return;
       }
 
@@ -265,6 +293,36 @@ document.addEventListener("DOMContentLoaded", () => {
       localStorage.setItem("has_logged_in", "true");
       localStorage.setItem("saved_display_name", displayName);
       localStorage.setItem("saved_user_profile", JSON.stringify(userProfile));
+
+      // 若有待處理的草稿（先前因未授權而暫存），立即自動接續送出！
+      if (pendingDraftAfterAuth) {
+        console.log("[Auth] 偵測到待處理草稿，自動執行上傳...");
+        const draftToSend = pendingDraftAfterAuth;
+        pendingDraftAfterAuth = null;
+        try {
+          await uploadDraftToDrive(draftToSend);
+          loadingOverlay.classList.add("hidden");
+          resetDraftForm();
+          draftSection.classList.add("hidden");
+          successSection.classList.remove("hidden");
+          userInfoBadge.textContent = "👤 " + displayName;
+          userInfoBadge.classList.remove("hidden");
+          btnSync.classList.remove("hidden");
+          alert("✅ Google 帳號授權成功，草稿已自動送出！");
+          return;
+        } catch (uploadErr) {
+          console.error("[Auth] 待處理草稿自動上傳失敗:", uploadErr);
+          let drafts = JSON.parse(localStorage.getItem("offlineDrafts") || "[]");
+          drafts.push(draftToSend);
+          localStorage.setItem("offlineDrafts", JSON.stringify(drafts));
+          loadingOverlay.classList.add("hidden");
+          resetDraftForm();
+          draftSection.classList.add("hidden");
+          successSection.classList.remove("hidden");
+          alert("⚠️ 授權完成，但草稿上傳雲端失敗（" + uploadErr.message + "）。\n草稿已先安全保存於本機，後續將在背景自動補傳！");
+          return;
+        }
+      }
 
       // 載入資料（客戶 + 產品 + 庫存）
       await initData();
@@ -419,8 +477,12 @@ document.addEventListener("DOMContentLoaded", () => {
         localStorage.removeItem("has_logged_in");
         localStorage.removeItem("saved_display_name");
         localStorage.removeItem("saved_user_profile");
+        localStorage.removeItem("google_access_token");
+        localStorage.removeItem("google_token_expires_at");
+        localStorage.removeItem("cached_backup_folder_id");
         accessToken = null;
         userProfile = null;
+        pendingDraftAfterAuth = null;
         console.log('[快取清理] localStorage 快取與登入狀態已全數清空');
 
         // 4. 加入時間戳記突破所有瀏覽器與代理快取
@@ -437,8 +499,13 @@ document.addEventListener("DOMContentLoaded", () => {
   // ====================================================
   async function getOrCreateBackupFolderId() {
     if (!accessToken) {
-      if (tokenClient) tokenClient.requestAccessToken({ prompt: '' });
-      throw new Error("尚未登入 Google 帳號或憑證已過期");
+      throw new Error("尚未取得有效的 Google 授權憑證");
+    }
+
+    // 優先使用已快取的資料夾 ID
+    const cachedFolderId = localStorage.getItem("cached_backup_folder_id");
+    if (cachedFolderId) {
+      return cachedFolderId;
     }
 
     const folderQuery = encodeURIComponent(
@@ -451,15 +518,18 @@ document.addEventListener("DOMContentLoaded", () => {
     if (!searchRes.ok) {
       if (searchRes.status === 401) {
         accessToken = null;
-        if (tokenClient) tokenClient.requestAccessToken({ prompt: '' });
-        throw new Error("Google 登入憑證已過期 (401)，已為您啟動重新授權，請完成登入後再次點擊送出。");
+        localStorage.removeItem("google_access_token");
+        localStorage.removeItem("google_token_expires_at");
+        throw new Error("Google 登入憑證已過期 (401)");
       }
       const errText = await searchRes.text();
       throw new Error(`查詢雲端資料夾失敗 (${searchRes.status})：${errText.substring(0, 100)}`);
     }
     const searchData = await searchRes.json();
     if (searchData.files && searchData.files.length > 0) {
-      return searchData.files[0].id;
+      const foundId = searchData.files[0].id;
+      localStorage.setItem("cached_backup_folder_id", foundId);
+      return foundId;
     }
 
     // 若資料夾不存在，前端直接透過 Drive API 建立
@@ -477,13 +547,15 @@ document.addEventListener("DOMContentLoaded", () => {
     if (!createRes.ok) {
       if (createRes.status === 401) {
         accessToken = null;
-        if (tokenClient) tokenClient.requestAccessToken({ prompt: '' });
-        throw new Error("Google 登入憑證已過期 (401)，已為您啟動重新授權，請完成登入後再次點擊送出。");
+        localStorage.removeItem("google_access_token");
+        localStorage.removeItem("google_token_expires_at");
+        throw new Error("Google 登入憑證已過期 (401)");
       }
       const errText = await createRes.text();
       throw new Error(`建立雲端資料夾失敗 (${createRes.status})：${errText.substring(0, 100)}`);
     }
     const createData = await createRes.json();
+    localStorage.setItem("cached_backup_folder_id", createData.id);
     return createData.id;
   }
 
@@ -492,8 +564,7 @@ document.addEventListener("DOMContentLoaded", () => {
   // ====================================================
   async function uploadDraftToDrive(draftData) {
     if (!accessToken) {
-      if (tokenClient) tokenClient.requestAccessToken({ prompt: '' });
-      throw new Error("尚未登入 Google 帳號，無法送出草稿");
+      throw new Error("尚未取得有效的 Google 授權憑證");
     }
 
     const folderId = await getOrCreateBackupFolderId();
@@ -535,8 +606,12 @@ document.addEventListener("DOMContentLoaded", () => {
     if (!res.ok) {
       if (res.status === 401) {
         accessToken = null;
-        if (tokenClient) tokenClient.requestAccessToken({ prompt: '' });
-        throw new Error("Google 登入憑證已過期 (401)，已為您啟動重新授權，請完成登入後再次點擊送出。");
+        localStorage.removeItem("google_access_token");
+        localStorage.removeItem("google_token_expires_at");
+        throw new Error("Google 登入憑證已過期 (401)");
+      }
+      if (res.status === 404) {
+        localStorage.removeItem("cached_backup_folder_id");
       }
       const errText = await res.text();
       throw new Error(`Google Drive 上傳失敗 (${res.status})：${errText.substring(0, 150)}`);
@@ -1299,6 +1374,20 @@ document.addEventListener("DOMContentLoaded", () => {
     };
 
     if (navigator.onLine) {
+      // 檢查 Google 授權憑證是否有效
+      if (!isTokenValid()) {
+        console.log("[Draft] Google 憑證無效或已過期，暫存草稿並啟動授權...");
+        pendingDraftAfterAuth = draftData;
+        if (tokenClient) {
+          isSilentAuth = false;
+          tokenClient.requestAccessToken({ prompt: 'select_account' });
+        } else {
+          alert("尚未完成 Google 授權，請先登入。");
+          showLoginSection();
+        }
+        return; // 優雅中斷，等待授權完成後自動接續上傳，不跳出失敗視窗！
+      }
+
       loadingOverlay.classList.remove("hidden");
       try {
         await uploadDraftToDrive(draftData);
@@ -1309,7 +1398,14 @@ document.addEventListener("DOMContentLoaded", () => {
       } catch (err) {
         loadingOverlay.classList.add("hidden");
         console.error("[Draft] 送出草稿失敗:", err);
-        alert("上傳草稿至 Google 雲端失敗，請稍後再試：\n" + err.message);
+        // 若雲端上傳失敗，自動暫存至離線草稿佇列，確保使用者輸入不遺失
+        let drafts = JSON.parse(localStorage.getItem("offlineDrafts") || "[]");
+        drafts.push(draftData);
+        localStorage.setItem("offlineDrafts", JSON.stringify(drafts));
+        alert("⚠️ 雲端傳輸異常（" + err.message + "）。\n草稿已安全保存於手機本機，系統將在背景自動補傳！");
+        resetDraftForm();
+        draftSection.classList.add("hidden");
+        successSection.classList.remove("hidden");
       }
     } else {
       let drafts = JSON.parse(localStorage.getItem("offlineDrafts") || "[]");
