@@ -63,13 +63,22 @@ document.addEventListener("DOMContentLoaded", () => {
   let selectedProductName = null;
   let itemCount = 0;
 
+  // 切換至登入卡片畫面
+  function showLoginSection() {
+    loginSection.classList.remove("hidden");
+    draftSection.classList.add("hidden");
+    if (successSection) successSection.classList.add("hidden");
+    userInfoBadge.classList.add("hidden");
+    btnSync.classList.add("hidden");
+  }
+
   // ====================================================
   // Service Worker 註冊與自動更新偵測
   // ====================================================
   if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('./sw.js?v=1.22')
+    navigator.serviceWorker.register('./sw.js?v=1.24')
       .then(reg => {
-        console.log('[PWA] Service Worker 已註冊 (v 1.22)', reg);
+        console.log('[PWA] Service Worker 已註冊 (v 1.24)', reg);
         // 主動檢查伺服器端是否有新版 sw.js
         reg.update();
 
@@ -104,29 +113,40 @@ document.addEventListener("DOMContentLoaded", () => {
   const hasLoggedIn = localStorage.getItem("has_logged_in") === "true";
   const savedDisplayName = localStorage.getItem("saved_display_name") || "已登入業務";
 
-  if (hasLoggedIn) {
-    console.log("[Auth] 偵測到本機登入資訊，直接進入報價表單：", savedDisplayName);
-    loadFromCache();
+  // 嘗試載入離線快取資料以驗證本機是否具備品項/客戶資料
+  loadFromCache();
+  const hasLocalData = (MOCK_CUSTOMERS && MOCK_CUSTOMERS.length > 0) || (MOCK_PRODUCTS && MOCK_PRODUCTS.length > 0);
+
+  if (hasLoggedIn && hasLocalData) {
+    console.log("[Auth] 偵測到本機登入資訊與快取資料，直接進入報價表單：", savedDisplayName);
     try {
       const pStr = localStorage.getItem("saved_user_profile");
       if (pStr) userProfile = JSON.parse(pStr);
     } catch(e) {}
     enterDraftMode(savedDisplayName);
+  } else {
+    // 若無本機資料或無登入紀錄，顯示登入畫面以完成資料拉取
+    console.log("[Auth] 顯示登入畫面 (hasLoggedIn:", hasLoggedIn, ", hasLocalData:", hasLocalData, ")");
+    showLoginSection();
   }
 
-  // 點擊使用者標籤可切換帳號或登出
+  // 點擊使用者標籤可切換帳號或登出（若權杖失效則直接觸發重新授權）
   if (userInfoBadge) {
     userInfoBadge.addEventListener("click", () => {
+      if (!accessToken) {
+        if (tokenClient) {
+          isSilentAuth = false;
+          tokenClient.requestAccessToken({ prompt: 'select_account' });
+          return;
+        }
+      }
       if (confirm("是否要切換帳號或登出？")) {
         localStorage.removeItem("has_logged_in");
         localStorage.removeItem("saved_display_name");
         localStorage.removeItem("saved_user_profile");
         accessToken = null;
         userProfile = null;
-        loginSection.classList.remove("hidden");
-        draftSection.classList.add("hidden");
-        userInfoBadge.classList.add("hidden");
-        btnSync.classList.add("hidden");
+        showLoginSection();
       }
     });
   }
@@ -253,10 +273,16 @@ document.addEventListener("DOMContentLoaded", () => {
       if (draftSection.classList.contains("hidden")) {
         enterDraftMode(displayName);
       } else {
-        // 若已在表單，更新頂部使用者資訊
+        // 若已在表單，更新頂部使用者資訊與庫存時間顯示
         userInfoBadge.textContent = "👤 " + displayName;
         userInfoBadge.classList.remove("hidden");
         btnSync.classList.remove("hidden");
+        const stockCount = Object.keys(STOCK_MAP).length;
+        const lastUpdated = localStorage.getItem("inventory_last_updated");
+        updateAllInventoryTimeDisplays(lastUpdated);
+        if (!isSilentAuth) {
+          alert(`✅ 登入與資料同步完成！\n\n• 客戶資料：${MOCK_CUSTOMERS.length} 筆\n• 產品項目：${MOCK_PRODUCTS.length} 筆\n• 庫存報表：${stockCount} 筆`);
+        }
       }
 
     } catch (err) {
@@ -342,7 +368,13 @@ document.addEventListener("DOMContentLoaded", () => {
       return;
     }
     if (!accessToken) {
-      alert("請先登入。");
+      if (tokenClient) {
+        isSilentAuth = false;
+        tokenClient.requestAccessToken({ prompt: 'select_account' });
+      } else {
+        alert("尚未完成 Google 授權，正在為您切換至登入畫面。");
+        showLoginSection();
+      }
       return;
     }
     loadingOverlay.classList.remove("hidden");
@@ -379,12 +411,17 @@ document.addEventListener("DOMContentLoaded", () => {
           await Promise.all(keys.map(k => caches.delete(k)));
           console.log('[快取清理] CacheStorage 已全數清空');
         }
-        // 3. 清空 localStorage 快取資料
+        // 3. 清空 localStorage 快取資料與登入記錄
         localStorage.removeItem("products_cache");
         localStorage.removeItem("customers_cache");
         localStorage.removeItem("inventory_cache");
         localStorage.removeItem("inventory_last_updated");
-        console.log('[快取清理] localStorage 快取已清空');
+        localStorage.removeItem("has_logged_in");
+        localStorage.removeItem("saved_display_name");
+        localStorage.removeItem("saved_user_profile");
+        accessToken = null;
+        userProfile = null;
+        console.log('[快取清理] localStorage 快取與登入狀態已全數清空');
 
         // 4. 加入時間戳記突破所有瀏覽器與代理快取
         window.location.href = window.location.pathname + '?t=' + Date.now();
