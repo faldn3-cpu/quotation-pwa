@@ -83,9 +83,9 @@ document.addEventListener("DOMContentLoaded", () => {
   // Service Worker 註冊與自動更新偵測
   // ====================================================
   if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('./sw.js?v=1.25')
+    navigator.serviceWorker.register('./sw.js?v=1.26')
       .then(reg => {
-        console.log('[PWA] Service Worker 已註冊 (v 1.25)', reg);
+        console.log('[PWA] Service Worker 已註冊 (v 1.26)', reg);
         // 主動檢查伺服器端是否有新版 sw.js
         reg.update();
 
@@ -855,23 +855,54 @@ document.addEventListener("DOMContentLoaded", () => {
       renderCustomerModal(MOCK_CUSTOMERS);
       return;
     }
-    const matches = MOCK_CUSTOMERS.filter(c => {
-      if (typeof c === 'string') return c.toLowerCase().includes(val);
-      const name = String(c.name || "").toLowerCase();
-      const taxId = String(c.tax_id || "").toLowerCase();
-      const phone = String(c.phone || "").toLowerCase();
-      const addr = String(c.address || "").toLowerCase();
-      
-      const hasContactMatch = Array.isArray(c.contacts) && c.contacts.some(ct => {
-        const ctName = String(ct.name || "").toLowerCase();
-        const ctPhone = String(ct.phone || "").toLowerCase();
-        const ctEmail = String(ct.email || "").toLowerCase();
-        return ctName.includes(val) || ctPhone.includes(val) || ctEmail.includes(val);
-      });
+    const matches = [];
+    for (let i = 0; i < MOCK_CUSTOMERS.length; i++) {
+      const c = MOCK_CUSTOMERS[i];
+      let name = "";
+      let taxId = "";
+      let phone = "";
+      let addr = "";
+      let hasContactMatch = false;
 
-      return name.includes(val) || taxId.includes(val) || phone.includes(val) || addr.includes(val) || hasContactMatch;
+      if (typeof c === 'string') {
+        name = c.toLowerCase();
+      } else {
+        name = String(c.name || "").toLowerCase();
+        taxId = String(c.tax_id || "").toLowerCase();
+        phone = String(c.phone || "").toLowerCase();
+        addr = String(c.address || "").toLowerCase();
+        hasContactMatch = Array.isArray(c.contacts) && c.contacts.some(ct => {
+          const ctName = String(ct.name || "").toLowerCase();
+          const ctPhone = String(ct.phone || "").toLowerCase();
+          const ctEmail = String(ct.email || "").toLowerCase();
+          return ctName.includes(val) || ctPhone.includes(val) || ctEmail.includes(val);
+        });
+      }
+
+      if (!name.includes(val) && !taxId.includes(val) && !phone.includes(val) && !addr.includes(val) && !hasContactMatch) {
+        continue;
+      }
+
+      let priority = 9;
+      if (name.startsWith(val)) {
+        priority = 1;
+      } else if (name.includes(val)) {
+        priority = 2;
+      } else if (taxId.startsWith(val) || phone.startsWith(val)) {
+        priority = 3;
+      } else {
+        priority = 4;
+      }
+
+      matches.push({ customer: c, priority, name });
+    }
+
+    matches.sort((a, b) => {
+      if (a.priority !== b.priority) return a.priority - b.priority;
+      return a.name.localeCompare(b.name, 'zh-Hant');
     });
-    renderCustomerModal(matches);
+
+    renderCustomerModal(matches.map(m => m.customer));
   }
 
   function renderCustomerModal(customers) {
@@ -1167,12 +1198,72 @@ document.addEventListener("DOMContentLoaded", () => {
     const val = (keyword || "").trim().toLowerCase();
     if (!val) {
       currentProductMatches = MOCK_PRODUCTS;
-    } else {
-      currentProductMatches = MOCK_PRODUCTS.filter(p =>
-        (p.code && p.code.toLowerCase().includes(val)) ||
-        (p.name && p.name.toLowerCase().includes(val))
-      );
+      resetAndRenderProducts();
+      return;
     }
+
+    const tokens = val.split(/\s+/).filter(Boolean);
+    const matches = [];
+
+    for (let i = 0; i < MOCK_PRODUCTS.length; i++) {
+      const p = MOCK_PRODUCTS[i];
+      const code = (p.code || "").toLowerCase();
+      const name = (p.name || "").toLowerCase();
+
+      // 檢查是否符合所有搜尋關鍵字詞 (AND 關係)
+      let isMatch = true;
+      for (let t = 0; t < tokens.length; t++) {
+        if (!code.includes(tokens[t]) && !name.includes(tokens[t])) {
+          isMatch = false;
+          break;
+        }
+      }
+      if (!isMatch) continue;
+
+      // 計算搜尋權重優先級（數字越小越優先）
+      let priority = 99;
+
+      if (code === val) {
+        // 第一順位：型號完全符合
+        priority = 1;
+      } else if (code.startsWith(val)) {
+        // 第二順位：型號首字母/前綴完全符合（例如搜尋 SA3，SA3-043-0.75K 排在最前）
+        priority = 2;
+      } else if (tokens.length > 1 && code.startsWith(tokens[0])) {
+        // 第三順位：多詞搜尋時，型號首字母符合第一個詞
+        priority = 3;
+      } else if (code.includes("-" + tokens[0]) || code.includes("/" + tokens[0]) || code.includes("_" + tokens[0])) {
+        // 第四順位：型號內部單字開頭符合（如分隔符號後接關鍵字）
+        priority = 4;
+      } else if (code.includes(tokens[0])) {
+        // 第五順位：型號中間任意位置包含
+        priority = 5;
+      } else if (name.startsWith(val) || name.startsWith(tokens[0])) {
+        // 第六順位：規格名稱開頭符合
+        priority = 6;
+      } else {
+        // 第七順位：其他模糊相關搜尋（僅在規格說明或附帶文字中提及，例如配件卡備註）
+        priority = 7;
+      }
+
+      matches.push({ product: p, priority, codeLength: code.length, code });
+    }
+
+    // 依優先順序排序：首字母開頭者絕對優先，模糊相符者排在後面
+    matches.sort((a, b) => {
+      // 1. 優先順位（首字母開始者排在最前）
+      if (a.priority !== b.priority) {
+        return a.priority - b.priority;
+      }
+      // 2. 相同順位時，型號長度較短者優先（精確度高）
+      if (a.codeLength !== b.codeLength) {
+        return a.codeLength - b.codeLength;
+      }
+      // 3. 英數字自然排序
+      return a.code.localeCompare(b.code, undefined, { numeric: true, sensitivity: 'base' });
+    });
+
+    currentProductMatches = matches.map(m => m.product);
     resetAndRenderProducts();
   }
 
