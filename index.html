@@ -12,7 +12,15 @@
   
   <!-- Google Fonts: Inter -->
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=1.29">
+  <link rel="stylesheet" href="style.css?v=1.30">
+  <style>
+    .custom-delivery-box { display: flex !important; gap: 8px !important; align-items: center !important; }
+    .custom-delivery-box .search-input { flex: 1 !important; margin-bottom: 0 !important; }
+    .delivery-results { overflow-y: auto !important; -webkit-overflow-scrolling: touch !important; flex: 1 !important; min-height: 0 !important; display: flex !important; flex-direction: column !important; gap: 8px !important; touch-action: pan-y !important; }
+    .delivery-item { padding: 12px 14px !important; border: 1px solid var(--border-color, #e2e8f0) !important; border-radius: 8px !important; background: #ffffff !important; cursor: pointer !important; font-size: 0.95rem !important; user-select: none !important; -webkit-tap-highlight-color: transparent !important; flex-shrink: 0 !important; }
+    .delivery-item:active, .delivery-item.selected { background-color: #eff6ff !important; border-color: var(--primary-color, #2563eb) !important; }
+    .delivery-item.selected { color: var(--primary-color, #2563eb) !important; font-weight: 600 !important; }
+  </style>
   <!-- Google Identity Services -->
   <script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
@@ -22,7 +30,7 @@
     <div class="header-content">
       <div style="display:flex; align-items:center; gap:8px;">
         <h1>報價擬稿系統</h1>
-        <span class="version-tag">v 1.29</span>
+        <span class="version-tag">v 1.30</span>
       </div>
       <div style="display:flex; gap:10px; align-items:center;">
         <span id="userInfoBadge" class="user-badge hidden" title="點擊可登出帳號" style="cursor:pointer;"></span>
@@ -169,23 +177,25 @@
 
   <!-- 交期 / 備註選擇對話框 (Modal) -->
   <div id="deliveryModal" class="modal hidden">
-    <div class="modal-content">
-      <div class="modal-header">
+    <div class="modal-content" style="height:85vh; height:85dvh; max-height:90vh; display:flex; flex-direction:column; padding:1.25rem 1.25rem 1rem 1.25rem;">
+      <div class="modal-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.75rem; flex-shrink:0;">
         <h3>選擇交期 / 備註</h3>
         <button id="btnCloseDeliveryModal" class="btn-close">&times;</button>
       </div>
-      <div class="modal-body">
-        <!-- 自行手動輸入區 (置頂) -->
-        <label style="font-size:0.85rem; font-weight:600; color:var(--text-muted); display:block; margin-bottom:6px;">✍️ 自行手動輸入：</label>
-        <div class="custom-delivery-box">
-          <input type="text" id="customDeliveryInput" class="search-input" placeholder="輸入自訂交期或特殊備註...">
-          <button type="button" id="btnConfirmCustomDelivery" class="btn btn-primary" style="white-space:nowrap; padding:0.75rem 1.2rem;">確認</button>
+      <div class="modal-body" style="display:flex; flex-direction:column; flex:1; min-height:0; overflow:hidden;">
+        <!-- 自行手動輸入區 (置頂固定) -->
+        <label style="font-size:0.85rem; font-weight:600; color:var(--text-muted); display:block; margin-bottom:6px; flex-shrink:0;">✍️ 自行手動輸入：</label>
+        <div class="custom-delivery-box" style="display:flex; gap:8px; align-items:center; margin-bottom:12px; flex-shrink:0;">
+          <input type="text" id="customDeliveryInput" class="search-input" placeholder="輸入自訂交期或特殊備註..." style="flex:1; margin-bottom:0; min-height:42px;">
+          <button type="button" id="btnConfirmCustomDelivery" class="btn btn-primary" style="white-space:nowrap; padding:0.65rem 1.2rem; min-height:42px; flex-shrink:0;">確認</button>
         </div>
         
-        <div class="delivery-list-header mt-3">
+        <div class="delivery-list-header" style="flex-shrink:0; margin-bottom:8px;">
           <span style="font-size:0.85rem; font-weight:600; color:var(--text-muted);">📋 常用預設選項 (點擊直接帶入)：</span>
         </div>
-        <div id="deliveryModalResults" class="delivery-results mt-2">
+        
+        <!-- 預設選項滾動區域 -->
+        <div id="deliveryModalResults" class="delivery-results" style="overflow-y:auto !important; -webkit-overflow-scrolling:touch !important; flex:1; min-height:0; display:flex; flex-direction:column; gap:8px; padding-bottom:24px; touch-action:pan-y;">
           <!-- 預設選項由 JS 動態產生 -->
         </div>
       </div>
@@ -198,6 +208,6 @@
     <p>處理中...</p>
   </div>
 
-  <script src="app.js?v=1.29"></script>
+  <script src="app.js?v=1.30"></script>
 </body>
 </html>

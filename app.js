@@ -92,9 +92,9 @@ document.addEventListener("DOMContentLoaded", () => {
   // Service Worker 註冊與自動更新偵測
   // ====================================================
   if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('./sw.js?v=1.29')
+    navigator.serviceWorker.register('./sw.js?v=1.30')
       .then(reg => {
-        console.log('[PWA] Service Worker 已註冊 (v 1.29)', reg);
+        console.log('[PWA] Service Worker 已註冊 (v 1.30)', reg);
         // 主動檢查伺服器端是否有新版 sw.js
         reg.update();
 
@@ -1135,7 +1135,8 @@ document.addEventListener("DOMContentLoaded", () => {
     deliveryModalResults.innerHTML = PRESET_DELIVERY_OPTIONS.map(opt => {
       const isSel = opt === selectedVal;
       return `
-        <div class="delivery-item ${isSel ? 'selected' : ''}" data-value="${opt}">
+        <div class="delivery-item ${isSel ? 'selected' : ''}" data-value="${opt}"
+             style="padding:12px 14px; border:1px solid ${isSel ? 'var(--primary-color, #2563eb)' : 'var(--border-color, #e2e8f0)'}; border-radius:8px; background:${isSel ? '#eff6ff' : '#ffffff'}; font-size:0.95rem; font-weight:${isSel ? '600' : 'normal'}; color:${isSel ? 'var(--primary-color, #2563eb)' : 'var(--text-main, #1e293b)'}; cursor:pointer; user-select:none; -webkit-tap-highlight-color:transparent; flex-shrink:0;">
           ${opt}
         </div>
       `;

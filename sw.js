@@ -1,9 +1,9 @@
-const CACHE_NAME = 'quote-draft-v1.29';
+const CACHE_NAME = 'quote-draft-v1.30';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
-  './style.css?v=1.29',
-  './app.js?v=1.29',
+  './style.css?v=1.30',
+  './app.js?v=1.30',
   './manifest.json',
   './manifest.json?v=2',
   './icon-192x192-v2.png',
@@ -46,8 +46,8 @@ self.addEventListener('activate', (event) => {
 
 // 攔截網路請求：
 // 1. GAS / POST API -> Network Only (直接放行)
-// 2. HTML 頁面 / 導向請求 -> Network First (網路優先，斷網才用快取)
-// 3. 其他靜態資源 -> Stale-While-Revalidate (即時回傳快取並背景同步最新版)
+// 2. HTML 頁面與核心程式碼 (JS/CSS) -> Network First (聯網優先取得最新版，斷網才用快取)
+// 3. 其他靜態資源 (圖片/字型) -> Stale-While-Revalidate (即時回傳快取並背景同步最新版)
 self.addEventListener('fetch', (event) => {
   const url = event.request.url;
 
@@ -59,9 +59,10 @@ self.addEventListener('fetch', (event) => {
   const isNavigate = event.request.mode === 'navigate';
   const isHtml = event.request.headers.get('accept')?.includes('text/html');
   const isIndex = url.endsWith('/') || url.includes('index.html');
+  const isCode = url.includes('.js') || url.includes('.css');
 
-  // 2. HTML 主頁面與導向請求採用 Network First
-  if (isNavigate || isHtml || isIndex) {
+  // 2. HTML 主頁面與核心程式碼 (JS/CSS) 採用 Network First 確保即時更新
+  if (isNavigate || isHtml || isIndex || isCode) {
     event.respondWith(
       fetch(event.request)
         .then((networkResponse) => {
