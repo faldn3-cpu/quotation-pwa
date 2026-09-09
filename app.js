@@ -67,9 +67,9 @@ document.addEventListener("DOMContentLoaded", () => {
   // Service Worker 註冊與自動更新偵測
   // ====================================================
   if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('./sw.js?v=1.19')
+    navigator.serviceWorker.register('./sw.js?v=1.20')
       .then(reg => {
-        console.log('[PWA] Service Worker 已註冊 (v 1.19)', reg);
+        console.log('[PWA] Service Worker 已註冊 (v 1.20)', reg);
         // 主動檢查伺服器端是否有新版 sw.js
         reg.update();
 
@@ -93,6 +93,40 @@ document.addEventListener("DOMContentLoaded", () => {
         isRefreshing = true;
         console.log('[PWA] Service Worker 控制權已更新，自動重載畫面');
         window.location.reload();
+      }
+    });
+  }
+
+  // ====================================================
+  // 登入狀態記憶與自動進入
+  // ====================================================
+  let isSilentAuth = false;
+  const hasLoggedIn = localStorage.getItem("has_logged_in") === "true";
+  const savedDisplayName = localStorage.getItem("saved_display_name") || "已登入業務";
+
+  if (hasLoggedIn) {
+    console.log("[Auth] 偵測到本機登入資訊，直接進入報價表單：", savedDisplayName);
+    loadFromCache();
+    try {
+      const pStr = localStorage.getItem("saved_user_profile");
+      if (pStr) userProfile = JSON.parse(pStr);
+    } catch(e) {}
+    enterDraftMode(savedDisplayName);
+  }
+
+  // 點擊使用者標籤可切換帳號或登出
+  if (userInfoBadge) {
+    userInfoBadge.addEventListener("click", () => {
+      if (confirm("是否要切換帳號或登出？")) {
+        localStorage.removeItem("has_logged_in");
+        localStorage.removeItem("saved_display_name");
+        localStorage.removeItem("saved_user_profile");
+        accessToken = null;
+        userProfile = null;
+        loginSection.classList.remove("hidden");
+        draftSection.classList.add("hidden");
+        userInfoBadge.classList.add("hidden");
+        btnSync.classList.add("hidden");
       }
     });
   }
@@ -130,6 +164,18 @@ document.addEventListener("DOMContentLoaded", () => {
       callback: handleTokenResponse,
     });
     console.log("[Auth] Google Identity Services 初始化完成");
+
+    // 若本機已有登入紀錄，背景自動嘗試靜默續期
+    if (hasLoggedIn && navigator.onLine) {
+      console.log("[Auth] 背景執行靜默續期 Google 授權...");
+      isSilentAuth = true;
+      try {
+        tokenClient.requestAccessToken({ prompt: 'none' });
+      } catch (e) {
+        console.warn("[Auth] 靜默續期呼叫失敗:", e);
+        isSilentAuth = false;
+      }
+    }
   }
 
   if (typeof google !== "undefined" && google.accounts) {
@@ -156,6 +202,7 @@ document.addEventListener("DOMContentLoaded", () => {
       enterDraftMode("離線使用者");
       return;
     }
+    isSilentAuth = false;
     tokenClient.requestAccessToken({ prompt: 'select_account' });
   });
 
@@ -164,14 +211,19 @@ document.addEventListener("DOMContentLoaded", () => {
   // ====================================================
   async function handleTokenResponse(response) {
     if (response.error) {
-      console.error("[Auth] 授權失敗:", response.error, response.error_description);
-      alert("Google 登入失敗：" + (response.error_description || response.error));
+      console.warn("[Auth] 授權回應:", response.error, response.error_description);
+      if (!isSilentAuth) {
+        alert("Google 登入失敗：" + (response.error_description || response.error));
+      }
+      isSilentAuth = false;
       return;
     }
 
     accessToken = response.access_token;
-    console.log("[Auth] 已取得存取權杖");
-    loadingOverlay.classList.remove("hidden");
+    console.log("[Auth] 已取得存取權杖 (靜默模式:", isSilentAuth, ")");
+    if (!isSilentAuth) {
+      loadingOverlay.classList.remove("hidden");
+    }
 
     try {
       userProfile = await fetchUserProfile();
@@ -181,21 +233,40 @@ document.addEventListener("DOMContentLoaded", () => {
       const checkResult = await checkWhitelist(userProfile.email);
       if (!checkResult.allowed) {
         accessToken = null;
-        alert(checkResult.msg || "❌ 存取受限：您的帳號尚未通過管理員審核。");
+        if (!isSilentAuth) {
+          alert(checkResult.msg || "❌ 存取受限：您的帳號尚未通過管理員審核。");
+        }
         return;
       }
+
+      const displayName = checkResult.name || userProfile.name || userProfile.email;
+
+      // 儲存登入憑證與身分快取，供下次自動進入使用
+      localStorage.setItem("has_logged_in", "true");
+      localStorage.setItem("saved_display_name", displayName);
+      localStorage.setItem("saved_user_profile", JSON.stringify(userProfile));
 
       // 載入資料（客戶 + 產品 + 庫存）
       await initData();
 
-      // 進入報價表單（優先顯示白名單中設定的業務姓名）
-      enterDraftMode(checkResult.name || userProfile.name || userProfile.email);
+      // 若尚未進入表單則進入表單
+      if (draftSection.classList.contains("hidden")) {
+        enterDraftMode(displayName);
+      } else {
+        // 若已在表單，更新頂部使用者資訊
+        userInfoBadge.textContent = "👤 " + displayName;
+        userInfoBadge.classList.remove("hidden");
+        btnSync.classList.remove("hidden");
+      }
 
     } catch (err) {
       console.error("[Auth] 登入後初始化失敗:", err);
-      alert("資料載入失敗，請重新整理後再試。\n錯誤：" + err.message);
+      if (!isSilentAuth) {
+        alert("資料載入失敗，請重新整理後再試。\n錯誤：" + err.message);
+      }
     } finally {
       loadingOverlay.classList.add("hidden");
+      isSilentAuth = false;
     }
   }
 
@@ -760,6 +831,20 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
+  function refreshItemIndices() {
+    const itemRows = itemsContainer.querySelectorAll('.item-row');
+    itemRows.forEach((row, idx) => {
+      const badge = row.querySelector('.item-index-badge');
+      if (badge) {
+        badge.textContent = `#${idx + 1}`;
+      }
+    });
+    const draftItemBadge = document.getElementById('draftItemBadge');
+    if (draftItemBadge) {
+      draftItemBadge.textContent = `${itemRows.length} 項`;
+    }
+  }
+
   function calculateTotal() {
     let total = 0;
     const itemRows = document.querySelectorAll('.item-row');
@@ -783,13 +868,15 @@ document.addEventListener("DOMContentLoaded", () => {
     const itemId = `item-${itemCount}`;
     const lastUpdated = localStorage.getItem("inventory_last_updated") || "";
     const updateTimeStr = lastUpdated ? lastUpdated : "待同步";
+    const currentCount = itemsContainer.querySelectorAll('.item-row').length + 1;
     const itemHTML = `
       <div class="item-row" id="${itemId}">
         <div class="item-header">
-          <button type="button" class="product-picker-input" id="${itemId}-title">
+          <span class="item-index-badge">#${currentCount}</span>
+          <button type="button" class="product-picker-input" id="${itemId}-title" style="flex:1;">
             點擊選擇產品...
           </button>
-          <button type="button" class="item-remove" onclick="document.getElementById('${itemId}').remove(); setTimeout(calculateTotal, 50);">&times;</button>
+          <button type="button" class="item-remove" onclick="document.getElementById('${itemId}').remove(); setTimeout(() => { calculateTotal(); refreshItemIndices(); }, 50);">&times;</button>
         </div>
         <div class="item-grid">
           <div>
@@ -839,6 +926,7 @@ document.addEventListener("DOMContentLoaded", () => {
       </div>
     `;
     itemsContainer.insertAdjacentHTML('beforeend', itemHTML);
+    refreshItemIndices();
 
     const sugPriceInput = document.getElementById(`${itemId}-sug-price`);
     const sugDiscountInput = document.getElementById(`${itemId}-sug-discount`);
@@ -888,7 +976,10 @@ document.addEventListener("DOMContentLoaded", () => {
     const removeBtn = document.querySelector(`#${itemId} .item-remove`);
     if(removeBtn) {
       removeBtn.addEventListener("click", () => {
-        setTimeout(calculateTotal, 50);
+        setTimeout(() => {
+          calculateTotal();
+          refreshItemIndices();
+        }, 50);
       });
     }
 
