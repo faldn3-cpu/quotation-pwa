@@ -1,10 +1,15 @@
-const CACHE_NAME = 'quote-draft-v1.24';
+const CACHE_NAME = 'quote-draft-v1.25';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
   './style.css?v=1.24',
   './app.js?v=1.24',
   './manifest.json',
+  './manifest.json?v=2',
+  './icon-192x192-v2.png',
+  './icon-512x512-v2.png',
+  './apple-touch-icon-v2.png',
+  './favicon-v2.png',
   './icon-192x192.png',
   './icon-512x512.png',
   './apple-touch-icon.png',
