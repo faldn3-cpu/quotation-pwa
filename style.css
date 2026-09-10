@@ -261,6 +261,16 @@ input:focus {
   display: block;
 }
 
+/* 未稅警語提示 */
+.field-hint-tax {
+  display: block;
+  font-size: 0.72rem;
+  color: #e67e22;
+  font-weight: 500;
+  margin-top: 3px;
+  text-align: right;
+}
+
 /* 庫存免責聲明與更新時間提示 (橫跨全寬) */
 .stock-disclaimer-box {
   grid-column: 1 / -1;
@@ -338,20 +348,30 @@ input:focus {
   gap: 0.5rem;
 }
 
-.customer-item, .product-item {
+.customer-item, .product-item, .delivery-item {
   padding: 0.75rem 1rem;
   border: 1px solid var(--border-color);
   border-radius: 8px;
   background: #ffffff;
   cursor: pointer;
   transition: all 0.15s;
+  font-size: 0.95rem;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .customer-item:hover, .customer-item:active,
 .product-item:hover, .product-item:active,
-.customer-item.selected, .product-item.selected {
+.delivery-item:hover, .delivery-item:active,
+.customer-item.selected, .product-item.selected,
+.delivery-item.selected {
   background-color: #eff6ff;
   border-color: var(--primary-color);
+}
+
+.delivery-item.selected {
+  color: var(--primary-color);
+  font-weight: 600;
 }
 
 .customer-item-name, .product-item-name {
@@ -436,7 +456,7 @@ input:focus {
   box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.2);
 }
 
-.customer-results, .product-results {
+.customer-results, .product-results, .delivery-results {
   overflow-y: auto;
   flex: 1;
   min-height: 0;
@@ -444,6 +464,18 @@ input:focus {
   flex-direction: column;
   gap: 0.5rem;
   padding-bottom: 0.5rem;
+  -webkit-overflow-scrolling: touch;
+}
+
+.custom-delivery-box {
+  display: flex;
+  gap: 8px;
+  align-items: stretch;
+  margin-bottom: 0.5rem;
+}
+.custom-delivery-box .search-input {
+  margin-bottom: 0;
+  flex: 1;
 }
 
 .product-item {

@@ -7,6 +7,7 @@ const DRIVE_SCOPES = "https://www.googleapis.com/auth/drive.file profile email";
 const BACKUP_FOLDER_NAME = "報價系統備份";
 const CUSTOMERS_FILE_NAME = "customers.json";
 const PRODUCTS_FILE_NAME = "products.json";
+const SETTINGS_FILE_NAME = "settings.json";
 
 // 庫存對照表：產品型號(小寫) → 可用數量（從 L廠庫存試算表同步）
 let STOCK_MAP = {};
@@ -16,6 +17,12 @@ let STOCK_MAP = {};
 // ====================================================
 let MOCK_CUSTOMERS = [];
 let MOCK_PRODUCTS = [];
+let FINANCE_SETTINGS = {
+  tax_rate: 5,
+  round_digit: 1,
+  round_factor: 10,
+  round_method: "ROUND"
+};
 let tokenClient = null;
 let accessToken = null;
 let userProfile = null;
@@ -660,9 +667,33 @@ document.addEventListener("DOMContentLoaded", () => {
     await Promise.allSettled([
       loadCustomersFromDrive(),
       loadProductsFromDrive(),
+      loadSettingsFromDrive(),
       loadInventoryFromGAS(),
       syncOfflineDraftsToDrive()
     ]);
+  }
+
+  // ====================================================
+  // 財務計算捨入函式（對齊桌機 PriceCalculator）
+  // ====================================================
+  function applyRounding(rawPrice) {
+    if (isNaN(rawPrice)) return 0;
+    const factor = FINANCE_SETTINGS.round_factor || 
+      (FINANCE_SETTINGS.round_digit === 1 ? 10 : 
+       FINANCE_SETTINGS.round_digit === 2 ? 100 : 
+       FINANCE_SETTINGS.round_digit === 3 ? 1000 : 1);
+    const method = String(FINANCE_SETTINGS.round_method || "ROUND").toUpperCase();
+
+    const targetVal = rawPrice / factor;
+    let roundedVal;
+    if (method === "CEIL" || method === "無條件進位") {
+      roundedVal = Math.ceil(targetVal - 1e-9);
+    } else if (method === "FLOOR" || method === "無條件捨去") {
+      roundedVal = Math.floor(targetVal + 1e-9);
+    } else {
+      roundedVal = Math.round(targetVal);
+    }
+    return Math.round(roundedVal * factor);
   }
 
   // ====================================================
@@ -672,9 +703,62 @@ document.addEventListener("DOMContentLoaded", () => {
     try {
       MOCK_CUSTOMERS = JSON.parse(localStorage.getItem("customers_cache") || "[]");
       MOCK_PRODUCTS  = JSON.parse(localStorage.getItem("products_cache")  || "[]");
-      console.log("[快取] 客戶:", MOCK_CUSTOMERS.length, "筆 / 產品:", MOCK_PRODUCTS.length, "筆");
+      const cachedSettings = localStorage.getItem("finance_settings");
+      if (cachedSettings) {
+        FINANCE_SETTINGS = Object.assign(FINANCE_SETTINGS, JSON.parse(cachedSettings));
+      }
+      console.log("[快取] 客戶:", MOCK_CUSTOMERS.length, "筆 / 產品:", MOCK_PRODUCTS.length, "筆 / 財務設定:", FINANCE_SETTINGS);
     } catch (e) {
       console.error("[快取] 讀取失敗:", e);
+    }
+  }
+
+  // ====================================================
+  // 從業務員個人 Google Drive 讀取財務設定 (settings.json)
+  // ====================================================
+  async function loadSettingsFromDrive() {
+    if (!accessToken) return;
+    try {
+      const folderQuery = encodeURIComponent(
+        `name='${BACKUP_FOLDER_NAME}' and mimeType='application/vnd.google-apps.folder' and trashed=false`
+      );
+      const folderRes = await fetch(
+        `https://www.googleapis.com/drive/v3/files?q=${folderQuery}&spaces=drive&fields=files(id,name)`,
+        { headers: { Authorization: `Bearer ${accessToken}` } }
+      );
+      if (!folderRes.ok) return;
+      const folderData = await folderRes.json();
+      const folders = folderData.files || [];
+      if (folders.length === 0) return;
+      const folderId = folders[0].id;
+
+      const fileQuery = encodeURIComponent(
+        `name='${SETTINGS_FILE_NAME}' and '${folderId}' in parents and trashed=false`
+      );
+      const fileRes = await fetch(
+        `https://www.googleapis.com/drive/v3/files?q=${fileQuery}&spaces=drive&fields=files(id,name,modifiedTime)`,
+        { headers: { Authorization: `Bearer ${accessToken}` } }
+      );
+      if (!fileRes.ok) return;
+      const fileData = await fileRes.json();
+      const files = fileData.files || [];
+      if (files.length === 0) return;
+
+      const fileId = files[0].id;
+      const downloadRes = await fetch(
+        `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`,
+        { headers: { Authorization: `Bearer ${accessToken}` } }
+      );
+      if (!downloadRes.ok) return;
+
+      const cfg = await downloadRes.json();
+      if (cfg && typeof cfg === "object") {
+        FINANCE_SETTINGS = Object.assign(FINANCE_SETTINGS, cfg);
+        localStorage.setItem("finance_settings", JSON.stringify(FINANCE_SETTINGS));
+        console.log("[Drive] 財務設定同步成功:", FINANCE_SETTINGS);
+      }
+    } catch (e) {
+      console.warn("[Drive] 讀取個人財務設定失敗，維持快取設定:", e);
     }
   }
 
@@ -1240,6 +1324,7 @@ document.addEventListener("DOMContentLoaded", () => {
           <div>
             <label>最終售價(元)</label>
             <input type="text" id="${itemId}-final-price" placeholder="-" readonly class="field-readonly final-price-field">
+            <span class="field-hint-tax">⚠️ 未稅金額</span>
           </div>
         </div>
         <div class="item-delivery">
@@ -1299,7 +1384,7 @@ document.addEventListener("DOMContentLoaded", () => {
       const dp = parseFloat(dpStr);
       if (!isNaN(disc) && !isNaN(dp)) {
         const sp = dp * (disc / 100);
-        sugPriceInput.value = Math.round(sp);
+        sugPriceInput.value = applyRounding(sp);
       } else {
         sugPriceInput.value = "";
       }
