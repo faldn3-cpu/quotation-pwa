@@ -99,9 +99,9 @@ document.addEventListener("DOMContentLoaded", () => {
   // Service Worker 註冊與自動更新偵測
   // ====================================================
   if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('./sw.js?v=1.31')
+    navigator.serviceWorker.register('./sw.js?v=1.32')
       .then(reg => {
-        console.log('[PWA] Service Worker 已註冊 (v 1.31)', reg);
+        console.log('[PWA] Service Worker 已註冊 (v 1.32)', reg);
         // 主動檢查伺服器端是否有新版 sw.js
         reg.update();
 
@@ -770,6 +770,42 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   // ====================================================
+  // 取得易讀之捨入位數與捨入方式說明
+  // ====================================================
+  function getRoundingDesc() {
+    let digitStr = "個位數";
+    const digit = FINANCE_SETTINGS.round_digit;
+    const factor = FINANCE_SETTINGS.round_factor;
+    if (digit === 1 || factor === 10) {
+      digitStr = "十位數";
+    } else if (digit === 2 || factor === 100) {
+      digitStr = "百位數";
+    } else if (digit === 3 || factor === 1000) {
+      digitStr = "千位數";
+    } else if (factor && factor > 1) {
+      digitStr = `${factor}元`;
+    }
+
+    let methodStr = "四捨五入";
+    const method = String(FINANCE_SETTINGS.round_method || "").toUpperCase();
+    if (method.includes("CEIL") || method.includes("進位")) {
+      methodStr = "無條件進位";
+    } else if (method.includes("FLOOR") || method.includes("捨去")) {
+      methodStr = "無條件捨去";
+    }
+
+    return `${digitStr} / ${methodStr}`;
+  }
+
+  // 重新整理所有品項的捨入警示標籤文字
+  function updateAllRoundingHints() {
+    const desc = getRoundingDesc();
+    document.querySelectorAll(".field-hint-rounding").forEach(el => {
+      el.textContent = `⚠️ 捨入：${desc}`;
+    });
+  }
+
+  // ====================================================
   // 從快取讀取（離線模式）
   // ====================================================
   function loadFromCache() {
@@ -779,6 +815,7 @@ document.addEventListener("DOMContentLoaded", () => {
       const cachedSettings = localStorage.getItem("finance_settings");
       if (cachedSettings) {
         FINANCE_SETTINGS = Object.assign(FINANCE_SETTINGS, JSON.parse(cachedSettings));
+        updateAllRoundingHints();
       }
       console.log("[快取] 客戶:", MOCK_CUSTOMERS.length, "筆 / 產品:", MOCK_PRODUCTS.length, "筆 / 財務設定:", FINANCE_SETTINGS);
     } catch (e) {
@@ -828,6 +865,7 @@ document.addEventListener("DOMContentLoaded", () => {
       if (cfg && typeof cfg === "object") {
         FINANCE_SETTINGS = Object.assign(FINANCE_SETTINGS, cfg);
         localStorage.setItem("finance_settings", JSON.stringify(FINANCE_SETTINGS));
+        updateAllRoundingHints();
         console.log("[Drive] 財務設定同步成功:", FINANCE_SETTINGS);
       }
     } catch (e) {
@@ -1417,6 +1455,7 @@ document.addEventListener("DOMContentLoaded", () => {
           <div>
             <label>建議報價(元)</label>
             <input type="number" name="suggested_price" id="${itemId}-sug-price" placeholder="輸入報價" step="any">
+            <span class="field-hint-rounding">⚠️ 捨入：${getRoundingDesc()}</span>
           </div>
           <div>
             <label>需求數量</label>

@@ -12,7 +12,7 @@
   
   <!-- Google Fonts: Inter -->
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=1.31">
+  <link rel="stylesheet" href="style.css?v=1.32">
   <style>
     .custom-delivery-box { display: flex !important; gap: 8px !important; align-items: center !important; }
     .custom-delivery-box .search-input { flex: 1 !important; margin-bottom: 0 !important; }
@@ -30,7 +30,7 @@
     <div class="header-content">
       <div style="display:flex; align-items:center; gap:8px;">
         <h1>報價擬稿系統</h1>
-        <span class="version-tag">v 1.31</span>
+        <span class="version-tag">v 1.32</span>
       </div>
       <div style="display:flex; gap:10px; align-items:center;">
         <span id="userInfoBadge" class="user-badge hidden" title="點擊可登出帳號" style="cursor:pointer;"></span>
@@ -92,12 +92,14 @@
         </div>
 
         <div class="total-summary-card mt-3">
-          <div style="display:flex; justify-content:space-between; align-items:center; font-weight:600; font-size:1.1rem;">
-            <div style="display:flex; align-items:center; gap:8px;">
-              <span>小計金額 (未稅)</span>
+          <div class="total-summary-top">
+            <div class="total-summary-label-group">
+              <span class="total-summary-title">小計金額 (未稅)</span>
               <span id="draftItemBadge" class="draft-item-badge">共 1 項</span>
             </div>
-            <span style="color:var(--primary-color);">$<span id="totalAmount">0</span></span>
+          </div>
+          <div class="total-summary-bottom">
+            <span class="total-summary-amount"><span class="currency-symbol">$</span><span id="totalAmount">0</span></span>
           </div>
         </div>
 
@@ -208,6 +210,6 @@
     <p>處理中...</p>
   </div>
 
-  <script src="app.js?v=1.31"></script>
+  <script src="app.js?v=1.32"></script>
 </body>
 </html>

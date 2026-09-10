@@ -261,14 +261,25 @@ input:focus {
   display: block;
 }
 
-/* 未稅警語提示 */
+/* 捨入規則警示提示 (與建議報價靠左對齊) */
+.field-hint-rounding {
+  display: block;
+  font-size: 0.72rem;
+  color: #d97706;
+  font-weight: 500;
+  margin-top: 3px;
+  text-align: left;
+  white-space: nowrap;
+}
+
+/* 未稅警語提示 (與最終售價靠左對齊) */
 .field-hint-tax {
   display: block;
   font-size: 0.72rem;
-  color: #e67e22;
+  color: #d97706;
   font-weight: 500;
   margin-top: 3px;
-  text-align: right;
+  text-align: left;
 }
 
 /* 庫存免責聲明與更新時間提示 (橫跨全寬) */
@@ -630,12 +641,64 @@ input:focus {
   flex-shrink: 0;
 }
 
-/* 小計區塊 */
+/* 小計區塊重新排版 */
 .total-summary-card {
-  padding: 1rem;
+  padding: 0.9rem 1.1rem;
   background-color: #f8fafc;
   border: 1px solid var(--border-color);
-  border-radius: 8px;
+  border-radius: 10px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+.total-summary-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.35rem;
+}
+
+.total-summary-label-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: nowrap;
+}
+
+.total-summary-title {
+  font-weight: 600;
+  font-size: 1rem;
+  color: var(--text-color, #1e293b);
+  white-space: nowrap;
+}
+
+.draft-item-badge {
+  background-color: #e0f2fe;
+  color: #0284c7;
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 12px;
+  white-space: nowrap;
+}
+
+.total-summary-bottom {
+  display: flex;
+  justify-content: flex-end;
+  align-items: baseline;
+}
+
+.total-summary-amount {
+  font-size: 1.65rem;
+  font-weight: 800;
+  color: var(--primary-color, #2563eb);
+  letter-spacing: -0.5px;
+  line-height: 1.2;
+}
+
+.total-summary-amount .currency-symbol {
+  font-size: 1.15rem;
+  font-weight: 600;
+  margin-right: 2px;
 }
 
 /* LINE 品牌綠按鈕 */
