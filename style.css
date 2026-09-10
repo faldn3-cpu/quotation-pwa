@@ -424,6 +424,43 @@ input:focus {
   white-space: nowrap;
 }
 
+.item-copy-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  border: 1px solid var(--border-color, #e2e8f0);
+  background: #ffffff;
+  color: #475569;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: all 0.2s ease;
+  padding: 0;
+  margin-left: 6px;
+}
+
+.item-copy-btn:hover {
+  background: #f1f5f9;
+  color: #0f172a;
+  border-color: #cbd5e1;
+}
+
+.item-copy-btn:active {
+  transform: scale(0.92);
+}
+
+.item-copy-btn.copied {
+  background: #ecfdf5;
+  color: #059669;
+  border-color: #a7f3d0;
+}
+
+.item-copy-btn svg {
+  pointer-events: none;
+}
+
 /* Modal */
 .modal {
   position: fixed;

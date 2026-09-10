@@ -1427,6 +1427,14 @@ document.addEventListener("DOMContentLoaded", () => {
           <button type="button" class="product-picker-input" id="${itemId}-title" style="flex:1;">
             點擊選擇產品...
           </button>
+          <button type="button" class="item-copy-btn hidden" id="${itemId}-copy-btn" title="複製型號">
+            <svg class="icon-copy" width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+              <path d="M4 2a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V2zm2-1a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V2a1 1 0 0 0-1-1H6zM2 5a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1v-1h1v1a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h1v1H2z"/>
+            </svg>
+            <svg class="icon-check hidden" width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+              <path d="M13.854 3.646a.5.5 0 0 1 0 .708l-7 7a.5.5 0 0 1-.708 0l-3.5-3.5a.5.5 0 1 1 .708-.708L6.5 10.293l6.646-6.647a.5.5 0 0 1 .708 0z"/>
+            </svg>
+          </button>
           <span id="${itemId}-order-badge" class="order-item-badge hidden">訂購品</span>
           <button type="button" class="item-remove" onclick="document.getElementById('${itemId}').remove(); setTimeout(() => { calculateTotal(); refreshItemIndices(); }, 50);">&times;</button>
         </div>
@@ -1541,6 +1549,54 @@ document.addEventListener("DOMContentLoaded", () => {
           calculateTotal();
           refreshItemIndices();
         }, 50);
+      });
+    }
+
+    // 🚀 一鍵複製型號按鈕事件 (Win 11 雙層矩形向量圖示)
+    const copyBtn = document.getElementById(`${itemId}-copy-btn`);
+    if (copyBtn) {
+      copyBtn.addEventListener("click", async (e) => {
+        e.stopPropagation();
+        const codeInput = document.getElementById(`${itemId}-code`);
+        const codeText = codeInput ? codeInput.value : "";
+        if (!codeText) return;
+
+        let success = false;
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          try {
+            await navigator.clipboard.writeText(codeText);
+            success = true;
+          } catch (err) {
+            console.warn("Clipboard API failed, fallback to execCommand", err);
+          }
+        }
+        if (!success) {
+          try {
+            const tempInput = document.createElement("input");
+            tempInput.value = codeText;
+            document.body.appendChild(tempInput);
+            tempInput.select();
+            document.execCommand("copy");
+            document.body.removeChild(tempInput);
+            success = true;
+          } catch (e) {
+            console.error("Fallback copy failed", e);
+          }
+        }
+
+        if (success) {
+          copyBtn.classList.add("copied");
+          const iconCopy = copyBtn.querySelector(".icon-copy");
+          const iconCheck = copyBtn.querySelector(".icon-check");
+          if (iconCopy) iconCopy.classList.add("hidden");
+          if (iconCheck) iconCheck.classList.remove("hidden");
+
+          setTimeout(() => {
+            copyBtn.classList.remove("copied");
+            if (iconCopy) iconCopy.classList.remove("hidden");
+            if (iconCheck) iconCheck.classList.add("hidden");
+          }, 1200);
+        }
       });
     }
 
@@ -1844,6 +1900,12 @@ document.addEventListener("DOMContentLoaded", () => {
         } else {
           orderBadge.classList.add("hidden");
         }
+      }
+      
+      // 🚀 複製按鈕更新 (已選取產品時顯示)
+      const copyBtn = document.getElementById(`${targetItemId}-copy-btn`);
+      if (copyBtn) {
+        copyBtn.classList.remove("hidden");
       }
       
       productModal.classList.add("hidden");
