@@ -99,9 +99,9 @@ document.addEventListener("DOMContentLoaded", () => {
   // Service Worker 註冊與自動更新偵測
   // ====================================================
   if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('./sw.js?v=1.30')
+    navigator.serviceWorker.register('./sw.js?v=1.31')
       .then(reg => {
-        console.log('[PWA] Service Worker 已註冊 (v 1.30)', reg);
+        console.log('[PWA] Service Worker 已註冊 (v 1.31)', reg);
         // 主動檢查伺服器端是否有新版 sw.js
         reg.update();
 
@@ -155,6 +155,9 @@ document.addEventListener("DOMContentLoaded", () => {
       if (pStr) userProfile = JSON.parse(pStr);
     } catch(e) {}
     enterDraftMode(savedDisplayName);
+
+    // 🚀 選項 A 智慧自動更新：啟動時在背景非同步連線 GAS 更新最新庫存與雲端資料
+    triggerBackgroundAutoSync();
   } else {
     // 若無本機資料或無登入紀錄，顯示登入畫面以完成資料拉取
     console.log("[Auth] 顯示登入畫面 (hasLoggedIn:", hasLoggedIn, ", hasLocalData:", hasLocalData, ")");
@@ -202,6 +205,76 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
   updateOnlineStatus();
+
+  // ====================================================
+  // 🚀 選項 A 智慧自動更新機制：背景同步庫存與雲端資料
+  // ====================================================
+  let isAutoSyncing = false;
+  async function triggerBackgroundAutoSync() {
+    if (!navigator.onLine || isAutoSyncing) return;
+    isAutoSyncing = true;
+    console.log("[AutoSync] 啟動背景非同步庫存更新...");
+    try {
+      await loadInventoryFromGAS();
+      const updated = localStorage.getItem("inventory_last_updated");
+      updateAllInventoryTimeDisplays(updated);
+      console.log("[AutoSync] 庫存自動更新成功，最新時間：", updated);
+    } catch (err) {
+      console.warn("[AutoSync] 背景庫存更新失敗（維持本機快取）：", err);
+    } finally {
+      isAutoSyncing = false;
+    }
+
+    // 若 Access Token 仍有效，同步非同步更新個人客戶、產品與財務設定
+    if (isTokenValid()) {
+      Promise.allSettled([
+        loadCustomersFromDrive(),
+        loadProductsFromDrive(),
+        loadSettingsFromDrive(),
+        syncOfflineDraftsToDrive()
+      ]).then(() => {
+        console.log("[AutoSync] 個人雲端資料背景更新完成");
+      }).catch(err => {
+        console.warn("[AutoSync] 個人雲端資料背景更新異常:", err);
+      });
+    }
+  }
+
+  // 檢查是否需要因跨日或超過 1 小時而自動重新整理庫存
+  async function checkAndRefreshInventoryIfNeeded() {
+    if (!navigator.onLine) return;
+    const lastUpdatedStr = localStorage.getItem("inventory_last_updated") || "";
+    const now = new Date();
+    const todayMMdd = `${String(now.getMonth() + 1).padStart(2, '0')}/${String(now.getDate()).padStart(2, '0')}`;
+
+    let needsUpdate = false;
+    if (!lastUpdatedStr) {
+      needsUpdate = true;
+    } else if (!lastUpdatedStr.startsWith(todayMMdd)) {
+      // 跨日了！
+      needsUpdate = true;
+    } else {
+      const lastSyncTs = parseInt(localStorage.getItem("inventory_last_sync_timestamp") || "0", 10);
+      if (Date.now() - lastSyncTs > 60 * 60 * 1000) {
+        needsUpdate = true;
+      }
+    }
+
+    if (needsUpdate) {
+      console.log(`[AutoSync] 偵測到庫存資料已跨日或過期 (${lastUpdatedStr})，自動在背景更新...`);
+      await triggerBackgroundAutoSync();
+    }
+  }
+
+  // 監聽手機螢幕開啟與切回畫面事件 (喚醒時跨日檢查)
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible") {
+      checkAndRefreshInventoryIfNeeded();
+    }
+  });
+  window.addEventListener("focus", () => {
+    checkAndRefreshInventoryIfNeeded();
+  });
 
   // ====================================================
   // Google Identity Services 初始化
@@ -940,12 +1013,15 @@ document.addEventListener("DOMContentLoaded", () => {
       const data = await res.json();
       if (data.status === "ok" && data.data) {
         STOCK_MAP = data.data;
+        isStockMapLoaded = true;
         localStorage.setItem("inventory_cache", JSON.stringify(STOCK_MAP));
+        localStorage.setItem("inventory_last_sync_timestamp", Date.now().toString());
         if (data.last_updated) {
           localStorage.setItem("inventory_last_updated", data.last_updated);
           updateAllInventoryTimeDisplays(data.last_updated);
         }
-        console.log("[GAS] 庫存同步成功，共", Object.keys(STOCK_MAP).length, "筆");
+        refreshAllItemStockDisplays();
+        console.log("[GAS] 庫存同步成功，共", Object.keys(STOCK_MAP).length, "筆，更新時間：", data.last_updated);
       } else {
         console.warn("[GAS] 庫存讀取異常:", data.msg);
         STOCK_MAP = JSON.parse(localStorage.getItem("inventory_cache") || "{}");
@@ -954,6 +1030,31 @@ document.addEventListener("DOMContentLoaded", () => {
       console.warn("[GAS] 庫存讀取失敗（使用離線快取）:", e.message);
       STOCK_MAP = JSON.parse(localStorage.getItem("inventory_cache") || "{}");
     }
+  }
+
+  // 重新整理畫面上所有既有品項列的庫存數字與顏色狀態
+  function refreshAllItemStockDisplays() {
+    ensureStockMapLoaded();
+    const rows = itemsContainer.querySelectorAll(".item-row");
+    rows.forEach(row => {
+      const codeInput = row.querySelector("input[name='item_code']");
+      if (!codeInput || !codeInput.value) return;
+      const code = codeInput.value;
+      const qty = getStockQty(code);
+      const stockEl = row.querySelector(".stock-field");
+      if (stockEl) {
+        if (qty !== null && qty > 0) {
+          stockEl.value = `${qty} 台`;
+          stockEl.style.color = "#059669";
+        } else if (qty === 0) {
+          stockEl.value = "無庫存";
+          stockEl.style.color = "#dc2626";
+        } else {
+          stockEl.value = "未納管";
+          stockEl.style.color = "#6b7280";
+        }
+      }
+    });
   }
 
   // ====================================================
