@@ -1427,6 +1427,7 @@ document.addEventListener("DOMContentLoaded", () => {
           <button type="button" class="product-picker-input" id="${itemId}-title" style="flex:1;">
             點擊選擇產品...
           </button>
+          <span id="${itemId}-order-badge" class="order-item-badge hidden">訂購品</span>
           <button type="button" class="item-remove" onclick="document.getElementById('${itemId}').remove(); setTimeout(() => { calculateTotal(); refreshItemIndices(); }, 50);">&times;</button>
         </div>
         <div class="item-grid">
@@ -1712,6 +1713,11 @@ document.addEventListener("DOMContentLoaded", () => {
       stockBadge = `<span class="stock-badge stock-in">現貨 ${qty}</span>`;
     }
 
+    let orderBadge = "";
+    if (p.is_order_item) {
+      orderBadge = `<span class="stock-badge stock-order">訂購品</span>`;
+    }
+
     const dealerPrice = p.dealer_price ? `<span style="color:var(--primary-color);">經銷 $${Number(p.dealer_price).toLocaleString()}</span>` : "";
     const listPrice   = p.list_price   ? `<span style="color:var(--text-muted);">定價 $${Number(p.list_price).toLocaleString()}</span>`   : "";
     const priceLine   = (dealerPrice || listPrice)
@@ -1720,8 +1726,11 @@ document.addEventListener("DOMContentLoaded", () => {
 
     return `
       <div class="product-item" data-code="${p.code || ''}" data-name="${p.name || ''}">
-        <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
-          <strong>${p.code || ''}</strong>
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+          <div style="display:flex; align-items:center; gap:6px;">
+            <strong>${p.code || ''}</strong>
+            ${orderBadge}
+          </div>
           ${stockBadge}
         </div>
         <div style="color:var(--text-muted); font-size:0.875rem;">${p.name || ''}</div>
@@ -1824,6 +1833,17 @@ document.addEventListener("DOMContentLoaded", () => {
       if (stockEl) {
         stockEl.value = stockStr;
         stockEl.style.color = (qty !== null && qty > 0) || productObj.stock === "IN_STOCK" ? "#059669" : "#dc2626";
+      }
+      
+      // 🚀 訂購品標籤更新
+      const isOrder = Boolean(productObj.is_order_item);
+      const orderBadge = document.getElementById(`${targetItemId}-order-badge`);
+      if (orderBadge) {
+        if (isOrder) {
+          orderBadge.classList.remove("hidden");
+        } else {
+          orderBadge.classList.add("hidden");
+        }
       }
       
       productModal.classList.add("hidden");

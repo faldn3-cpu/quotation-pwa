@@ -409,6 +409,20 @@ input:focus {
 
 .stock-in { background: #d1fae5; color: #065f46; }
 .stock-out { background: #fee2e2; color: #991b1b; }
+.stock-order { background: #fff7ed; color: #c2410c; border: 1px solid #fdba74; }
+
+.order-item-badge {
+  display: inline-block;
+  font-size: 0.75rem;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-weight: 600;
+  background: #fff7ed;
+  color: #c2410c;
+  border: 1px solid #fdba74;
+  margin-left: 6px;
+  white-space: nowrap;
+}
 
 /* Modal */
 .modal {
