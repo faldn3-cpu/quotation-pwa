@@ -21,7 +21,8 @@ let FINANCE_SETTINGS = {
   tax_rate: 5,
   round_digit: 1,
   round_factor: 10,
-  round_method: "ROUND"
+  round_method: "ROUND",
+  customer_sort_mode: "FAVORITE_FIRST"
 };
 let tokenClient = null;
 let accessToken = null;
@@ -813,17 +814,45 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
+  // 依據當前排序模式對客戶清單進行排序
+  function sortCustomerList(customers) {
+    if (!customers || !Array.isArray(customers)) return customers || [];
+    const mode = (FINANCE_SETTINGS && FINANCE_SETTINGS.customer_sort_mode) || "FAVORITE_FIRST";
+    return [...customers].sort((a, b) => {
+      const aName = typeof a === 'string' ? a : (a.name || "");
+      const bName = typeof b === 'string' ? b : (b.name || "");
+      if (mode === "QUOTE_COUNT") {
+        const aCnt = (typeof a === 'object' && a.quote_count) ? Number(a.quote_count) : 0;
+        const bCnt = (typeof b === 'object' && b.quote_count) ? Number(b.quote_count) : 0;
+        if (bCnt !== aCnt) return bCnt - aCnt;
+        return aName.localeCompare(bName, 'zh-Hant');
+      } else if (mode === "NAME_ASC") {
+        return aName.localeCompare(bName, 'zh-Hant');
+      } else if (mode === "NAME_DESC") {
+        return bName.localeCompare(aName, 'zh-Hant');
+      } else {
+        // 預設模式 1：FAVORITE_FIRST (⭐ 常用客戶優先，其餘按名稱正序)
+        const aFav = (typeof a === 'object' && a.is_favorite) ? 1 : 0;
+        const bFav = (typeof b === 'object' && b.is_favorite) ? 1 : 0;
+        if (bFav !== aFav) return bFav - aFav;
+        return aName.localeCompare(bName, 'zh-Hant');
+      }
+    });
+  }
+
   // ====================================================
   // 從快取讀取（離線模式）
   // ====================================================
   function loadFromCache() {
     try {
       MOCK_CUSTOMERS = JSON.parse(localStorage.getItem("customers_cache") || "[]");
+      MOCK_CUSTOMERS = sortCustomerList(MOCK_CUSTOMERS);
       MOCK_PRODUCTS  = JSON.parse(localStorage.getItem("products_cache")  || "[]");
       const cachedSettings = localStorage.getItem("finance_settings");
       if (cachedSettings) {
         FINANCE_SETTINGS = Object.assign(FINANCE_SETTINGS, JSON.parse(cachedSettings));
         updateAllRoundingHints();
+        MOCK_CUSTOMERS = sortCustomerList(MOCK_CUSTOMERS);
       }
       console.log("[快取] 客戶:", MOCK_CUSTOMERS.length, "筆 / 產品:", MOCK_PRODUCTS.length, "筆 / 財務設定:", FINANCE_SETTINGS);
     } catch (e) {
@@ -874,6 +903,7 @@ document.addEventListener("DOMContentLoaded", () => {
         FINANCE_SETTINGS = Object.assign(FINANCE_SETTINGS, cfg);
         localStorage.setItem("finance_settings", JSON.stringify(FINANCE_SETTINGS));
         updateAllRoundingHints();
+        MOCK_CUSTOMERS = sortCustomerList(MOCK_CUSTOMERS);
         console.log("[Drive] 財務設定同步成功:", FINANCE_SETTINGS);
       }
     } catch (e) {
@@ -938,12 +968,14 @@ document.addEventListener("DOMContentLoaded", () => {
       if (!downloadRes.ok) throw new Error("下載失敗：" + downloadRes.status);
 
       MOCK_CUSTOMERS = await downloadRes.json();
+      MOCK_CUSTOMERS = sortCustomerList(MOCK_CUSTOMERS);
       localStorage.setItem("customers_cache", JSON.stringify(MOCK_CUSTOMERS));
       console.log("[Drive] 客戶資料同步成功，共", MOCK_CUSTOMERS.length, "筆");
 
     } catch (e) {
       console.error("[Drive] 讀取客戶資料失敗:", e);
       MOCK_CUSTOMERS = JSON.parse(localStorage.getItem("customers_cache") || "[]");
+      MOCK_CUSTOMERS = sortCustomerList(MOCK_CUSTOMERS);
     }
   }
 
@@ -1137,6 +1169,7 @@ document.addEventListener("DOMContentLoaded", () => {
   // 客戶選擇對話框 (Modal) 邏輯
   // ====================================================
   customerNameInput.addEventListener("click", () => {
+    MOCK_CUSTOMERS = sortCustomerList(MOCK_CUSTOMERS);
     customerModalCount.textContent = MOCK_CUSTOMERS.length;
     customerModalSearch.value = "";
     renderCustomerModal(MOCK_CUSTOMERS);
@@ -1182,6 +1215,7 @@ document.addEventListener("DOMContentLoaded", () => {
   function filterCustomers(keyword) {
     const val = (keyword || "").trim().toLowerCase();
     if (!val) {
+      MOCK_CUSTOMERS = sortCustomerList(MOCK_CUSTOMERS);
       customerModalCount.textContent = MOCK_CUSTOMERS.length;
       renderCustomerModal(MOCK_CUSTOMERS);
       return;
