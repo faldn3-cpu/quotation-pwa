@@ -99,9 +99,9 @@ document.addEventListener("DOMContentLoaded", () => {
   // Service Worker 註冊與自動更新偵測
   // ====================================================
   if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('./sw.js?v=1.32')
+    navigator.serviceWorker.register('./sw.js?v=1.33')
       .then(reg => {
-        console.log('[PWA] Service Worker 已註冊 (v 1.32)', reg);
+        console.log('[PWA] Service Worker 已註冊 (v 1.33)', reg);
         // 主動檢查伺服器端是否有新版 sw.js
         reg.update();
 
@@ -1162,9 +1162,21 @@ document.addEventListener("DOMContentLoaded", () => {
     }, 200);
   });
 
+  // HTML 特殊字元轉義輔助函式
+  function escapeHTML(str) {
+    if (str === null || str === undefined) return "";
+    return String(str)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#39;");
+  }
+
   function filterCustomers(keyword) {
     const val = (keyword || "").trim().toLowerCase();
     if (!val) {
+      customerModalCount.textContent = MOCK_CUSTOMERS.length;
       renderCustomerModal(MOCK_CUSTOMERS);
       return;
     }
@@ -1186,7 +1198,7 @@ document.addEventListener("DOMContentLoaded", () => {
         addr = String(c.address || "").toLowerCase();
         hasContactMatch = Array.isArray(c.contacts) && c.contacts.some(ct => {
           const ctName = String(ct.name || "").toLowerCase();
-          const ctPhone = String(ct.phone || "").toLowerCase();
+          const ctPhone = String(ct.phone || ct.mobile || "").toLowerCase();
           const ctEmail = String(ct.email || "").toLowerCase();
           return ctName.includes(val) || ctPhone.includes(val) || ctEmail.includes(val);
         });
@@ -1215,6 +1227,7 @@ document.addEventListener("DOMContentLoaded", () => {
       return a.name.localeCompare(b.name, 'zh-Hant');
     });
 
+    customerModalCount.textContent = matches.length;
     renderCustomerModal(matches.map(m => m.customer));
   }
 
@@ -1224,49 +1237,121 @@ document.addEventListener("DOMContentLoaded", () => {
       return;
     }
 
-    customerModalResults.innerHTML = customers.map(c => {
-      const name = typeof c === 'string' ? c : (c.name || "");
-      let subInfo = "";
-      if (typeof c === 'object' && c.contacts && c.contacts.length > 0) {
-        subInfo = c.contacts.map(ct => `聯絡人: ${ct.name}${ct.phone ? ` (${ct.phone})` : ''}`).join(" | ");
-      } else if (typeof c === 'object' && c.phone) {
-        subInfo = `電話: ${c.phone}`;
+    const htmlParts = [];
+
+    customers.forEach(c => {
+      if (typeof c === 'string') {
+        htmlParts.push(`
+          <div class="customer-item" data-name="${escapeHTML(c)}">
+            <div class="customer-item-name">${escapeHTML(c)}</div>
+          </div>
+        `);
+        return;
       }
 
-      return `
-        <div class="customer-item" data-name="${name}">
-          <div class="customer-item-name">${name}</div>
-          ${subInfo ? `<div class="customer-item-sub">${subInfo}</div>` : ""}
-        </div>
-      `;
-    }).join("");
+      const name = c.name || "";
+      const idStr = (c.id !== undefined && c.id !== null) ? String(c.id) : "";
+      const taxId = c.tax_id || "";
+      const address = c.address || "";
+      const companyPhone = c.phone || "";
+
+      if (Array.isArray(c.contacts) && c.contacts.length > 0) {
+        c.contacts.forEach(ct => {
+          const contactName = ct.name || "";
+          const contactPhone = ct.mobile || ct.phone || "";
+          let subInfo = `聯絡人: ${contactName}`;
+          if (contactPhone) {
+            subInfo += ` (${contactPhone})`;
+          }
+
+          htmlParts.push(`
+            <div class="customer-item" 
+                 data-id="${escapeHTML(idStr)}" 
+                 data-name="${escapeHTML(name)}"
+                 data-contact="${escapeHTML(contactName)}"
+                 data-phone="${escapeHTML(contactPhone || companyPhone)}"
+                 data-tax-id="${escapeHTML(taxId)}"
+                 data-address="${escapeHTML(address)}">
+              <div class="customer-item-name">${escapeHTML(name)}</div>
+              <div class="customer-item-sub">${escapeHTML(subInfo)}</div>
+            </div>
+          `);
+        });
+      } else {
+        const subInfo = companyPhone ? `電話: ${companyPhone}` : (taxId ? `統編: ${taxId}` : "");
+        htmlParts.push(`
+          <div class="customer-item" 
+               data-id="${escapeHTML(idStr)}" 
+               data-name="${escapeHTML(name)}"
+               data-contact=""
+               data-phone="${escapeHTML(companyPhone)}"
+               data-tax-id="${escapeHTML(taxId)}"
+               data-address="${escapeHTML(address)}">
+            <div class="customer-item-name">${escapeHTML(name)}</div>
+            ${subInfo ? `<div class="customer-item-sub">${escapeHTML(subInfo)}</div>` : ""}
+          </div>
+        `);
+      }
+    });
+
+    customerModalResults.innerHTML = htmlParts.join("");
   }
 
   customerModalResults.addEventListener("click", (e) => {
     const item = e.target.closest(".customer-item");
-    if (item && item.dataset.name) {
-      const customer = MOCK_CUSTOMERS.find(c => (c.name || c) === item.dataset.name);
-      if (customer && typeof customer === 'object') {
-        const contact = customer.contacts && customer.contacts[0] ? customer.contacts[0].name : "";
-        customerNameInput.value = contact ? `${customer.name} - ${contact}` : customer.name;
-        customerNameInput.dataset.company = customer.name || "";
-        customerNameInput.dataset.contact = contact || "";
-        
+    if (!item) return;
+
+    const id = item.dataset.id;
+    const name = item.dataset.name || "";
+    const contact = item.dataset.contact || "";
+    const phone = item.dataset.phone || "";
+    const taxId = item.dataset.taxId || "";
+    const address = item.dataset.address || "";
+
+    let customer = null;
+    if (id) {
+      customer = MOCK_CUSTOMERS.find(c => typeof c === 'object' && String(c.id) === String(id));
+    }
+    if (!customer && name) {
+      customer = MOCK_CUSTOMERS.find(c => (c.name || c) === name);
+    }
+
+    if (customer && typeof customer === 'object') {
+      const selectedContact = contact || (customer.contacts && customer.contacts[0] ? customer.contacts[0].name : "");
+      const fullDisplay = selectedContact ? `${customer.name} - ${selectedContact}` : customer.name;
+
+      customerNameInput.value = fullDisplay;
+      customerNameInput.dataset.company = customer.name || "";
+      customerNameInput.dataset.contact = selectedContact || "";
+      customerNameInput.dataset.customerId = customer.id || "";
+
+      document.getElementById("customerDetailCard").classList.remove("hidden");
+      document.getElementById("customerDetailSummary").textContent = fullDisplay;
+      document.getElementById("cdCompany").textContent = customer.name || "";
+      document.getElementById("cdTaxId").textContent = customer.tax_id || taxId || "";
+      document.getElementById("cdContact").textContent = selectedContact || "";
+      document.getElementById("cdPhone").textContent = customer.phone || phone || "";
+      document.getElementById("cdAddress").textContent = customer.address || address || "";
+    } else {
+      const displayName = contact ? `${name} - ${contact}` : name;
+      customerNameInput.value = displayName;
+      customerNameInput.dataset.company = name;
+      customerNameInput.dataset.contact = contact;
+      customerNameInput.dataset.customerId = id || "";
+
+      if (name) {
         document.getElementById("customerDetailCard").classList.remove("hidden");
-        document.getElementById("customerDetailSummary").textContent = `${customer.name} - ${contact}`;
-        document.getElementById("cdCompany").textContent = customer.name || "";
-        document.getElementById("cdTaxId").textContent = customer.tax_id || "";
+        document.getElementById("customerDetailSummary").textContent = displayName;
+        document.getElementById("cdCompany").textContent = name;
+        document.getElementById("cdTaxId").textContent = taxId;
         document.getElementById("cdContact").textContent = contact;
-        document.getElementById("cdPhone").textContent = customer.phone || "";
-        document.getElementById("cdAddress").textContent = customer.address || "";
+        document.getElementById("cdPhone").textContent = phone;
+        document.getElementById("cdAddress").textContent = address;
       } else {
-        customerNameInput.value = item.dataset.name;
-        customerNameInput.dataset.company = item.dataset.name || "";
-        customerNameInput.dataset.contact = "";
         document.getElementById("customerDetailCard").classList.add("hidden");
       }
-      customerModal.classList.add("hidden");
     }
+    customerModal.classList.add("hidden");
   });
 
   const btnToggleCustomerDetail = document.getElementById("btnToggleCustomerDetail");
@@ -2013,6 +2098,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function resetDraftForm() {
     customerNameInput.value = "";
+    customerNameInput.dataset.company = "";
+    customerNameInput.dataset.contact = "";
+    customerNameInput.dataset.customerId = "";
     const card = document.getElementById("customerDetailCard");
     if (card) card.classList.add("hidden");
     itemsContainer.innerHTML = "";
