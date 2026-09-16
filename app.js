@@ -1118,11 +1118,9 @@ document.addEventListener("DOMContentLoaded", () => {
     const raw = String(code).trim().toLowerCase();
     if (STOCK_MAP[raw] !== undefined) return STOCK_MAP[raw];
 
-    const noParen = String(code).replace(/[（(].*?[)）]/g, "").trim().toLowerCase();
-    if (STOCK_MAP[noParen] !== undefined) return STOCK_MAP[noParen];
-
-    const alphaNum = String(code).replace(/[^a-zA-Z0-9]/g, "").toLowerCase();
-    if (STOCK_MAP[alphaNum] !== undefined) return STOCK_MAP[alphaNum];
+    // 僅過濾明確包含中文字之備註括號（如 (訂購品)、（客製品）），絕不破壞硬體仕樣括號 (如 (C))
+    const noChineseRemark = String(code).replace(/[（(][^）)]*[\u4e00-\u9fa5]+[^）)]*[)）]/g, "").trim().toLowerCase();
+    if (noChineseRemark && STOCK_MAP[noChineseRemark] !== undefined) return STOCK_MAP[noChineseRemark];
 
     return null;
   }
