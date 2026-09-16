@@ -35,6 +35,14 @@ function isTokenValid() {
 }
 
 document.addEventListener("DOMContentLoaded", () => {
+  // 🚀 版本自動同步與舊快取清理防護 (v 1.34)
+  const CURRENT_APP_VERSION = "1.34";
+  const lastAppVersion = localStorage.getItem("app_version");
+  if (lastAppVersion !== CURRENT_APP_VERSION) {
+    console.log(`[VersionUpdate] 偵測到版本更新 (${lastAppVersion || "舊版"} -> ${CURRENT_APP_VERSION})，自動清空庫存快取`);
+    localStorage.removeItem("inventory_cache");
+    localStorage.setItem("app_version", CURRENT_APP_VERSION);
+  }
 
   // --- DOM 元素 ---
   const loginSection        = document.getElementById("loginSection");
@@ -99,9 +107,9 @@ document.addEventListener("DOMContentLoaded", () => {
   // Service Worker 註冊與自動更新偵測
   // ====================================================
   if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('./sw.js?v=1.33')
+    navigator.serviceWorker.register('./sw.js?v=1.34')
       .then(reg => {
-        console.log('[PWA] Service Worker 已註冊 (v 1.33)', reg);
+        console.log('[PWA] Service Worker 已註冊 (v 1.34)', reg);
         // 主動檢查伺服器端是否有新版 sw.js
         reg.update();
 
