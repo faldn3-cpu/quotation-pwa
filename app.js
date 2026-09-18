@@ -11,6 +11,8 @@ const SETTINGS_FILE_NAME = "settings.json";
 
 // 庫存對照表：產品型號(小寫) → 可用數量（從 L廠庫存試算表同步）
 let STOCK_MAP = {};
+// 純化索引：去除連字號/斜線後的純英數 key → 可用數量（對齊電腦版 normalize_for_matching 邏輯）
+let NORM_STOCK_MAP = {};
 
 // ====================================================
 // 全域狀態
@@ -1092,6 +1094,7 @@ document.addEventListener("DOMContentLoaded", () => {
       if (data.status === "ok" && data.data) {
         STOCK_MAP = data.data;
         isStockMapLoaded = true;
+        buildNormStockMap();
         localStorage.setItem("inventory_cache", JSON.stringify(STOCK_MAP));
         localStorage.setItem("inventory_last_sync_timestamp", Date.now().toString());
         if (data.last_updated) {
@@ -1146,7 +1149,40 @@ document.addEventListener("DOMContentLoaded", () => {
           STOCK_MAP = JSON.parse(localStorage.getItem("inventory_cache") || "{}");
         } catch(e) {}
       }
+      buildNormStockMap();
       isStockMapLoaded = true;
+    }
+  }
+
+  /**
+   * 純化比對字串（對齊電腦版 InventoryService.normalize_for_matching）：
+   * 1. 去除含中文字的備註括號（如 (訂購品)），保留機能仕樣括號（如 (C)）
+   * 2. 移除所有非英數與小數點字符（連字號、斜線、空白等一律移除）
+   * 3. 轉小寫
+   * 效果：SA3-043-90K/110K-F → sa3043-90k110kf == SA3-043-90K/110KF 純化結果
+   */
+  function normalizeForMatching(str) {
+    if (!str) return '';
+    // 第一層：去除含中文字之備註括號
+    let t = String(str).replace(/[（(][^）)]*[\u4e00-\u9fa5]+[^）)]*[)）]/g, '').trim();
+    // 第二層：僅保留英數與小數點（移除連字號 [-]、斜線 [/]、空白等）
+    t = t.replace(/[^a-zA-Z0-9.]/g, '');
+    return t.toLowerCase();
+  }
+
+  /**
+   * 依據當前 STOCK_MAP 建立純化索引 NORM_STOCK_MAP，
+   * 供 getStockQty 第三層 fallback 使用。
+   */
+  function buildNormStockMap() {
+    NORM_STOCK_MAP = {};
+    if (!STOCK_MAP || typeof STOCK_MAP !== 'object') return;
+    for (const key in STOCK_MAP) {
+      const normKey = normalizeForMatching(key);
+      // 若同一純化 key 已存在，不覆蓋（先入為主，避免誤蓋）
+      if (normKey && NORM_STOCK_MAP[normKey] === undefined) {
+        NORM_STOCK_MAP[normKey] = STOCK_MAP[key];
+      }
     }
   }
 
@@ -1155,12 +1191,18 @@ document.addEventListener("DOMContentLoaded", () => {
     ensureStockMapLoaded();
     if (!STOCK_MAP) return null;
 
+    // 第一層：原始小寫精確比對
     const raw = String(code).trim().toLowerCase();
     if (STOCK_MAP[raw] !== undefined) return STOCK_MAP[raw];
 
-    // 僅過濾明確包含中文字之備註括號（如 (訂購品)、（客製品）），絕不破壞硬體仕樣括號 (如 (C))
-    const noChineseRemark = String(code).replace(/[（(][^）)]*[\u4e00-\u9fa5]+[^）)]*[)）]/g, "").trim().toLowerCase();
+    // 第二層：去除中文備註括號後再比對（保留機能仕樣如 (C)）
+    const noChineseRemark = String(code).replace(/[（(][^）)]*[\u4e00-\u9fa5]+[^）)]*[)）]/g, '').trim().toLowerCase();
     if (noChineseRemark && STOCK_MAP[noChineseRemark] !== undefined) return STOCK_MAP[noChineseRemark];
+
+    // 第三層：純化比對（對齊電腦版 normalize_for_matching，移除連字號與斜線）
+    // 例：SA3-043-90K/110K-F → sa3043-90k110kf，可比對到 SA3-043-90K/110KF
+    const normCode = normalizeForMatching(code);
+    if (normCode && NORM_STOCK_MAP[normCode] !== undefined) return NORM_STOCK_MAP[normCode];
 
     return null;
   }
