@@ -29,6 +29,7 @@ let FINANCE_SETTINGS = {
 let tokenClient = null;
 let accessToken = null;
 let userProfile = null;
+let pendingDraftAfterAuth = null;
 let isTestMode = false;
 
 // 檢查是否為本地/區網測試環境
@@ -44,8 +45,8 @@ function isTokenValid() {
 }
 
 document.addEventListener("DOMContentLoaded", () => {
-  // 🚀 版本自動同步與舊快取清理防護 (v 1.64)
-  const CURRENT_APP_VERSION = "1.64";
+  // 🚀 版本自動同步與舊快取清理防護 (v 1.65)
+  const CURRENT_APP_VERSION = "1.65";
   const appVersionInfo = document.getElementById("appVersionInfo");
   if (appVersionInfo) {
     appVersionInfo.textContent = "v " + CURRENT_APP_VERSION;
@@ -56,7 +57,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if ('caches' in window) {
       caches.keys().then(keys => {
         keys.forEach(k => {
-          if (k !== 'quote-draft-v1.64') {
+          if (k !== 'quote-draft-v1.65') {
             caches.delete(k);
           }
         });
@@ -133,9 +134,9 @@ document.addEventListener("DOMContentLoaded", () => {
   // Service Worker 註冊與自動更新偵測
   // ====================================================
   if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('./sw.js?v=1.64')
+    navigator.serviceWorker.register('./sw.js?v=1.65')
       .then(reg => {
-        console.log('[PWA] Service Worker 已註冊 (v 1.64)', reg);
+        console.log('[PWA] Service Worker 已註冊 (v 1.65)', reg);
         // 主動檢查伺服器端是否有新版 sw.js
         reg.update();
 
