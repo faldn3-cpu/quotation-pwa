@@ -45,8 +45,8 @@ function isTokenValid() {
 }
 
 document.addEventListener("DOMContentLoaded", () => {
-  // 🚀 版本自動同步與舊快取清理防護 (v 1.73)
-  const CURRENT_APP_VERSION = "1.73";
+  // 🚀 版本自動同步與舊快取清理防護 (v 1.74)
+  const CURRENT_APP_VERSION = "1.74";
   const appVersionInfo = document.getElementById("appVersionInfo");
   if (appVersionInfo) {
     appVersionInfo.textContent = "v " + CURRENT_APP_VERSION;
@@ -57,7 +57,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if ('caches' in window) {
       caches.keys().then(keys => {
         keys.forEach(k => {
-          if (k !== 'quote-draft-v1.73') {
+          if (k !== 'quote-draft-v1.74') {
             caches.delete(k);
           }
         });
@@ -134,9 +134,9 @@ document.addEventListener("DOMContentLoaded", () => {
   // Service Worker 註冊與自動更新偵測
   // ====================================================
   if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('./sw.js?v=1.73')
+    navigator.serviceWorker.register('./sw.js?v=1.74')
       .then(reg => {
-        console.log('[PWA] Service Worker 已註冊 (v 1.73)', reg);
+        console.log('[PWA] Service Worker 已註冊 (v 1.74)', reg);
         // 主動檢查伺服器端是否有新版 sw.js
         reg.update();
 
@@ -2824,6 +2824,28 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   // ====================================================
+  // 👑 業務檢視權限設定 DOM 元件與曾維崧身分判定
+  // ====================================================
+  const btnOpenPermModal = document.getElementById("btnOpenPermModal");
+
+  function isViewerWeiSong() {
+    const curName = (typeof getSalesName === "function") ? getSalesName() : "";
+    const profEmail = (userProfile?.email || localStorage.getItem("saved_user_email") || "").toLowerCase();
+    return curName === "曾維崧" || curName.includes("維崧") || profEmail === "tsengweisung@gmail.com";
+  }
+
+  function updatePermModalButtonVisibility() {
+    const btn = btnOpenPermModal || document.getElementById("btnOpenPermModal");
+    if (btn) {
+      if (isViewerWeiSong()) {
+        btn.classList.remove("hidden");
+      } else {
+        btn.classList.add("hidden");
+      }
+    }
+  }
+
+  // ====================================================
   // 👑 管理員身分模擬切換器設置 (tsengweisung@gmail.com 專屬)
   // ====================================================
   function setupAdminImpersonator() {
@@ -3633,7 +3655,6 @@ document.addEventListener("DOMContentLoaded", () => {
   // ====================================================
   // 👑 業務檢視權限設定模組 (曾維崧專屬)
   // ====================================================
-  const btnOpenPermModal = document.getElementById("btnOpenPermModal");
   const permModal = document.getElementById("permModal");
   const btnClosePermModal = document.getElementById("btnClosePermModal");
   const btnCancelPermModal = document.getElementById("btnCancelPermModal");
@@ -3642,22 +3663,6 @@ document.addEventListener("DOMContentLoaded", () => {
   const btnPermSelectAll = document.getElementById("btnPermSelectAll");
   const btnPermClearAll = document.getElementById("btnPermClearAll");
   const btnSavePermissions = document.getElementById("btnSavePermissions");
-
-  function isViewerWeiSong() {
-    const curName = getSalesName();
-    const profEmail = (userProfile?.email || localStorage.getItem("saved_user_email") || "").toLowerCase();
-    return curName === "曾維崧" || curName.includes("維崧") || profEmail === "tsengweisung@gmail.com";
-  }
-
-  function updatePermModalButtonVisibility() {
-    if (btnOpenPermModal) {
-      if (isViewerWeiSong()) {
-        btnOpenPermModal.classList.remove("hidden");
-      } else {
-        btnOpenPermModal.classList.add("hidden");
-      }
-    }
-  }
 
   async function fetchViewPermissions() {
     try {
