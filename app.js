@@ -45,8 +45,8 @@ function isTokenValid() {
 }
 
 document.addEventListener("DOMContentLoaded", () => {
-  // 🚀 版本自動同步與舊快取清理防護 (v 1.74)
-  const CURRENT_APP_VERSION = "1.74";
+  // 🚀 版本自動同步與舊快取清理防護 (v 1.76)
+  const CURRENT_APP_VERSION = "1.76";
   const appVersionInfo = document.getElementById("appVersionInfo");
   if (appVersionInfo) {
     appVersionInfo.textContent = "v " + CURRENT_APP_VERSION;
@@ -57,7 +57,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if ('caches' in window) {
       caches.keys().then(keys => {
         keys.forEach(k => {
-          if (k !== 'quote-draft-v1.74') {
+          if (k !== 'quote-draft-v1.76') {
             caches.delete(k);
           }
         });
@@ -134,9 +134,9 @@ document.addEventListener("DOMContentLoaded", () => {
   // Service Worker 註冊與自動更新偵測
   // ====================================================
   if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('./sw.js?v=1.74')
+    navigator.serviceWorker.register('./sw.js?v=1.76')
       .then(reg => {
-        console.log('[PWA] Service Worker 已註冊 (v 1.74)', reg);
+        console.log('[PWA] Service Worker 已註冊 (v 1.76)', reg);
         // 主動檢查伺服器端是否有新版 sw.js
         reg.update();
 
@@ -2626,6 +2626,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const settingDaysB               = document.getElementById("settingDaysB");
   const settingDaysC               = document.getElementById("settingDaysC");
   const settingDaysDistributor     = document.getElementById("settingDaysDistributor");
+  const settingDistributorGroup   = document.getElementById("settingDistributorGroup");
 
   // 🚫 提報不聯繫 DOM 元件
   const noContactModal             = document.getElementById("noContactModal");
@@ -6427,6 +6428,21 @@ document.addEventListener("DOMContentLoaded", () => {
       if (settingDaysB) settingDaysB.value = s.days_b;
       if (settingDaysC) settingDaysC.value = s.days_c;
       if (settingDaysDistributor) settingDaysDistributor.value = s.days_distributor;
+
+      // 🏢 非經銷商成員無法檢視與設定最下方經銷商未聯繫提醒
+      const currentSales = getSalesName();
+      const isDealerMember = DEALER_SALES_MEMBERS.some(m => currentSales.includes(m) || m.includes(currentSales));
+      const isAdmin = currentSales.includes("曾維崧") || currentSales.includes("維崧");
+      const canManageDistributor = isDealerMember || isAdmin;
+
+      if (settingDistributorGroup) {
+        if (canManageDistributor) {
+          settingDistributorGroup.style.display = "";
+        } else {
+          settingDistributorGroup.style.display = "none";
+        }
+      }
+
       if (followUpSettingsModal) followUpSettingsModal.classList.remove("hidden");
     });
   }
@@ -6446,11 +6462,19 @@ document.addEventListener("DOMContentLoaded", () => {
   }
   if (btnSaveFollowUpSettings) {
     btnSaveFollowUpSettings.addEventListener("click", () => {
+      const oldSettings = getFollowUpSettings();
+      const currentSales = getSalesName();
+      const isDealerMember = DEALER_SALES_MEMBERS.some(m => currentSales.includes(m) || m.includes(currentSales));
+      const isAdmin = currentSales.includes("曾維崧") || currentSales.includes("維崧");
+      const canManageDistributor = isDealerMember || isAdmin;
+
       const s = {
         days_a: parseInt(settingDaysA?.value, 10) || 14,
         days_b: parseInt(settingDaysB?.value, 10) || 30,
         days_c: parseInt(settingDaysC?.value, 10) || 30,
-        days_distributor: parseInt(settingDaysDistributor?.value, 10) || 14
+        days_distributor: canManageDistributor
+          ? (parseInt(settingDaysDistributor?.value, 10) || 14)
+          : (oldSettings.days_distributor || 14)
       };
       saveFollowUpSettings(s);
       showToast("✅ 已成功儲存久未聯繫天數門檻設定", "success");
@@ -6494,7 +6518,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const endDate = `${curYear}-12-31`;
 
     try {
-      const params = new URLSearchParams({
+      const crmParams = new URLSearchParams({
         action: "export_monthly_report",
         start_date: startDate,
         end_date: endDate,
@@ -6502,32 +6526,44 @@ document.addEventListener("DOMContentLoaded", () => {
         viewer: currentSales
       });
 
-      const res = await fetch(`${GAS_URL}?${params.toString()}`);
-      if (!res.ok) return;
-      const data = await res.json();
-      if (data.status === "ok" && Array.isArray(data.records)) {
-        computeFollowUpData(data.records);
-      }
+      const ogsmParams = new URLSearchParams({
+        action: "export_ogsm_report",
+        start_date: startDate,
+        end_date: endDate,
+        sales_name: isCurrentUserManager() ? "" : currentSales,
+        viewer: currentSales
+      });
+
+      const [crmRes, ogsmRes] = await Promise.all([
+        fetch(`${GAS_URL}?${crmParams.toString()}`).then(r => r.json()).catch(() => ({ status: "error" })),
+        fetch(`${GAS_URL}?${ogsmParams.toString()}`).then(r => r.json()).catch(() => ({ status: "error" }))
+      ]);
+
+      const crmRecords = (crmRes && crmRes.status === "ok" && Array.isArray(crmRes.records)) ? crmRes.records : [];
+      const ogsmRecords = (ogsmRes && ogsmRes.status === "ok" && Array.isArray(ogsmRes.records)) ? ogsmRes.records : [];
+
+      computeFollowUpData(crmRecords, ogsmRecords);
     } catch(err) {
       console.warn("更新跟催資料異常:", err);
     }
   }
 
-  // 核心跟催演算法：聚合同一客戶最新拜訪日/轉派日，計算未聯繫天數與警示燈號
-  function computeFollowUpData(records) {
+  // 核心跟催演算法：自動雙向聚合 [CRM 商機] 與 [OGSM 日報] 之最新拜訪日與轉派日，取最大值計算未聯繫天數
+  function computeFollowUpData(crmRecords, ogsmRecords = []) {
     const currentSales = getSalesName();
     const settings = getFollowUpSettings();
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    let userRecords = records;
+    let userCrmRecords = crmRecords;
     if (!isCurrentUserManager()) {
-      userRecords = records.filter(r => r.client_owner === currentSales || r.user_name === currentSales || r.sales_name === currentSales);
+      userCrmRecords = crmRecords.filter(r => r.client_owner === currentSales || r.user_name === currentSales || r.sales_name === currentSales);
     }
 
     const clientMap = new Map();
 
-    userRecords.forEach(r => {
+    // 1. 先由 CRM 商機紀錄初始化客戶基礎資料（包含客戶等級、轉派日、CRM 拜訪日、跟催狀態）
+    userCrmRecords.forEach(r => {
       const cName = (r.client_name || "").trim();
       if (!cName) return;
 
@@ -6578,6 +6614,49 @@ document.addEventListener("DOMContentLoaded", () => {
           existing.client_nature = r.client_nature || existing.client_nature;
           existing.row_index = r.row_index;
         }
+      }
+    });
+
+    // 2. 🚀 [自動雙向聚合] 融合 OGSM 日報中的最新拜訪日！取兩者之最大值
+    let userOgsmRecords = ogsmRecords;
+    if (!isCurrentUserManager()) {
+      userOgsmRecords = ogsmRecords.filter(r => r.sales_name === currentSales);
+    }
+
+    userOgsmRecords.forEach(r => {
+      const cName = (r.client_name || "").trim();
+      if (!cName) return;
+
+      let ogsmTime = 0;
+      let ogsmDateStr = r.date || "";
+      if (ogsmDateStr) {
+        const om = String(ogsmDateStr).match(/(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})/);
+        if (om) {
+          ogsmTime = new Date(parseInt(om[1], 10), parseInt(om[2], 10) - 1, parseInt(om[3], 10)).getTime();
+        }
+      }
+      if (!ogsmTime) return;
+
+      if (clientMap.has(cName)) {
+        const existing = clientMap.get(cName);
+        // 若 OGSM 日報時間比 CRM 時間更新，直接提升有效聯繫時間與最新拜訪日！
+        if (ogsmTime > existing.effective_time) {
+          existing.effective_time = ogsmTime;
+          existing.visit_date = ogsmDateStr;
+        }
+      } else {
+        // 若 CRM 尚未建檔，但 OGSM 日報已有拜訪紀錄，自動納入久未聯繫監控清單
+        clientMap.set(cName, {
+          client_name: cName,
+          client_owner: r.sales_name || currentSales,
+          client_nature: r.client_type || "A 級（持續大手）",
+          effective_time: ogsmTime,
+          visit_date: ogsmDateStr,
+          reassign_date: "",
+          latest_case_name: r.content || "日報拜訪行程",
+          estimated_amount: 0,
+          row_index: null
+        });
       }
     });
 
