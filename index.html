@@ -15,7 +15,7 @@
   
   <!-- Google Fonts: Inter -->
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=1.72">
+  <link rel="stylesheet" href="style.css?v=1.73">
   <style>
     .custom-delivery-box { display: flex !important; gap: 8px !important; align-items: center !important; }
     .custom-delivery-box .search-input { flex: 1 !important; margin-bottom: 0 !important; }
@@ -109,7 +109,12 @@
         <!-- 動態填入業務與主管名單 -->
       </select>
     </div>
-    <div class="admin-impersonate-tag">測試權限已啟用</div>
+    <div style="display:flex; align-items:center; gap:6px;">
+      <button type="button" id="btnOpenPermModal" class="btn btn-sm" style="font-size:0.78rem; font-weight:600; padding:4px 9px; background:#4f46e5; color:#ffffff; border:none; border-radius:4px; cursor:pointer;" title="設定人員檢視權限 (曾維崧專屬)">
+        👑 權限設定
+      </button>
+      <div class="admin-impersonate-tag">測試權限已啟用</div>
+    </div>
   </div>
 
   <main class="app-main">
@@ -285,13 +290,18 @@
         </div>
 
         <div id="ogsmDayReportList" class="ogsm-day-report-list">
-          <!-- 由 JS 動態繪製當日日報卡片清單 (如圖二完整卡片) -->
+          <!-- 由 JS 動態繪製當日日報卡片清單 (個人日報) -->
         </div>
 
-        <div class="ogsm-day-panel-footer">
+        <div class="ogsm-day-panel-footer" style="margin: 10px 0;">
           <button type="button" id="btnCopyLineReport" class="btn btn-line-report btn-block">
             📲 複製 LINE 業務匯報 (今日實際 + 明日預計)
           </button>
+        </div>
+
+        <!-- 👥 全團隊今日拜訪動態總覽 (位於 LINE 複製按鈕下方) -->
+        <div id="ogsmTeamReportList" class="ogsm-team-report-list">
+          <!-- 由 JS 動態繪製可管轄成員之團隊日報 -->
         </div>
       </div>
 
@@ -1437,9 +1447,56 @@
     </div>
   </div>
 
-  <!-- 🚀 畫面右下角簡潔版本訊息 (字體小、不佔用頂部空間) -->
-  <div class="app-version-bottom-right" id="appVersionInfo">v 1.72</div>
+  <!-- 👑 [新增 5] 曾維崧專屬業務檢視權限設定對話框 (Modal) -->
+  <div id="permModal" class="modal hidden">
+    <div class="modal-content" style="max-height:85vh; max-height:85dvh; display:flex; flex-direction:column; padding:1.25rem; max-width:480px;">
+      <div class="modal-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.75rem; flex-shrink:0;">
+        <h3 style="margin:0; font-size:1.1rem; color:#1e1b4b; display:flex; align-items:center; gap:6px;">
+          👑 業務檢視權限設定 (曾維崧專屬)
+        </h3>
+        <button id="btnClosePermModal" class="btn-close">&times;</button>
+      </div>
 
-  <script src="app.js?v=1.72"></script>
+      <div class="modal-body" style="overflow-y:auto; flex:1;">
+        <p style="font-size:0.82rem; color:#64748b; margin-bottom:12px; line-height:1.4;">
+          設定指定同仁登入時可調閱的成員日報與月曆圓點指標。設定後即刻儲存至雲端「檢視權限」試算表。
+        </p>
+
+        <div class="form-group" style="margin-bottom:12px;">
+          <label style="font-size:0.85rem; font-weight:600; color:#334155; display:block; margin-bottom:4px;">
+            1. 選擇要設定權限的業務人員：
+          </label>
+          <select id="permTargetUserSelect" class="form-control" style="width:100%; font-size:0.92rem; padding:6px 10px; border:1px solid #cbd5e1; border-radius:6px; background:#ffffff;">
+            <!-- 動態填入 11 位成員 -->
+          </select>
+        </div>
+
+        <div class="form-group" style="margin-bottom:0;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+            <label style="font-size:0.85rem; font-weight:600; color:#334155; margin:0;">
+              2. 勾選此人員可檢視的組員名單：
+            </label>
+            <div style="display:flex; gap:6px;">
+              <button type="button" id="btnPermSelectAll" style="font-size:0.75rem; padding:2px 8px; border:1px solid #cbd5e1; border-radius:4px; background:#f8fafc; cursor:pointer;">全選</button>
+              <button type="button" id="btnPermClearAll" style="font-size:0.75rem; padding:2px 8px; border:1px solid #cbd5e1; border-radius:4px; background:#f8fafc; cursor:pointer;">僅自己</button>
+            </div>
+          </div>
+          <div id="permMembersCheckboxContainer" style="display:grid; grid-template-columns:1fr 1fr; gap:6px; padding:10px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px; max-height:220px; overflow-y:auto;">
+            <!-- 動態填入核取方塊 -->
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-footer" style="padding-top:0.75rem; border-top:1px solid #e2e8f0; display:flex; justify-content:flex-end; gap:8px; margin-top:0.75rem; flex-shrink:0;">
+        <button type="button" id="btnCancelPermModal" class="btn btn-secondary" style="font-size:0.85rem; padding:6px 16px;">取消</button>
+        <button type="button" id="btnSavePermissions" class="btn btn-primary" style="font-size:0.85rem; padding:6px 16px; background:#4f46e5; border-color:#4338ca;">💾 儲存權限設定</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 🚀 畫面右下角簡潔版本訊息 (字體小、不佔用頂部空間) -->
+  <div class="app-version-bottom-right" id="appVersionInfo">v 1.73</div>
+
+  <script src="app.js?v=1.73"></script>
 </body>
 </html>

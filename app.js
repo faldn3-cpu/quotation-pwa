@@ -45,8 +45,8 @@ function isTokenValid() {
 }
 
 document.addEventListener("DOMContentLoaded", () => {
-  // 🚀 版本自動同步與舊快取清理防護 (v 1.72)
-  const CURRENT_APP_VERSION = "1.72";
+  // 🚀 版本自動同步與舊快取清理防護 (v 1.73)
+  const CURRENT_APP_VERSION = "1.73";
   const appVersionInfo = document.getElementById("appVersionInfo");
   if (appVersionInfo) {
     appVersionInfo.textContent = "v " + CURRENT_APP_VERSION;
@@ -57,7 +57,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if ('caches' in window) {
       caches.keys().then(keys => {
         keys.forEach(k => {
-          if (k !== 'quote-draft-v1.72') {
+          if (k !== 'quote-draft-v1.73') {
             caches.delete(k);
           }
         });
@@ -134,9 +134,9 @@ document.addEventListener("DOMContentLoaded", () => {
   // Service Worker 註冊與自動更新偵測
   // ====================================================
   if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('./sw.js?v=1.72')
+    navigator.serviceWorker.register('./sw.js?v=1.73')
       .then(reg => {
-        console.log('[PWA] Service Worker 已註冊 (v 1.72)', reg);
+        console.log('[PWA] Service Worker 已註冊 (v 1.73)', reg);
         // 主動檢查伺服器端是否有新版 sw.js
         reg.update();
 
@@ -588,8 +588,15 @@ document.addEventListener("DOMContentLoaded", () => {
     loadingOverlay.classList.add("hidden");
     const stockCount = Object.keys(STOCK_MAP).length;
     const lastUpdated = localStorage.getItem("inventory_last_updated");
-    updateAllInventoryTimeDisplays(lastUpdated);
-    alert(`✅ 資料同步完成！\n\n• 客戶資料：${MOCK_CUSTOMERS.length} 筆\n• 產品項目：${MOCK_PRODUCTS.length} 筆\n• 庫存報表：${stockCount} 筆`);
+    teamDailyCache.clear();
+    teamDotsCache.clear();
+    if (typeof loadOgsmMonthly === "function") {
+      loadOgsmMonthly(ogsmCurrentYear, ogsmCurrentMonth);
+    }
+    if (currentViewingDate && typeof loadTeamDailyView === "function") {
+      loadTeamDailyView(currentViewingDate, true);
+    }
+    alert(`✅ 資料同步完成！\n\n• 客戶資料：${MOCK_CUSTOMERS.length} 筆\n• 產品項目：${MOCK_PRODUCTS.length} 筆\n• 庫存報表：${stockCount} 筆\n• 日報與團隊動態：已更新`);
   });
 
   // ====================================================
@@ -2694,11 +2701,51 @@ document.addEventListener("DOMContentLoaded", () => {
     return name || "曾仁君";
   }
 
-  // 🚀 主管權限判定 (曾仁君、曾維崧、張何達)
-  const MANAGER_NAMES = ["曾仁君", "曾維崧", "張何達", "仁君", "維崧", "何達"];
+  // 🚀 業務團隊名單指定順序 (與使用者明確指定之 11 位同仁順序 100% 精準對齊)
+  const ORDERED_SALES_MEMBERS = [
+    "曾維崧", "張何達", "曾仁君", "葉仁豪", "溫達仁", "邱文輝", "楊家豪", "莊富丞", "何宛茹", "張書偉", "黃柏翰"
+  ];
+
+  function sortSalesMembers(list) {
+    if (!Array.isArray(list)) return [];
+    return [...list].sort((a, b) => {
+      let ia = ORDERED_SALES_MEMBERS.indexOf(a);
+      let ib = ORDERED_SALES_MEMBERS.indexOf(b);
+      if (ia === -1) ia = 999;
+      if (ib === -1) ib = 999;
+      if (ia !== ib) return ia - ib;
+      return a.localeCompare(b, "zh-Hant");
+    });
+  }
+
+  let ALL_SALES_MEMBERS = [
+    "曾維崧", "張何達", "曾仁君", "葉仁豪", "溫達仁", "邱文輝", "楊家豪", "莊富丞", "何宛茹", "張書偉", "黃柏翰"
+  ];
+
+  // 組織分組定義
+  const DIRECT_SALES_MEMBERS = ["何宛茹", "張書偉", "曾仁君", "楊家豪", "溫達仁", "莊富丞", "黃柏翰"];
+  const DEALER_SALES_MEMBERS = ["張何達", "葉仁豪", "邱文輝"];
+  // 指定需提醒之經銷商名單（超過 14 天未聯繫提醒；良鴻、松金、紅偉等不提醒）
+  const REMINDER_DEALERS = ["赫力", "贊翔", "台瓷", "黃柏翰", "漢銓"];
+
+  // 👑 雲端動態檢視權限快取
+  let cachedViewPermissions = {
+    "曾維崧": ["曾維崧", "張何達", "曾仁君", "葉仁豪", "溫達仁", "邱文輝", "楊家豪", "莊富丞", "何宛茹", "張書偉", "黃柏翰"],
+    "張何達": ["曾維崧", "張何達", "曾仁君", "葉仁豪", "溫達仁", "邱文輝", "楊家豪", "莊富丞", "何宛茹", "張書偉", "黃柏翰"],
+    "曾仁君": ["曾維崧", "張何達", "曾仁君", "葉仁豪", "溫達仁", "邱文輝", "楊家豪", "莊富丞", "何宛茹", "張書偉", "黃柏翰"],
+    "溫達仁": ["溫達仁", "楊家豪", "莊富丞", "何宛茹", "張書偉", "黃柏翰"],
+    "楊家豪": ["楊家豪", "何宛茹", "張書偉", "黃柏翰"],
+    "莊富丞": ["莊富丞", "何宛茹", "張書偉", "黃柏翰"]
+  };
+
+  // 🚀 判定當前業務是否具備團隊檢視權限 (能看他人即具備團隊檢視權限)
   function isCurrentUserManager() {
     const name = getSalesName();
-    return MANAGER_NAMES.some(m => name.includes(m) || m.includes(name));
+    if (cachedViewPermissions && cachedViewPermissions[name]) {
+      return cachedViewPermissions[name].some(m => m !== name);
+    }
+    const defaultMgrs = ["曾維崧", "張何達", "曾仁君", "溫達仁", "楊家豪", "莊富丞", "維崧", "何達", "仁君"];
+    return defaultMgrs.some(m => name.includes(m) || m.includes(name));
   }
 
   // 🚀 標準日期顯示格式化 (例如: 2026/09/24)
@@ -2719,17 +2766,6 @@ document.addEventListener("DOMContentLoaded", () => {
     }
     return str;
   }
-
-  // 業務團隊名單 (與雲端試算表「業務日報表_資料庫」分頁名稱 100% 精準對齊)
-  let ALL_SALES_MEMBERS = [
-    "何宛茹", "張何達", "張書偉", "曾仁君", "曾維崧", "楊家豪", "溫達仁", "莊富丞", "葉仁豪", "謝瑞騏", "邱文輝", "黃柏翰", "黃秀雯"
-  ];
-
-  // 組織分組定義
-  const DIRECT_SALES_MEMBERS = ["何宛茹", "張書偉", "曾仁君", "楊家豪", "溫達仁", "莊富丞", "黃柏翰"];
-  const DEALER_SALES_MEMBERS = ["張何達", "葉仁豪", "邱文輝"];
-  // 指定需提醒之經銷商名單（超過 14 天未聯繫提醒；良鴻、松金、紅偉等不提醒）
-  const REMINDER_DEALERS = ["赫力", "贊翔", "台瓷", "漢銓"];
 
   // 預設客戶跟催門檻
   const DEFAULT_FOLLOW_UP_SETTINGS = {
@@ -2804,10 +2840,9 @@ document.addEventListener("DOMContentLoaded", () => {
     if (isAdmin) {
       adminImpersonateBar.classList.remove("hidden");
       const currentSales = getSalesName();
-      adminImpersonateSelect.innerHTML = ALL_SALES_MEMBERS.map(m => {
-        const isMgr = MANAGER_NAMES.some(mgr => m.includes(mgr));
-        const roleLabel = isMgr ? " (主管)" : "";
-        return `<option value="${m}" ${m === currentSales ? "selected" : ""}>👤 ${m}${roleLabel}</option>`;
+      // 依照指定順序排序，並移除「(主管)」字樣
+      adminImpersonateSelect.innerHTML = sortSalesMembers(ALL_SALES_MEMBERS).map(m => {
+        return `<option value="${m}" ${m === currentSales ? "selected" : ""}>👤 ${m}</option>`;
       }).join("");
       adminImpersonateSelect.value = currentSales;
 
@@ -2817,6 +2852,7 @@ document.addEventListener("DOMContentLoaded", () => {
     } else {
       adminImpersonateBar.classList.add("hidden");
     }
+    updatePermModalButtonVisibility();
   }
 
   function impersonateSales(targetSales) {
@@ -3208,8 +3244,17 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
-  // 🚀 主管專用：載入全團隊綜合月曆指示點
-  async function loadTeamMonthlyDots(year, month) {
+  // 🚀 主管專用：載入全團隊綜合月曆指示點 (加入記憶體快取防止重複請求)
+  const teamDotsCache = new Map();
+
+  async function loadTeamMonthlyDots(year, month, forceRefresh = false) {
+    const cacheKey = `${getSalesName()}_${year}_${month}`;
+    if (!forceRefresh && teamDotsCache.has(cacheKey)) {
+      ogsmTeamDotsMap = teamDotsCache.get(cacheKey);
+      renderCalendar(year, month);
+      return;
+    }
+
     try {
       const params = new URLSearchParams({
         action: "get_ogsm_team_monthly_dots",
@@ -3223,6 +3268,7 @@ document.addEventListener("DOMContentLoaded", () => {
       const data = await res.json();
       if (data.status === "ok" && data.dots) {
         ogsmTeamDotsMap = data.dots;
+        teamDotsCache.set(cacheKey, ogsmTeamDotsMap);
         renderCalendar(year, month);
         console.log("[OGSM 主管模式] 團隊綜合圓點已更新:", ogsmTeamDotsMap);
       }
@@ -3423,9 +3469,12 @@ document.addEventListener("DOMContentLoaded", () => {
       });
     });
 
-    // 🚀 主管模式：在個人日報下方追加載入全團隊當日動態總覽
+    // 🚀 主管/組長模式：在個人日報與 LINE 複製按鈕下方載入可管轄團隊當日動態總覽
     if (isCurrentUserManager()) {
       loadTeamDailyView(dateStr);
+    } else {
+      const teamContainer = document.getElementById("ogsmTeamReportList");
+      if (teamContainer) teamContainer.innerHTML = "";
     }
   }
 
@@ -3436,10 +3485,7 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   // ====================================================
-  // 🚀 模組一：主管團隊動態清單載入 (選項 B：團隊總覽儀表板)
-  // ====================================================
-  // ====================================================
-  // 🚀 模組一：主管團隊動態清單載入 (記憶體快取 + 骨架屏 + SWR 秒開優化)
+  // 🚀 模組一：主管團隊動態清單載入 (記憶體快取秒開優化，避免每次重複讀取)
   // ====================================================
   const teamDailyCache = new Map();
 
@@ -3463,28 +3509,26 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function renderTeamDailyHtml(data) {
-    if (!ogsmDayReportList) return;
-    const oldWrap = ogsmDayReportList.querySelector(".team-overview-wrap");
-    if (oldWrap) oldWrap.remove();
-    const loadingElem = ogsmDayReportList.querySelector("#teamOverviewLoading");
-    if (loadingElem) loadingElem.remove();
+    const container = document.getElementById("ogsmTeamReportList") || ogsmDayReportList;
+    if (!container) return;
+    container.innerHTML = "";
 
     if (!data || !Array.isArray(data.team_reports) || data.team_reports.length === 0) {
-      ogsmDayReportList.insertAdjacentHTML("beforeend", `
-        <div class="team-overview-wrap" style="margin-top:1.5rem; padding:14px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; text-align:center; color:#64748b; font-size:0.85rem;">
-          👥 全團隊於此日尚無拜訪動態紀錄
+      container.innerHTML = `
+        <div class="team-overview-wrap" style="margin-top:1rem; padding:14px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; text-align:center; color:#64748b; font-size:0.85rem;">
+          👥 團隊成員於此日尚無拜訪動態紀錄
         </div>
-      `);
+      `;
       return;
     }
 
     let teamHtml = `
-      <div class="team-overview-wrap" style="margin-top:1.5rem; padding-top:1.25rem; border-top:2px dashed #cbd5e1;">
+      <div class="team-overview-wrap" style="margin-top:1rem; padding-top:1rem; border-top:2px dashed #cbd5e1;">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
-          <h4 style="margin:0; font-size:1.05rem; color:#1e40af; font-weight:700;">
+          <h4 style="margin:0; font-size:1.02rem; color:#1e40af; font-weight:700;">
             👥 全團隊今日拜訪動態總覽 (${data.team_reports.length} 位業務)
           </h4>
-          <span style="font-size:0.75rem; color:#64748b;">主管專屬監看</span>
+          <span style="font-size:0.75rem; color:#64748b;">檢視權限授權名單</span>
         </div>
     `;
 
@@ -3499,7 +3543,7 @@ document.addEventListener("DOMContentLoaded", () => {
       teamHtml += `
         <div class="team-sales-card">
           <div class="team-sales-header">
-            <span class="team-sales-name">👤 ${escapeHtml(teamUser.sales_name)} ${isExempt ? '<span style="font-size:0.72rem; color:#64748b; font-weight:normal;">(主管/經銷豁免)</span>' : ''}</span>
+            <span class="team-sales-name">👤 ${escapeHtml(teamUser.sales_name)} ${isExempt ? '<span style="font-size:0.72rem; color:#64748b; font-weight:normal;">(豁免)</span>' : ''}</span>
             ${statusBadge}
           </div>
           <div style="display:flex; flex-direction:column; gap:8px;">
@@ -3525,33 +3569,35 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
     teamHtml += `</div>`;
-    ogsmDayReportList.insertAdjacentHTML("beforeend", teamHtml);
+    container.innerHTML = teamHtml;
   }
 
-  async function loadTeamDailyView(dateStr) {
-    if (!ogsmDayReportList) return;
+  async function loadTeamDailyView(dateStr, forceRefresh = false) {
+    const container = document.getElementById("ogsmTeamReportList") || ogsmDayReportList;
+    if (!container) return;
 
-    // 1. 若記憶體快取已有此日期的團隊動態，【立即 0 毫秒極速渲染】，主管完全無需等待
-    if (teamDailyCache.has(dateStr)) {
-      renderTeamDailyHtml(teamDailyCache.get(dateStr));
-    } else {
-      // 2. 若快取尚未就緒，立即顯示美觀的骨架屏讀取指示器，消除畫面空白延遲感
-      const oldLoading = ogsmDayReportList.querySelector("#teamOverviewLoading");
-      if (oldLoading) oldLoading.remove();
-      const oldWrap = ogsmDayReportList.querySelector(".team-overview-wrap");
-      if (oldWrap) oldWrap.remove();
-
-      ogsmDayReportList.insertAdjacentHTML("beforeend", `
-        <div id="teamOverviewLoading" style="margin-top:1.5rem; padding:16px; background:#f8fafc; border:1px dashed #cbd5e1; border-radius:8px; text-align:center;">
-          <div style="font-size:0.9rem; font-weight:600; color:#2563eb; display:flex; align-items:center; justify-content:center; gap:8px;">
-            <span style="display:inline-block; font-size:1.1rem; animation:pulse 1.2s infinite;">⏳</span> 正在即時載入全團隊今日拜訪動態...
-          </div>
-          <div style="font-size:0.75rem; color:#94a3b8; margin-top:4px;">主管專屬監看資料彙整中</div>
-        </div>
-      `);
+    if (!isCurrentUserManager()) {
+      container.innerHTML = "";
+      return;
     }
 
-    // 3. 背景非同步向 GAS 取得最新數據並更新快取 (SWR 機制)
+    // 1. 若記憶體快取已有此日期的團隊動態，【立即 0 毫秒極速渲染】，不再重複讀取網路
+    if (!forceRefresh && teamDailyCache.has(dateStr)) {
+      renderTeamDailyHtml(teamDailyCache.get(dateStr));
+      return;
+    }
+
+    // 2. 若快取尚未就緒，立即顯示讀取指示器
+    container.innerHTML = `
+      <div id="teamOverviewLoading" style="margin-top:1rem; padding:16px; background:#f8fafc; border:1px dashed #cbd5e1; border-radius:8px; text-align:center;">
+        <div style="font-size:0.9rem; font-weight:600; color:#2563eb; display:flex; align-items:center; justify-content:center; gap:8px;">
+          <span style="display:inline-block; font-size:1.1rem; animation:pulse 1.2s infinite;">⏳</span> 正在即時載入全團隊今日拜訪動態...
+        </div>
+        <div style="font-size:0.75rem; color:#94a3b8; margin-top:4px;">團隊成員資料彙整中</div>
+      </div>
+    `;
+
+    // 3. 向 GAS 取得最新數據並儲存至快取
     try {
       const params = new URLSearchParams({
         action: "get_ogsm_team_daily",
@@ -3565,31 +3611,179 @@ document.addEventListener("DOMContentLoaded", () => {
 
       if (data && data.status === "ok") {
         teamDailyCache.set(dateStr, data);
-        // 若主管目前視窗仍停留在該日期，自動刷新最新內容
         if (currentViewingDate === dateStr) {
           renderTeamDailyHtml(data);
         }
       } else {
-        const loadingElem = ogsmDayReportList.querySelector("#teamOverviewLoading");
-        if (loadingElem) {
-          loadingElem.innerHTML = `
-            <div style="font-size:0.85rem; color:#dc2626; padding:10px; background:#fef2f2; border:1px solid #fecaca; border-radius:6px; text-align:center;">
-              ⚠️ 團隊動態讀取提示：${escapeHtml(data && data.msg ? data.msg : '伺服器未回傳有效資料，請確認後端已重新發布新版本')}
-            </div>
-          `;
-        }
-      }
-    } catch (e) {
-      console.warn("[OGSM] 載入團隊總覽失敗:", e);
-      const loading = ogsmDayReportList.querySelector("#teamOverviewLoading");
-      if (loading) {
-        loading.innerHTML = `
-          <div style="font-size:0.85rem; color:#dc2626; padding:10px; background:#fef2f2; border:1px solid #fecaca; border-radius:6px; text-align:center;">
-            ⚠️ 連線伺服器逾時或失敗，請稍候重試或檢查網路連線
+        container.innerHTML = `
+          <div style="font-size:0.85rem; color:#dc2626; padding:10px; background:#fef2f2; border:1px solid #fecaca; border-radius:6px; text-align:center; margin-top:1rem;">
+            ⚠️ 團隊動態讀取提示：${escapeHtml(data && data.msg ? data.msg : '伺服器未回傳有效資料')}
           </div>
         `;
       }
+    } catch(err) {
+      container.innerHTML = `
+        <div style="font-size:0.85rem; color:#64748b; padding:10px; text-align:center; margin-top:1rem;">
+          暫無團隊動態資料或目前處於離線狀態
+        </div>
+      `;
     }
+  }
+
+  // ====================================================
+  // 👑 業務檢視權限設定模組 (曾維崧專屬)
+  // ====================================================
+  const btnOpenPermModal = document.getElementById("btnOpenPermModal");
+  const permModal = document.getElementById("permModal");
+  const btnClosePermModal = document.getElementById("btnClosePermModal");
+  const btnCancelPermModal = document.getElementById("btnCancelPermModal");
+  const permTargetUserSelect = document.getElementById("permTargetUserSelect");
+  const permMembersCheckboxContainer = document.getElementById("permMembersCheckboxContainer");
+  const btnPermSelectAll = document.getElementById("btnPermSelectAll");
+  const btnPermClearAll = document.getElementById("btnPermClearAll");
+  const btnSavePermissions = document.getElementById("btnSavePermissions");
+
+  function isViewerWeiSong() {
+    const curName = getSalesName();
+    const profEmail = (userProfile?.email || localStorage.getItem("saved_user_email") || "").toLowerCase();
+    return curName === "曾維崧" || curName.includes("維崧") || profEmail === "tsengweisung@gmail.com";
+  }
+
+  function updatePermModalButtonVisibility() {
+    if (btnOpenPermModal) {
+      if (isViewerWeiSong()) {
+        btnOpenPermModal.classList.remove("hidden");
+      } else {
+        btnOpenPermModal.classList.add("hidden");
+      }
+    }
+  }
+
+  async function fetchViewPermissions() {
+    try {
+      const res = await fetch(`${GAS_URL}?action=get_view_permissions&viewer=${encodeURIComponent(getSalesName())}`);
+      if (!res.ok) return;
+      const data = await res.json();
+      if (data && data.status === "ok" && data.permissions) {
+        cachedViewPermissions = data.permissions;
+      }
+    } catch(e) {
+      console.warn("載入檢視權限異常:", e);
+    }
+  }
+
+  function populatePermModal(targetUser) {
+    if (!permTargetUserSelect || !permMembersCheckboxContainer) return;
+    
+    const user = targetUser || permTargetUserSelect.value || ORDERED_SALES_MEMBERS[0];
+    permTargetUserSelect.innerHTML = ORDERED_SALES_MEMBERS.map(m => {
+      return `<option value="${m}" ${m === user ? "selected" : ""}>👤 ${m}</option>`;
+    }).join("");
+    permTargetUserSelect.value = user;
+
+    const allowed = (cachedViewPermissions && cachedViewPermissions[user]) ? cachedViewPermissions[user] : [user];
+
+    permMembersCheckboxContainer.innerHTML = ORDERED_SALES_MEMBERS.map(m => {
+      const isChecked = allowed.includes(m);
+      return `
+        <label style="display:flex; align-items:center; gap:6px; font-size:0.85rem; color:#1e293b; cursor:pointer; background:#ffffff; padding:6px 8px; border-radius:4px; border:1px solid #cbd5e1;">
+          <input type="checkbox" class="perm-member-checkbox" value="${m}" ${isChecked ? "checked" : ""}>
+          <span>👤 ${m}</span>
+        </label>
+      `;
+    }).join("");
+  }
+
+  if (btnOpenPermModal) {
+    btnOpenPermModal.addEventListener("click", async () => {
+      await fetchViewPermissions();
+      populatePermModal(permTargetUserSelect ? permTargetUserSelect.value : null);
+      if (permModal) permModal.classList.remove("hidden");
+    });
+  }
+
+  if (btnClosePermModal) {
+    btnClosePermModal.addEventListener("click", () => {
+      if (permModal) permModal.classList.add("hidden");
+    });
+  }
+  if (btnCancelPermModal) {
+    btnCancelPermModal.addEventListener("click", () => {
+      if (permModal) permModal.classList.add("hidden");
+    });
+  }
+
+  if (permTargetUserSelect) {
+    permTargetUserSelect.addEventListener("change", () => {
+      populatePermModal(permTargetUserSelect.value);
+    });
+  }
+
+  if (btnPermSelectAll) {
+    btnPermSelectAll.addEventListener("click", () => {
+      if (!permMembersCheckboxContainer) return;
+      permMembersCheckboxContainer.querySelectorAll(".perm-member-checkbox").forEach(cb => cb.checked = true);
+    });
+  }
+
+  if (btnPermClearAll) {
+    btnPermClearAll.addEventListener("click", () => {
+      if (!permMembersCheckboxContainer || !permTargetUserSelect) return;
+      const curUser = permTargetUserSelect.value;
+      permMembersCheckboxContainer.querySelectorAll(".perm-member-checkbox").forEach(cb => {
+        cb.checked = (cb.value === curUser);
+      });
+    });
+  }
+
+  if (btnSavePermissions) {
+    btnSavePermissions.addEventListener("click", async () => {
+      const targetUser = permTargetUserSelect ? permTargetUserSelect.value : "";
+      if (!targetUser) return;
+
+      const checkedMembers = [];
+      permMembersCheckboxContainer.querySelectorAll(".perm-member-checkbox:checked").forEach(cb => {
+        checkedMembers.push(cb.value);
+      });
+
+      if (!checkedMembers.includes(targetUser)) {
+        checkedMembers.unshift(targetUser);
+      }
+
+      btnSavePermissions.disabled = true;
+      btnSavePermissions.textContent = "⏳ 儲存中...";
+
+      try {
+        const params = new URLSearchParams({
+          action: "save_view_permissions",
+          viewer: getSalesName(),
+          target_user: targetUser,
+          allowed_members: checkedMembers.join(",")
+        });
+        const res = await fetch(`${GAS_URL}?${params.toString()}`);
+        const data = await res.json();
+        if (data && data.status === "ok") {
+          showToast(`✅ 已成功儲存「${targetUser}」的檢視權限`, "success");
+          cachedViewPermissions[targetUser] = checkedMembers;
+          if (permModal) permModal.classList.add("hidden");
+
+          teamDailyCache.clear();
+          if (currentViewingDate) {
+            loadTeamDailyView(currentViewingDate, true);
+          }
+          if (typeof loadOgsmTeamDots === "function") {
+            loadOgsmTeamDots(ogsmCurrentYear, ogsmCurrentMonth, true);
+          }
+        } else {
+          alert("儲存失敗: " + (data && data.msg ? data.msg : "未知原因"));
+        }
+      } catch(err) {
+        alert("儲存異常: " + err.message);
+      } finally {
+        btnSavePermissions.disabled = false;
+        btnSavePermissions.textContent = "💾 儲存權限設定";
+      }
+    });
   }
 
   // ====================================================
@@ -4226,7 +4420,7 @@ document.addEventListener("DOMContentLoaded", () => {
         // 主管模式下動態補完真實業務名單
         if (Array.isArray(data.all_sales) && data.all_sales.length > 0 && isCurrentUserManager()) {
           const currentSelected = monthlyReportSalesSelect ? monthlyReportSalesSelect.value : "";
-          ALL_SALES_MEMBERS = data.all_sales.filter(Boolean).sort();
+          ALL_SALES_MEMBERS = sortSalesMembers(data.all_sales.filter(Boolean));
           if (monthlyReportSalesSelect) {
             monthlyReportSalesSelect.innerHTML = `
               <option value="">-- 全體業務 (主管總覽) --</option>
@@ -4428,7 +4622,7 @@ document.addEventListener("DOMContentLoaded", () => {
         // 主管模式下動態補完真實業務名單
         if (Array.isArray(data.all_sales) && data.all_sales.length > 0 && isCurrentUserManager()) {
           const currentSelected = ogsmReportSalesSelect ? ogsmReportSalesSelect.value : "";
-          ALL_SALES_MEMBERS = data.all_sales.filter(Boolean).sort();
+          ALL_SALES_MEMBERS = sortSalesMembers(data.all_sales.filter(Boolean));
           if (ogsmReportSalesSelect) {
             ogsmReportSalesSelect.innerHTML = `
               <option value="">-- 全體業務 (主管總覽) --</option>
