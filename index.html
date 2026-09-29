@@ -15,7 +15,7 @@
   
   <!-- Google Fonts: Inter -->
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=1.71">
+  <link rel="stylesheet" href="style.css?v=1.72">
   <style>
     .custom-delivery-box { display: flex !important; gap: 8px !important; align-items: center !important; }
     .custom-delivery-box .search-input { flex: 1 !important; margin-bottom: 0 !important; }
@@ -245,17 +245,17 @@
 
       <!-- 日報與商機跟催工具列 (含直賣/經銷雙月報、跟催紅綠燈、主管轉派覆核) -->
       <div class="ogsm-tools-bar" style="display:flex; justify-content:flex-end; align-items:center; flex-wrap:wrap; margin-bottom:10px; gap:6px;">
-        <button type="button" id="btnOpenFollowUpModal" class="btn btn-secondary btn-sm" style="font-size:0.82rem; font-weight:600; padding:5px 9px; display:flex; align-items:center; gap:4px; border-radius:6px; background:#fff1f2; color:#be123c; border:1px solid #fecdd3; position:relative;" title="客戶拜訪跟催清單與逾期紅燈">
-          🚨 客戶跟催 <span id="followUpBadge" class="badge-count hidden">0</span>
+        <button type="button" id="btnOpenFollowUpModal" class="btn btn-secondary btn-sm" style="font-size:0.82rem; font-weight:600; padding:5px 9px; display:flex; align-items:center; gap:4px; border-radius:6px; background:#fff1f2; color:#be123c; border:1px solid #fecdd3; position:relative;" title="久未聯繫客戶清單與逾期紅燈">
+          🚨 久未聯繫 <span id="followUpBadge" class="badge-count hidden">0</span>
         </button>
         <button type="button" id="btnOpenReviewModal" class="btn btn-secondary btn-sm hidden" style="font-size:0.82rem; font-weight:600; padding:5px 9px; display:flex; align-items:center; gap:4px; border-radius:6px; background:#f5f3ff; color:#6d28d9; border:1px solid #ddd6fe; position:relative;" title="三大主管轉派覆核專區">
           🔄 轉派覆核 <span id="reviewBadge" class="badge-count hidden">0</span>
         </button>
         <button type="button" id="btnOpenOgsmMonthlyReportModal" class="btn btn-secondary btn-sm" style="font-size:0.82rem; font-weight:600; padding:5px 9px; display:flex; align-items:center; gap:4px; border-radius:6px; background:#eff6ff; color:#1d4ed8; border:1px solid #bfdbfe;">
-          📋 OGSM 商機月報
+          📋 OGSM 日報
         </button>
         <button type="button" id="btnOpenMonthlyReportModal" class="btn btn-secondary btn-sm" style="font-size:0.82rem; font-weight:600; padding:5px 9px; display:flex; align-items:center; gap:4px; border-radius:6px; background:#ecfdf5; color:#047857; border:1px solid #a7f3d0;">
-          📊 CRM 商機月報
+          📊 CRM 商機訊息
         </button>
       </div>
 
@@ -1010,7 +1010,7 @@
       <div class="modal-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.75rem;">
         <div>
           <h3 style="margin:0; font-size:1.15rem; color:#0f172a; display:flex; align-items:center; gap:6px;">
-            📊 CRM 商機導向精簡月報匯出
+            📊 CRM 商機訊息匯出
           </h3>
           <p id="monthlyReportModalDesc" style="margin:2px 0 0 0; font-size:0.8rem; color:#64748b;">自動整合客戶拜訪、商機狀態與正式報價單號（點選任一列可直接修改）</p>
         </div>
@@ -1074,7 +1074,7 @@
       <div class="modal-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.75rem;">
         <div>
           <h3 style="margin:0; font-size:1.15rem; color:#0f172a; display:flex; align-items:center; gap:6px;">
-            📋 OGSM 團隊商機月報匯出
+            📋 OGSM 日報匯出
           </h3>
           <p id="ogsmMonthlyReportModalDesc" style="margin:2px 0 0 0; font-size:0.8rem; color:#64748b;">整合業務日報表庫、客戶分類、推廣產品與拜訪進度（點選任一列可直接修改）</p>
         </div>
@@ -1193,9 +1193,9 @@
       <div class="modal-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.75rem; flex-shrink:0;">
         <div style="display:flex; align-items:center; gap:8px;">
           <h3 style="margin:0; font-size:1.15rem; color:#0f172a; display:flex; align-items:center; gap:6px;">
-            🚨 客戶拜訪跟催清單 (<span id="followUpCount">0</span>)
+            🚨 久未聯繫客戶清單 (<span id="followUpCount">0</span>)
           </h3>
-          <button type="button" id="btnOpenFollowUpSettings" class="btn-icon" title="自訂跟催天數門檻" style="padding:4px 6px; font-size:1rem; border:1px solid #cbd5e1; border-radius:6px; background:#f8fafc; cursor:pointer;">
+          <button type="button" id="btnOpenFollowUpSettings" class="btn-icon" title="自訂久未聯繫天數門檻" style="padding:4px 6px; font-size:1rem; border:1px solid #cbd5e1; border-radius:6px; background:#f8fafc; cursor:pointer;">
             ⚙️
           </button>
         </div>
@@ -1228,13 +1228,13 @@
   <div id="followUpSettingsModal" class="modal hidden">
     <div class="modal-content" style="max-height:85vh; max-height:85dvh; display:flex; flex-direction:column; padding:1.25rem; max-width:480px;">
       <div class="modal-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.75rem; flex-shrink:0;">
-        <h3 style="margin:0; font-size:1.1rem; color:#0f172a;">⚙️ 客戶跟催天數門檻設定</h3>
+        <h3 style="margin:0; font-size:1.1rem; color:#0f172a;">⚙️ 久未聯繫天數門檻設定</h3>
         <button id="btnCloseFollowUpSettings" class="btn-close">&times;</button>
       </div>
 
       <div class="modal-body" style="overflow-y:auto; flex:1;">
         <p style="font-size:0.82rem; color:#64748b; margin-bottom:12px; line-height:1.4;">
-          您可以微調個人跟催門檻。當最後拜訪日（或新業務轉派日）超過設定天數時，系統將自動亮燈提醒。
+          您可以微調個人久未聯繫門檻。當最後拜訪日（或新業務轉派日）超過設定天數時，系統將自動亮燈提醒。
         </p>
 
         <div style="display:flex; flex-direction:column; gap:12px;">
@@ -1328,7 +1328,7 @@
         </div>
 
         <div style="background:#f1f5f9; border-radius:6px; padding:8px 10px; font-size:0.75rem; color:#475569; line-height:1.4;">
-          ℹ️ <b>轉派機制說明</b>：送出後此客戶將從您的個人跟催清單移出，並即刻呈報至三大主管（曾維崧、曾仁君、張何達）專區。若主管評估仍有商機，可重新指派其他人接手攻略。
+          ℹ️ <b>轉派機制說明</b>：送出後此客戶將從您的久未聯繫清單移出，並即刻呈報至三大主管（曾維崧、曾仁君、張何達）專區。若主管評估仍有商機，可重新指派其他人接手攻略。
         </div>
       </div>
 
@@ -1392,7 +1392,7 @@
         </div>
 
         <div style="background:#eff6ff; border:1px solid #bfdbfe; border-radius:6px; padding:8px 10px; font-size:0.75rem; color:#1e40af; line-height:1.4;">
-          💡 <b>緩衝期起算</b>：確認轉派後，新業務的跟催起算日將設為今天，給予全新拜訪寬限期（A 級 14 天 / B 級 30 天 / C 級 30 天），不會首日亮紅燈。
+          💡 <b>緩衝期起算</b>：確認轉派後，新業務的聯繫起算日將設為今天，給予全新拜訪寬限期（A 級 14 天 / B 級 30 天 / C 級 30 天），不會首日亮紅燈。
         </div>
       </div>
       <div class="modal-footer" style="padding-top:0.75rem; border-top:1px solid #e2e8f0; display:flex; justify-content:flex-end; gap:8px; margin-top:0.75rem; flex-shrink:0;">
@@ -1438,8 +1438,8 @@
   </div>
 
   <!-- 🚀 畫面右下角簡潔版本訊息 (字體小、不佔用頂部空間) -->
-  <div class="app-version-bottom-right" id="appVersionInfo">v 1.71</div>
+  <div class="app-version-bottom-right" id="appVersionInfo">v 1.72</div>
 
-  <script src="app.js?v=1.71"></script>
+  <script src="app.js?v=1.72"></script>
 </body>
 </html>

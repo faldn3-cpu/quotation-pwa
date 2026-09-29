@@ -45,8 +45,8 @@ function isTokenValid() {
 }
 
 document.addEventListener("DOMContentLoaded", () => {
-  // 🚀 版本自動同步與舊快取清理防護 (v 1.71)
-  const CURRENT_APP_VERSION = "1.71";
+  // 🚀 版本自動同步與舊快取清理防護 (v 1.72)
+  const CURRENT_APP_VERSION = "1.72";
   const appVersionInfo = document.getElementById("appVersionInfo");
   if (appVersionInfo) {
     appVersionInfo.textContent = "v " + CURRENT_APP_VERSION;
@@ -57,7 +57,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if ('caches' in window) {
       caches.keys().then(keys => {
         keys.forEach(k => {
-          if (k !== 'quote-draft-v1.71') {
+          if (k !== 'quote-draft-v1.72') {
             caches.delete(k);
           }
         });
@@ -134,9 +134,9 @@ document.addEventListener("DOMContentLoaded", () => {
   // Service Worker 註冊與自動更新偵測
   // ====================================================
   if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('./sw.js?v=1.71')
+    navigator.serviceWorker.register('./sw.js?v=1.72')
       .then(reg => {
-        console.log('[PWA] Service Worker 已註冊 (v 1.71)', reg);
+        console.log('[PWA] Service Worker 已註冊 (v 1.72)', reg);
         // 主動檢查伺服器端是否有新版 sw.js
         reg.update();
 
@@ -4404,7 +4404,7 @@ document.addEventListener("DOMContentLoaded", () => {
         ogsmReportStatusHint.innerHTML = '<span style="color:#2563eb; font-weight:600;">⚡ 0秒快取 (同步中...)</span>';
       }
     } else {
-      ogsmReportTableBody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:20px; color:#64748b;">⏳ 正在自雲端整合 OGSM 團隊商機月報...</td></tr>';
+      ogsmReportTableBody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:20px; color:#64748b;">⏳ 正在自雲端整合 OGSM 日報...</td></tr>';
       if (ogsmReportStatusHint) ogsmReportStatusHint.textContent = "";
     }
 
@@ -4636,7 +4636,7 @@ document.addEventListener("DOMContentLoaded", () => {
       link.setAttribute("href", url);
       const sVal = ogsmReportStartDate?.value || "start";
       const eVal = ogsmReportEndDate?.value || "end";
-      link.setAttribute("download", `OGSM商機月報_${sVal}_${eVal}.csv`);
+      link.setAttribute("download", `OGSM日報_${sVal}_${eVal}.csv`);
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -4647,7 +4647,7 @@ document.addEventListener("DOMContentLoaded", () => {
   if (btnExportOgsmPdf) {
     btnExportOgsmPdf.addEventListener("click", () => {
       if (!currentOgsmReportRecords || currentOgsmReportRecords.length === 0) {
-        alert("目前無 OGSM 月報資料可供產出 PDF");
+        alert("目前無 OGSM 日報資料可供產出 PDF");
         return;
       }
 
@@ -4678,7 +4678,7 @@ document.addEventListener("DOMContentLoaded", () => {
         <html>
         <head>
           <meta charset="utf-8">
-          <title>OGSM 商機月報 - ${sVal} ~ ${eVal}</title>
+          <title>OGSM 日報 - ${sVal} ~ ${eVal}</title>
           <style>
             body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Microsoft JhengHei", sans-serif; padding: 20px; color: #0f172a; }
             h2 { margin: 0 0 4px 0; color: #1e3a8a; }
@@ -4692,7 +4692,7 @@ document.addEventListener("DOMContentLoaded", () => {
           </style>
         </head>
         <body>
-          <h2>📋 OGSM 團隊商機月報表 (${sVal} ~ ${eVal})</h2>
+          <h2>📋 OGSM 日報表 (${sVal} ~ ${eVal})</h2>
           <p>匯出時間：${new Date().toLocaleString('zh-TW')} | 總計：${currentOgsmReportRecords.length} 筆紀錄</p>
           <table>
             <thead>
@@ -4754,7 +4754,7 @@ document.addEventListener("DOMContentLoaded", () => {
       const sVal = monthlyReportStartDate?.value || "start";
       const eVal = monthlyReportEndDate?.value || "end";
       link.setAttribute("href", url);
-      link.setAttribute("download", `業務商機月報_${sVal}_${eVal}.csv`);
+      link.setAttribute("download", `CRM商機訊息_${sVal}_${eVal}.csv`);
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -4806,7 +4806,7 @@ document.addEventListener("DOMContentLoaded", () => {
         <!DOCTYPE html>
         <html>
         <head>
-          <title>業務商機月報 - ${sVal} ~ ${eVal}</title>
+          <title>CRM 商機訊息 - ${sVal} ~ ${eVal}</title>
           <style>
             body { font-family: sans-serif; padding: 20px; color: #0f172a; }
             h2 { margin-bottom: 4px; }
@@ -4819,7 +4819,7 @@ document.addEventListener("DOMContentLoaded", () => {
           </style>
         </head>
         <body>
-          <h2>📊 業務商機月報表 (${sVal} ~ ${eVal})</h2>
+          <h2>📊 CRM 商機訊息表 (${sVal} ~ ${eVal})</h2>
           <p>篩選對象：${escapeHtml(salesVal)} | 產出時間：${formatTwDateTime(new Date())}</p>
           <table>
             <thead>
@@ -6254,7 +6254,7 @@ document.addEventListener("DOMContentLoaded", () => {
         days_distributor: parseInt(settingDaysDistributor?.value, 10) || 14
       };
       saveFollowUpSettings(s);
-      showToast("✅ 已成功儲存跟催天數門檻設定", "success");
+      showToast("✅ 已成功儲存久未聯繫天數門檻設定", "success");
       if (followUpSettingsModal) followUpSettingsModal.classList.add("hidden");
       refreshFollowUpEngine();
     });
@@ -6501,7 +6501,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     if (filtered.length === 0) {
-      followUpListContainer.innerHTML = '<div style="text-align:center; padding:30px; color:#64748b; font-size:0.88rem;">🎉 目前無任何符合條件的跟催提醒客戶</div>';
+      followUpListContainer.innerHTML = '<div style="text-align:center; padding:30px; color:#64748b; font-size:0.88rem;">🎉 目前無任何久未聯繫提醒客戶</div>';
       return;
     }
 
