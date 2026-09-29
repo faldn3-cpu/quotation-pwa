@@ -45,8 +45,8 @@ function isTokenValid() {
 }
 
 document.addEventListener("DOMContentLoaded", () => {
-  // 🚀 版本自動同步與舊快取清理防護 (v 1.70)
-  const CURRENT_APP_VERSION = "1.70";
+  // 🚀 版本自動同步與舊快取清理防護 (v 1.71)
+  const CURRENT_APP_VERSION = "1.71";
   const appVersionInfo = document.getElementById("appVersionInfo");
   if (appVersionInfo) {
     appVersionInfo.textContent = "v " + CURRENT_APP_VERSION;
@@ -57,7 +57,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if ('caches' in window) {
       caches.keys().then(keys => {
         keys.forEach(k => {
-          if (k !== 'quote-draft-v1.70') {
+          if (k !== 'quote-draft-v1.71') {
             caches.delete(k);
           }
         });
@@ -134,9 +134,9 @@ document.addEventListener("DOMContentLoaded", () => {
   // Service Worker 註冊與自動更新偵測
   // ====================================================
   if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('./sw.js?v=1.70')
+    navigator.serviceWorker.register('./sw.js?v=1.71')
       .then(reg => {
-        console.log('[PWA] Service Worker 已註冊 (v 1.70)', reg);
+        console.log('[PWA] Service Worker 已註冊 (v 1.71)', reg);
         // 主動檢查伺服器端是否有新版 sw.js
         reg.update();
 
@@ -6409,7 +6409,7 @@ document.addEventListener("DOMContentLoaded", () => {
         threshold = settings.days_distributor;
         if (diffDays > threshold) {
           c.alert_level = "red";
-          c.alert_label = `經銷商超期未聯繫 (${threshold}天)`;
+          c.alert_label = "久未聯繫";
         } else {
           c.alert_level = "green";
           c.alert_label = "正常跟催中";
@@ -6419,7 +6419,7 @@ document.addEventListener("DOMContentLoaded", () => {
         threshold = settings.days_a;
         if (diffDays > threshold) {
           c.alert_level = "red";
-          c.alert_label = `超期未拜訪 (${threshold}天)`;
+          c.alert_label = "久未聯繫";
         } else {
           c.alert_level = "green";
           c.alert_label = "正常跟催中";
@@ -6429,7 +6429,7 @@ document.addEventListener("DOMContentLoaded", () => {
         threshold = settings.days_b;
         if (diffDays > threshold) {
           c.alert_level = "yellow";
-          c.alert_label = `未拜訪提醒 (${threshold}天)`;
+          c.alert_label = "提醒關注";
         } else {
           c.alert_level = "green";
           c.alert_label = "正常跟催中";
@@ -6439,7 +6439,7 @@ document.addEventListener("DOMContentLoaded", () => {
         threshold = settings.days_c;
         if (diffDays > threshold) {
           c.alert_level = "yellow";
-          c.alert_label = `未拜訪提醒 (${threshold}天)`;
+          c.alert_label = "提醒關注";
         } else {
           c.alert_level = "green";
           c.alert_label = "正常跟催中";
@@ -6508,18 +6508,18 @@ document.addEventListener("DOMContentLoaded", () => {
     followUpListContainer.innerHTML = filtered.map(c => {
       const borderClass = c.alert_level === "red" ? "card-border-red" : (c.alert_level === "yellow" ? "card-border-yellow" : "card-border-green");
       const badgeClass = c.alert_level === "red" ? "badge-status-red" : (c.alert_level === "yellow" ? "badge-status-yellow" : "badge-status-green");
-      const daysText = c.diff_days >= 999 ? "無拜訪紀錄" : `未訪 ${c.diff_days} 天`;
+      const daysText = c.diff_days >= 999 ? "無更新紀錄" : `${c.diff_days} 天前更新`;
       const dateInfo = c.reassign_date ? `📅 轉派日: ${c.reassign_date} (緩衝期)` : (c.visit_date ? `📅 最後拜訪: ${c.visit_date}` : "尚未拜訪");
 
       return `
         <div class="follow-up-card ${borderClass}">
           <div class="follow-up-card-header">
             <div class="follow-up-client-title">
-              <span>${c.client_name}</span>
-              <span class="badge-tier">${c.tier_display}</span>
-              <span class="${badgeClass}">${c.alert_label}</span>
+              <span class="follow-up-client-name">${escapeHtml(c.client_name)}</span>
+              <span class="badge-tier">${escapeHtml(c.tier_display)}</span>
+              <span class="${badgeClass}">${escapeHtml(c.alert_label)}</span>
             </div>
-            <span style="font-size:0.85rem; font-weight:800; color:${c.alert_level === 'red' ? '#be123c' : '#b45309'}; white-space:nowrap;">
+            <span class="follow-up-days-text ${c.alert_level === 'red' ? 'text-red' : 'text-yellow'}">
               ${daysText}
             </span>
           </div>
