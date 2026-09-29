@@ -45,8 +45,8 @@ function isTokenValid() {
 }
 
 document.addEventListener("DOMContentLoaded", () => {
-  // 🚀 版本自動同步與舊快取清理防護 (v 1.69)
-  const CURRENT_APP_VERSION = "1.69";
+  // 🚀 版本自動同步與舊快取清理防護 (v 1.70)
+  const CURRENT_APP_VERSION = "1.70";
   const appVersionInfo = document.getElementById("appVersionInfo");
   if (appVersionInfo) {
     appVersionInfo.textContent = "v " + CURRENT_APP_VERSION;
@@ -57,7 +57,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if ('caches' in window) {
       caches.keys().then(keys => {
         keys.forEach(k => {
-          if (k !== 'quote-draft-v1.69') {
+          if (k !== 'quote-draft-v1.70') {
             caches.delete(k);
           }
         });
@@ -134,9 +134,9 @@ document.addEventListener("DOMContentLoaded", () => {
   // Service Worker 註冊與自動更新偵測
   // ====================================================
   if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('./sw.js?v=1.69')
+    navigator.serviceWorker.register('./sw.js?v=1.70')
       .then(reg => {
-        console.log('[PWA] Service Worker 已註冊 (v 1.69)', reg);
+        console.log('[PWA] Service Worker 已註冊 (v 1.70)', reg);
         // 主動檢查伺服器端是否有新版 sw.js
         reg.update();
 
@@ -2826,6 +2826,15 @@ document.addEventListener("DOMContentLoaded", () => {
     if (userInfoBadge) {
       userInfoBadge.textContent = "👤 " + targetSales;
     }
+
+    // 🚀 切換身分時徹底清理當前記憶體狀態，防止交叉污染
+    ogsmMonthReports = [];
+    ogsmDatesWithReports = new Set();
+    teamDailyCache.clear();
+    if (!isCurrentUserManager()) {
+      ogsmTeamDotsMap = {};
+    }
+
     // 重新載入行事曆、快取、日報資料與跟催覆核引擎
     loadOgsmLocalCache(ogsmCurrentYear, ogsmCurrentMonth);
     renderCalendar(ogsmCurrentYear, ogsmCurrentMonth);
@@ -3256,8 +3265,14 @@ document.addEventListener("DOMContentLoaded", () => {
     const syncingList = ogsmSyncingReports.filter(r => r.date === dateStr);
     const reports = [...syncingList, ...offlineList, ...onlineList];
 
+    const isMgr = typeof isCurrentUserManager === "function" && isCurrentUserManager();
+
     if (ogsmDayViewTitle) {
-      ogsmDayViewTitle.textContent = `📅 ${dateStr} 業務日報 (${reports.length} 筆)`;
+      if (isMgr) {
+        ogsmDayViewTitle.textContent = `📅 ${dateStr} 業務日報 (個人 ${reports.length} 筆)`;
+      } else {
+        ogsmDayViewTitle.textContent = `📅 ${dateStr} 業務日報 (${reports.length} 筆)`;
+      }
     }
 
     // 若處於連線狀態且無同步中任務，嘗試將離線暫存補傳
@@ -3267,7 +3282,11 @@ document.addEventListener("DOMContentLoaded", () => {
 
     let html = "";
     if (!reports || reports.length === 0) {
-      html = `<div class="ogsm-empty-tip">本日尚無拜訪日報紀錄，可點擊上方「➕ 新增此日日報」</div>`;
+      if (isMgr) {
+        html = `<div class="ogsm-empty-tip" style="padding:10px 14px; background:#f8fafc; border:1px dashed #cbd5e1; border-radius:8px; color:#64748b; font-size:0.85rem; margin-bottom:8px;">主管個人本日尚無拜訪日報（全團隊拜訪行程與回填狀態請見下方即時總覽）</div>`;
+      } else {
+        html = `<div class="ogsm-empty-tip">本日尚無拜訪日報紀錄，可點擊上方「➕ 新增此日日報」</div>`;
+      }
     } else {
       reports.forEach((item, idx) => {
         const isSyncing = !!item.is_syncing;
@@ -3541,7 +3560,7 @@ document.addEventListener("DOMContentLoaded", () => {
         is_test: isTestMode ? "1" : "0"
       });
       const res = await fetch(`${GAS_URL}?${params.toString()}`);
-      if (!res.ok) return;
+      if (!res.ok) throw new Error("HTTP " + res.status);
       const data = await res.json();
 
       if (data && data.status === "ok") {
@@ -3550,11 +3569,26 @@ document.addEventListener("DOMContentLoaded", () => {
         if (currentViewingDate === dateStr) {
           renderTeamDailyHtml(data);
         }
+      } else {
+        const loadingElem = ogsmDayReportList.querySelector("#teamOverviewLoading");
+        if (loadingElem) {
+          loadingElem.innerHTML = `
+            <div style="font-size:0.85rem; color:#dc2626; padding:10px; background:#fef2f2; border:1px solid #fecaca; border-radius:6px; text-align:center;">
+              ⚠️ 團隊動態讀取提示：${escapeHtml(data && data.msg ? data.msg : '伺服器未回傳有效資料，請確認後端已重新發布新版本')}
+            </div>
+          `;
+        }
       }
     } catch (e) {
       console.warn("[OGSM] 載入團隊總覽失敗:", e);
       const loading = ogsmDayReportList.querySelector("#teamOverviewLoading");
-      if (loading) loading.remove();
+      if (loading) {
+        loading.innerHTML = `
+          <div style="font-size:0.85rem; color:#dc2626; padding:10px; background:#fef2f2; border:1px solid #fecaca; border-radius:6px; text-align:center;">
+            ⚠️ 連線伺服器逾時或失敗，請稍候重試或檢查網路連線
+          </div>
+        `;
+      }
     }
   }
 
