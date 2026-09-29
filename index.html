@@ -15,7 +15,7 @@
   
   <!-- Google Fonts: Inter -->
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=1.66">
+  <link rel="stylesheet" href="style.css?v=1.68">
   <style>
     .custom-delivery-box { display: flex !important; gap: 8px !important; align-items: center !important; }
     .custom-delivery-box .search-input { flex: 1 !important; margin-bottom: 0 !important; }
@@ -395,9 +395,15 @@
           <input type="hidden" id="ogsmEditRowIndex" value="">
           <input type="hidden" id="ogsmEditOfflineId" value="">
 
-          <div class="form-group" style="margin-bottom:0.85rem;">
-            <label style="font-weight:600; font-size:0.9rem; margin-bottom:4px; display:block;">拜訪日期</label>
-            <input type="date" id="ogsmInputDate" class="search-input" required readonly style="background:#f8fafc; font-weight:600; cursor:not-allowed;">
+          <div style="display:flex; gap:8px; margin-bottom:0.85rem;">
+            <div class="form-group" style="flex:1;">
+              <label for="ogsmInputUser" style="font-weight:600; font-size:0.88rem; margin-bottom:4px; display:block;">填寫人</label>
+              <input type="text" id="ogsmInputUser" class="search-input" readonly style="background:#f1f5f9; font-weight:600; color:#334155; cursor:not-allowed; margin-bottom:0;">
+            </div>
+            <div class="form-group" style="flex:1;">
+              <label for="ogsmInputDate" style="font-weight:600; font-size:0.88rem; margin-bottom:4px; display:block;">拜訪日期 <span style="color:#ef4444;">*</span></label>
+              <input type="date" id="ogsmInputDate" class="search-input" required style="cursor:pointer; background:#ffffff; margin-bottom:0;">
+            </div>
           </div>
 
           <div class="form-group" style="margin-bottom:0.85rem; position:relative;">
@@ -411,10 +417,16 @@
 
           <div class="form-group" style="margin-bottom:0.85rem;">
             <label for="ogsmSelectType" style="font-weight:600; font-size:0.9rem; margin-bottom:4px; display:block;">
-              客戶分類 <span style="color:#ef4444;">*</span>
+              客戶性質（分類） <span style="color:#ef4444;">*</span>
             </label>
             <select id="ogsmSelectType" class="search-input" required style="cursor:pointer; background:#ffffff;">
-              <option value="">-- 請選擇客戶分類 --</option>
+              <option value="">-- 請選擇客戶性質 --</option>
+              <option value="A客戶 - 大手客戶 & 既有客戶">A客戶 - 大手客戶 &amp; 既有客戶</option>
+              <option value="B客戶 - 前一年新成交">B客戶 - 前一年新成交</option>
+              <option value="C客戶 - 預計開發及今年新成交">C客戶 - 預計開發及今年新成交</option>
+              <option value="D-A客戶 - 經銷商 大手客戶 & 既有客戶">D-A客戶 - 經銷商 大手客戶 &amp; 既有客戶</option>
+              <option value="D-B客戶 - 經銷商 前一年新成交">D-B客戶 - 經銷商 前一年新成交</option>
+              <option value="D-C客戶 - 經銷商 預計開發及今年新成交">D-C客戶 - 經銷商 預計開發及今年新成交</option>
               <option value="(A) 直賣A級">(A) 直賣A級</option>
               <option value="(B) 直賣B級">(B) 直賣B級</option>
               <option value="(C) 直賣C級">(C) 直賣C級</option>
@@ -426,13 +438,181 @@
           </div>
 
           <div class="form-group" style="margin-bottom:0.85rem;">
-            <label for="ogsmInputContent" style="font-weight:600; font-size:0.9rem; margin-bottom:4px; display:block;">工作內容（拜訪目的 / 案件 / 設備）</label>
-            <textarea id="ogsmInputContent" class="search-input" rows="3" placeholder="例如：拜訪廠長討論伺服換裝需求..." style="resize:vertical;"></textarea>
+            <label for="ogsmInputContent" style="font-weight:600; font-size:0.9rem; margin-bottom:4px; display:block;">拜訪目的 / 案件 / 設備 <span style="color:#ef4444;">*</span></label>
+            <textarea id="ogsmInputContent" class="search-input" rows="3" placeholder="請輸入拜訪目的、洽談案件或設備說明..." style="resize:vertical;"></textarea>
           </div>
 
           <div class="form-group" style="margin-bottom:0.85rem;">
-            <label for="ogsmInputResult" style="font-weight:600; font-size:0.9rem; margin-bottom:4px; display:block;">實際行程（案件狀況說明 / 後續行動）</label>
-            <textarea id="ogsmInputResult" class="search-input" rows="3" placeholder="例如：已提供型錄與規格書，預計下週報價..." style="resize:vertical;"></textarea>
+            <label for="ogsmInputResult" style="font-weight:600; font-size:0.9rem; margin-bottom:4px; display:block;">案件狀況說明 / 實際行程</label>
+            <textarea id="ogsmInputResult" class="search-input" rows="3" placeholder="請輸入案件當前進度、客戶反饋與後續行動..." style="resize:vertical;"></textarea>
+          </div>
+
+          <!-- 📍 請補填以下資訊（折疊手風琴區塊） -->
+          <div class="ogsm-detail-accordion" style="margin-bottom:0.85rem; border:1px solid #cbd5e1; border-radius:8px; overflow:hidden;">
+            <div id="btnToggleOgsmExtraFields" style="background:#f1f5f9; padding:10px 12px; display:flex; justify-content:space-between; align-items:center; cursor:pointer; user-select:none; font-weight:600; font-size:0.9rem; color:#1e293b;">
+              <span>📍 請補填以下資訊（商機詳細規格）</span>
+              <span id="ogsmExtraArrow" style="transition:transform 0.2s ease; font-size:0.8rem; color:#2563eb; font-weight:700;">▼ 展開</span>
+            </div>
+            <div id="ogsmExtraFieldsBody" class="hidden" style="padding:12px; background:#ffffff; border-top:1px solid #e2e8f0;">
+              <!-- 1. 客戶所屬 (偕同拜訪/擔當) -->
+              <div class="form-group" style="margin-bottom:0.85rem;">
+                <label for="ogsmInputClientOwner" style="font-weight:600; font-size:0.85rem; margin-bottom:4px; display:block;">客戶所屬（偕同拜訪 / 擔當）</label>
+                <select id="ogsmInputClientOwner" class="search-input" style="cursor:pointer; background:#ffffff; margin-bottom:0;">
+                  <option value="">-- 請選擇人員（選填） --</option>
+                </select>
+              </div>
+
+              <!-- 2. 產業別 -->
+              <div class="form-group" style="margin-bottom:0.85rem;">
+                <label for="ogsmInputIndustry" style="font-weight:600; font-size:0.85rem; margin-bottom:4px; display:block;">產業別</label>
+                <select id="ogsmInputIndustry" class="search-input" style="cursor:pointer; background:#ffffff; margin-bottom:0;">
+                  <option value="">-- 請選擇產業別 --</option>
+                  <option value="電子產業 (半導體產業 & PCB產業 & AI產業...)">電子產業 (半導體產業 &amp; PCB產業 &amp; AI產業...)</option>
+                  <option value="自動化設備產業 (工具機 & 輸送設備 & 廠房設備...)">自動化設備產業 (工具機 &amp; 輸送設備 &amp; 廠房設備...)</option>
+                  <option value="節能產業 (風車 & 水泵 & 空調 & 工程案...)">節能產業 (風車 &amp; 水泵 &amp; 空調 &amp; 工程案...)</option>
+                  <option value="通路商 (經銷商 & 二次店 & 上控...)">通路商 (經銷商 &amp; 二次店 &amp; 上控...)</option>
+                  <option value="盤廠 & 機械廠">盤廠 &amp; 機械廠</option>
+                  <option value="其他">其他</option>
+                </select>
+              </div>
+
+              <!-- 3. 通路商 -->
+              <div class="form-group" style="margin-bottom:0.85rem;">
+                <label for="ogsmInputChannel" style="font-weight:600; font-size:0.85rem; margin-bottom:4px; display:block;">通路商</label>
+                <select id="ogsmInputChannel" class="search-input" style="cursor:pointer; background:#ffffff; margin-bottom:0;">
+                  <option value="">-- 請選擇通路商 --</option>
+                  <option value="直販">直販</option>
+                  <option value="二次店">二次店</option>
+                  <option value="上控廠商">上控廠商</option>
+                  <option value="經銷商">經銷商</option>
+                  <option value="其他">其他</option>
+                </select>
+              </div>
+
+              <!-- 4. 競爭通路 (選填) -->
+              <div class="form-group" style="margin-bottom:0.85rem;">
+                <label for="ogsmInputCompChannel" style="font-weight:600; font-size:0.85rem; margin-bottom:4px; display:block;">競爭通路（選填）</label>
+                <select id="ogsmInputCompChannel" class="search-input" style="cursor:pointer; background:#ffffff; margin-bottom:0;">
+                  <option value="無">無</option>
+                  <option value="經銷商">經銷商</option>
+                  <option value="代理商">代理商</option>
+                  <option value="直販">直販</option>
+                  <option value="二次店">二次店</option>
+                  <option value="水貨商">水貨商</option>
+                  <option value="其他">其他</option>
+                </select>
+              </div>
+
+              <!-- 5. 行動方案 -->
+              <div class="form-group" style="margin-bottom:0.85rem;">
+                <label for="ogsmInputActionPlan" style="font-weight:600; font-size:0.85rem; margin-bottom:4px; display:block;">行動方案</label>
+                <select id="ogsmInputActionPlan" class="search-input" style="cursor:pointer; background:#ffffff; margin-bottom:0;">
+                  <option value="出差到客戶端拜訪">出差到客戶端拜訪</option>
+                  <option value="廠內會議 / 視訊電話洽談">廠內會議 / 視訊電話洽談</option>
+                  <option value="樣機測試 / 送樣評估">樣機測試 / 送樣評估</option>
+                  <option value="提供型錄 & 規格報價追蹤">提供型錄 &amp; 規格報價追蹤</option>
+                  <option value="技術支援 / 售後排解">技術支援 / 售後排解</option>
+                  <option value="其他">其他</option>
+                </select>
+              </div>
+
+              <!-- 6. 是否為流失客戶取回 (選填) -->
+              <div class="form-group" style="margin-bottom:0.85rem;">
+                <label for="ogsmInputLostRetrieved" style="font-weight:600; font-size:0.85rem; margin-bottom:4px; display:block;">是否為流失客戶取回（選填）</label>
+                <select id="ogsmInputLostRetrieved" class="search-input" style="cursor:pointer; background:#ffffff; margin-bottom:0;">
+                  <option value="無">無</option>
+                  <option value="是 - 成功取回">是 - 成功取回</option>
+                  <option value="爭取中 / 評估中">爭取中 / 評估中</option>
+                </select>
+              </div>
+
+              <!-- 7. 推廣產品 (可複選) -->
+              <div class="form-group" style="margin-bottom:0.85rem;">
+                <label style="font-weight:600; font-size:0.85rem; margin-bottom:4px; display:flex; justify-content:space-between; align-items:center;">
+                  <span>推廣產品（可複選）</span>
+                  <button type="button" id="btnToggleAllOgsmProducts" style="background:none; border:none; color:#2563eb; font-size:0.8rem; cursor:pointer; padding:0; font-weight:600;">全選 / 全消</button>
+                </label>
+                <div id="ogsmProductsContainer" style="display:flex; flex-direction:column; gap:6px; background:#f8fafc; padding:8px 10px; border-radius:6px; border:1px solid #e2e8f0; font-size:0.83rem;">
+                  <label style="display:flex; align-items:flex-start; gap:6px; cursor:pointer; line-height:1.3;">
+                    <input type="checkbox" name="ogsm_product" value="士林品(變頻器、伺服、小型PLC、人機介面、溫控器、SD-INV)" style="margin-top:2px;">
+                    <span>士林品 (變頻器、伺服、小型PLC、人機介面、溫控器、SD-INV)</span>
+                  </label>
+                  <label style="display:flex; align-items:flex-start; gap:6px; cursor:pointer; line-height:1.3;">
+                    <input type="checkbox" name="ogsm_product" value="三菱品(變頻器、伺服、小型PLC、大型PLC、人機介面、運動控制器、機械手臂)" style="margin-top:2px;">
+                    <span>三菱品 (變頻器、伺服、小型PLC、大型PLC、人機介面、運動控制器、機械手臂)</span>
+                  </label>
+                  <label style="display:flex; align-items:flex-start; gap:6px; cursor:pointer; line-height:1.3;">
+                    <input type="checkbox" name="ogsm_product" value="松下品(感測器、雷射雕刻機)、IDEC、台灣氣立CHELIC" style="margin-top:2px;">
+                    <span>松下品 (感測器、雷射雕刻機)、IDEC、台灣氣立 CHELIC</span>
+                  </label>
+                  <label style="display:flex; align-items:flex-start; gap:6px; cursor:pointer; line-height:1.3;">
+                    <input type="checkbox" name="ogsm_product" value="減速機(主推Nidec、利茗、松品)" style="margin-top:2px;">
+                    <span>減速機 (主推 Nidec、利茗、松品)</span>
+                  </label>
+                  <label style="display:flex; align-items:flex-start; gap:6px; cursor:pointer; line-height:1.3;">
+                    <input type="checkbox" name="ogsm_product" value="開關類(士林品牌)" style="margin-top:2px;">
+                    <span>開關類 (士林品牌)</span>
+                  </label>
+                  <label style="display:flex; align-items:flex-start; gap:6px; cursor:pointer; line-height:1.3;">
+                    <input type="checkbox" name="ogsm_product" value="太陽能" style="margin-top:2px;">
+                    <span>太陽能</span>
+                  </label>
+                  <label style="display:flex; align-items:flex-start; gap:6px; cursor:pointer; line-height:1.3;">
+                    <input type="checkbox" name="ogsm_product" value="其他(溫控器、警示燈等)" style="margin-top:2px;">
+                    <span>其他 (溫控器、警示燈等)</span>
+                  </label>
+                </div>
+              </div>
+
+              <!-- 8. 案件預計產出日期 -->
+              <div class="form-group" style="margin-bottom:0.85rem;">
+                <label for="ogsmInputExpectedMonth" style="font-weight:600; font-size:0.85rem; margin-bottom:4px; display:block;">案件預計產出日期</label>
+                <select id="ogsmInputExpectedMonth" class="search-input" style="cursor:pointer; background:#ffffff; margin-bottom:0;">
+                  <option value="">-- 請選擇月份或季度 --</option>
+                  <option value="1月">1月</option>
+                  <option value="2月">2月</option>
+                  <option value="3月">3月</option>
+                  <option value="4月">4月</option>
+                  <option value="5月">5月</option>
+                  <option value="6月">6月</option>
+                  <option value="7月">7月</option>
+                  <option value="8月">8月</option>
+                  <option value="9月">9月</option>
+                  <option value="10月">10月</option>
+                  <option value="11月">11月</option>
+                  <option value="12月">12月</option>
+                  <option value="Q1(第一季)">Q1 (第一季)</option>
+                  <option value="Q2(第二季)">Q2 (第二季)</option>
+                  <option value="Q3(第三季)">Q3 (第三季)</option>
+                  <option value="Q4(第四季)">Q4 (第四季)</option>
+                </select>
+              </div>
+
+              <!-- 9. 競爭品牌 -->
+              <div class="form-group" style="margin-bottom:0.85rem;">
+                <label for="ogsmInputCompetingBrand" style="font-weight:600; font-size:0.85rem; margin-bottom:4px; display:block;">競爭品牌</label>
+                <select id="ogsmInputCompetingBrand" class="search-input" style="cursor:pointer; background:#ffffff; margin-bottom:0;">
+                  <option value="台灣品牌">台灣品牌</option>
+                  <option value="日系品牌">日系品牌</option>
+                  <option value="歐美品牌">歐美品牌</option>
+                  <option value="大陸品牌">大陸品牌</option>
+                  <option value="無">無</option>
+                  <option value="其他">其他</option>
+                </select>
+              </div>
+
+              <!-- 10. 案件總金額 (單位: 萬) -->
+              <div class="form-group" style="margin-bottom:0.85rem;">
+                <label for="ogsmInputEstimatedAmount" style="font-weight:600; font-size:0.85rem; margin-bottom:4px; display:block;">案件總金額（單位：萬）</label>
+                <input type="number" id="ogsmInputEstimatedAmount" class="search-input" placeholder="0.0" step="0.1" min="0" value="0.0" style="margin-bottom:0;">
+              </div>
+
+              <!-- 11. 依賴事項 (選填) -->
+              <div class="form-group" style="margin-bottom:0.85rem;">
+                <label for="ogsmInputDependencies" style="font-weight:600; font-size:0.85rem; margin-bottom:4px; display:block;">依賴事項（選填）</label>
+                <input type="text" id="ogsmInputDependencies" class="search-input" placeholder="例如：需總公司 PM 支援樣機或專案價格核可..." style="margin-bottom:0;">
+              </div>
+            </div>
           </div>
 
           <!-- 歷史變更履歷顯示區 (僅在編輯且有紀錄時顯示) -->
@@ -818,7 +998,6 @@
         </form>
       </div>
       <div class="modal-footer" style="padding-top:0.75rem; border-top:1px solid var(--border-color); display:flex; gap:0.5rem; flex-shrink:0; margin-top:0.5rem;">
-        <button type="button" id="btnCrmEditMarkNoContact" class="btn btn-secondary" style="color:#be123c; border-color:#fecdd3; background:#fff1f2; font-weight:600;" title="將此客戶提報至主管專區進行轉派覆核">🚫 提報不聯繫</button>
         <button type="button" id="btnCancelCrmEdit" class="btn btn-secondary" style="flex:1;">取消</button>
         <button type="button" id="btnSaveCrmEdit" class="btn btn-primary" style="flex:2; font-weight:600;">💾 儲存修改</button>
       </div>
@@ -1259,8 +1438,8 @@
   </div>
 
   <!-- 🚀 畫面右下角簡潔版本訊息 (字體小、不佔用頂部空間) -->
-  <div class="app-version-bottom-right" id="appVersionInfo">v 1.66</div>
+  <div class="app-version-bottom-right" id="appVersionInfo">v 1.68</div>
 
-  <script src="app.js?v=1.66"></script>
+  <script src="app.js?v=1.68"></script>
 </body>
 </html>

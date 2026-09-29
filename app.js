@@ -45,8 +45,8 @@ function isTokenValid() {
 }
 
 document.addEventListener("DOMContentLoaded", () => {
-  // 🚀 版本自動同步與舊快取清理防護 (v 1.66)
-  const CURRENT_APP_VERSION = "1.66";
+  // 🚀 版本自動同步與舊快取清理防護 (v 1.68)
+  const CURRENT_APP_VERSION = "1.68";
   const appVersionInfo = document.getElementById("appVersionInfo");
   if (appVersionInfo) {
     appVersionInfo.textContent = "v " + CURRENT_APP_VERSION;
@@ -57,7 +57,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if ('caches' in window) {
       caches.keys().then(keys => {
         keys.forEach(k => {
-          if (k !== 'quote-draft-v1.66') {
+          if (k !== 'quote-draft-v1.68') {
             caches.delete(k);
           }
         });
@@ -134,9 +134,9 @@ document.addEventListener("DOMContentLoaded", () => {
   // Service Worker 註冊與自動更新偵測
   // ====================================================
   if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('./sw.js?v=1.66')
+    navigator.serviceWorker.register('./sw.js?v=1.68')
       .then(reg => {
-        console.log('[PWA] Service Worker 已註冊 (v 1.66)', reg);
+        console.log('[PWA] Service Worker 已註冊 (v 1.68)', reg);
         // 主動檢查伺服器端是否有新版 sw.js
         reg.update();
 
@@ -2438,6 +2438,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const ogsmEditOfflineId      = document.getElementById("ogsmEditOfflineId");
   const ogsmHistorySection     = document.getElementById("ogsmHistorySection");
   const ogsmHistoryText        = document.getElementById("ogsmHistoryText");
+  const ogsmInputUser          = document.getElementById("ogsmInputUser");
   const ogsmInputDate          = document.getElementById("ogsmInputDate");
   const ogsmInputClient        = document.getElementById("ogsmInputClient");
   const ogsmClientAutocomplete = document.getElementById("ogsmClientAutocomplete");
@@ -2447,6 +2448,22 @@ document.addEventListener("DOMContentLoaded", () => {
   const btnCloseOgsmEditModal  = document.getElementById("btnCloseOgsmEditModal");
   const btnCancelOgsmEdit      = document.getElementById("btnCancelOgsmEdit");
   const btnSaveOgsmEdit        = document.getElementById("btnSaveOgsmEdit");
+
+  // 🚀 [Streamlit 對齊] 11 個商機延伸欄位 DOM 物件
+  const btnToggleOgsmExtraFields  = document.getElementById("btnToggleOgsmExtraFields");
+  const ogsmExtraFieldsBody       = document.getElementById("ogsmExtraFieldsBody");
+  const ogsmExtraArrow            = document.getElementById("ogsmExtraArrow");
+  const ogsmInputClientOwner      = document.getElementById("ogsmInputClientOwner");
+  const ogsmInputIndustry         = document.getElementById("ogsmInputIndustry");
+  const ogsmInputChannel          = document.getElementById("ogsmInputChannel");
+  const ogsmInputCompChannel      = document.getElementById("ogsmInputCompChannel");
+  const ogsmInputActionPlan       = document.getElementById("ogsmInputActionPlan");
+  const ogsmInputLostRetrieved    = document.getElementById("ogsmInputLostRetrieved");
+  const btnToggleAllOgsmProducts  = document.getElementById("btnToggleAllOgsmProducts");
+  const ogsmInputExpectedMonth    = document.getElementById("ogsmInputExpectedMonth");
+  const ogsmInputCompetingBrand   = document.getElementById("ogsmInputCompetingBrand");
+  const ogsmInputEstimatedAmount  = document.getElementById("ogsmInputEstimatedAmount");
+  const ogsmInputDependencies     = document.getElementById("ogsmInputDependencies");
 
   // 自訂確認與歷史履歷對話框
   const ogsmConfirmModal       = document.getElementById("ogsmConfirmModal");
@@ -2612,7 +2629,6 @@ document.addEventListener("DOMContentLoaded", () => {
   const noContactClientMeta        = document.getElementById("noContactClientMeta");
   const noContactReasonType        = document.getElementById("noContactReasonType");
   const noContactReasonDesc        = document.getElementById("noContactReasonDesc");
-  const btnCrmEditMarkNoContact    = document.getElementById("btnCrmEditMarkNoContact");
 
   // 🔄 三大主管轉派覆核 DOM 元件
   const btnOpenReviewModal         = document.getElementById("btnOpenReviewModal");
@@ -4861,11 +4877,46 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
+  // 取得勾選之推廣產品複選字串
+  function getSelectedOgsmProducts() {
+    const checked = document.querySelectorAll('input[name="ogsm_product"]:checked');
+    return Array.from(checked).map(cb => cb.value).join(", ");
+  }
+
+  // 折疊手風琴與推廣產品全選監聽
+  if (btnToggleOgsmExtraFields && ogsmExtraFieldsBody) {
+    btnToggleOgsmExtraFields.addEventListener("click", () => {
+      const isHidden = ogsmExtraFieldsBody.classList.toggle("hidden");
+      if (ogsmExtraArrow) {
+        ogsmExtraArrow.textContent = isHidden ? "▼ 展開" : "▲ 收合";
+      }
+    });
+  }
+
+  if (btnToggleAllOgsmProducts) {
+    btnToggleAllOgsmProducts.addEventListener("click", () => {
+      const cbs = document.querySelectorAll('input[name="ogsm_product"]');
+      const allChecked = Array.from(cbs).every(cb => cb.checked);
+      cbs.forEach(cb => { cb.checked = !allChecked; });
+    });
+  }
+
   // ====================================================
   // 日報新增與編輯表單控制
   // ====================================================
   function openOgsmEditModal(dateStr, itemToEdit = null) {
     if (!ogsmEditModal || !ogsmInputDate) return;
+
+    // 填入當前登入業務人員姓名
+    const currentSales = getSalesName();
+    if (ogsmInputUser) ogsmInputUser.value = currentSales;
+
+    // 動態填入「客戶所屬（偕同拜訪/擔當）」人員名單
+    if (ogsmInputClientOwner) {
+      const selectedOwner = (itemToEdit && itemToEdit.client_owner) ? itemToEdit.client_owner : "";
+      ogsmInputClientOwner.innerHTML = `<option value="">-- 請選擇人員（選填） --</option>`
+        + ALL_SALES_MEMBERS.map(m => `<option value="${m}" ${m === selectedOwner ? "selected" : ""}>${m}</option>`).join("");
+    }
 
     if (itemToEdit) {
       currentEditingOriginalItem = {
@@ -4876,6 +4927,17 @@ document.addEventListener("DOMContentLoaded", () => {
         result: itemToEdit.result || "",
         row_index: itemToEdit.row_index || "",
         offline_id: itemToEdit.offline_id || "",
+        client_owner: itemToEdit.client_owner || "",
+        industry: itemToEdit.industry || "",
+        channel: itemToEdit.channel || "",
+        comp_channel: itemToEdit.comp_channel || "",
+        action_plan: itemToEdit.action_plan || "",
+        is_lost_retrieved: itemToEdit.is_lost_retrieved || "",
+        promoted_products: itemToEdit.promoted_products || "",
+        expected_month: itemToEdit.expected_month || "",
+        competing_brand: itemToEdit.competing_brand || "",
+        estimated_amount: itemToEdit.estimated_amount || "0.0",
+        dependencies: itemToEdit.dependencies || "",
         history: itemToEdit.history || ""
       };
       if (ogsmEditModalTitle) ogsmEditModalTitle.textContent = "✏️ 編輯業務日報";
@@ -4886,6 +4948,33 @@ document.addEventListener("DOMContentLoaded", () => {
       if (ogsmSelectType) ogsmSelectType.value = itemToEdit.client_type || "";
       if (ogsmInputContent) ogsmInputContent.value = itemToEdit.content || "";
       if (ogsmInputResult) ogsmInputResult.value = itemToEdit.result || "";
+
+      // 填入 11 項商機詳細欄位
+      if (ogsmInputIndustry) ogsmInputIndustry.value = itemToEdit.industry || "";
+      if (ogsmInputChannel) ogsmInputChannel.value = itemToEdit.channel || "";
+      if (ogsmInputCompChannel) ogsmInputCompChannel.value = itemToEdit.comp_channel || "無";
+      if (ogsmInputActionPlan) ogsmInputActionPlan.value = itemToEdit.action_plan || "出差到客戶端拜訪";
+      if (ogsmInputLostRetrieved) ogsmInputLostRetrieved.value = itemToEdit.is_lost_retrieved || "無";
+      if (ogsmInputExpectedMonth) ogsmInputExpectedMonth.value = itemToEdit.expected_month || "";
+      if (ogsmInputCompetingBrand) ogsmInputCompetingBrand.value = itemToEdit.competing_brand || "台灣品牌";
+      if (ogsmInputEstimatedAmount) ogsmInputEstimatedAmount.value = (itemToEdit.estimated_amount !== undefined && itemToEdit.estimated_amount !== null && String(itemToEdit.estimated_amount).trim() !== "") ? itemToEdit.estimated_amount : "0.0";
+      if (ogsmInputDependencies) ogsmInputDependencies.value = itemToEdit.dependencies || "";
+
+      // 勾選推廣產品
+      const selectedProducts = (itemToEdit.promoted_products || "").split(/[,，、]+/).map(s => s.trim()).filter(Boolean);
+      document.querySelectorAll('input[name="ogsm_product"]').forEach(cb => {
+        cb.checked = selectedProducts.some(p => cb.value.includes(p) || p.includes(cb.value));
+      });
+
+      // 若有商機資料則自動展開折疊區塊，否則保持收合
+      const hasExtraData = !!(itemToEdit.client_owner || itemToEdit.industry || itemToEdit.channel || (itemToEdit.comp_channel && itemToEdit.comp_channel !== "無") || itemToEdit.expected_month || (itemToEdit.estimated_amount && parseFloat(itemToEdit.estimated_amount) > 0) || itemToEdit.dependencies || selectedProducts.length > 0);
+      if (hasExtraData) {
+        if (ogsmExtraFieldsBody) ogsmExtraFieldsBody.classList.remove("hidden");
+        if (ogsmExtraArrow) ogsmExtraArrow.textContent = "▲ 收合";
+      } else {
+        if (ogsmExtraFieldsBody) ogsmExtraFieldsBody.classList.add("hidden");
+        if (ogsmExtraArrow) ogsmExtraArrow.textContent = "▼ 展開";
+      }
 
       if (itemToEdit.history && ogsmHistorySection && ogsmHistoryText) {
         ogsmHistoryText.textContent = itemToEdit.history;
@@ -4903,6 +4992,23 @@ document.addEventListener("DOMContentLoaded", () => {
       if (ogsmSelectType) ogsmSelectType.value = "";
       if (ogsmInputContent) ogsmInputContent.value = "";
       if (ogsmInputResult) ogsmInputResult.value = "";
+
+      // 重設 11 項商機詳細欄位為預設值
+      if (ogsmInputIndustry) ogsmInputIndustry.value = "";
+      if (ogsmInputChannel) ogsmInputChannel.value = "";
+      if (ogsmInputCompChannel) ogsmInputCompChannel.value = "無";
+      if (ogsmInputActionPlan) ogsmInputActionPlan.value = "出差到客戶端拜訪";
+      if (ogsmInputLostRetrieved) ogsmInputLostRetrieved.value = "無";
+      if (ogsmInputExpectedMonth) ogsmInputExpectedMonth.value = "";
+      if (ogsmInputCompetingBrand) ogsmInputCompetingBrand.value = "台灣品牌";
+      if (ogsmInputEstimatedAmount) ogsmInputEstimatedAmount.value = "0.0";
+      if (ogsmInputDependencies) ogsmInputDependencies.value = "";
+      document.querySelectorAll('input[name="ogsm_product"]').forEach(cb => { cb.checked = false; });
+
+      // 新增時預設收合折疊區塊，維持極速填報動線
+      if (ogsmExtraFieldsBody) ogsmExtraFieldsBody.classList.add("hidden");
+      if (ogsmExtraArrow) ogsmExtraArrow.textContent = "▼ 展開";
+
       if (ogsmHistorySection) ogsmHistorySection.classList.add("hidden");
     }
 
@@ -4987,6 +5093,19 @@ document.addEventListener("DOMContentLoaded", () => {
       const editingRowIndex = ogsmEditRowIndex ? ogsmEditRowIndex.value : "";
       const editingOfflineId = ogsmEditOfflineId ? ogsmEditOfflineId.value : "";
 
+      // 採集 11 個商機詳細欄位
+      const clientOwner = ogsmInputClientOwner ? ogsmInputClientOwner.value : "";
+      const industry = ogsmInputIndustry ? ogsmInputIndustry.value : "";
+      const channel = ogsmInputChannel ? ogsmInputChannel.value : "";
+      const compChannel = ogsmInputCompChannel ? ogsmInputCompChannel.value : "";
+      const actionPlan = ogsmInputActionPlan ? ogsmInputActionPlan.value : "";
+      const isLostRetrieved = ogsmInputLostRetrieved ? ogsmInputLostRetrieved.value : "";
+      const promotedProducts = getSelectedOgsmProducts();
+      const expectedMonth = ogsmInputExpectedMonth ? ogsmInputExpectedMonth.value : "";
+      const competingBrand = ogsmInputCompetingBrand ? ogsmInputCompetingBrand.value : "";
+      const estimatedAmount = ogsmInputEstimatedAmount ? (ogsmInputEstimatedAmount.value || "0.0") : "0.0";
+      const dependencies = ogsmInputDependencies ? ogsmInputDependencies.value.trim() : "";
+
       // 1. 防重複點擊鎖定
       btnSaveOgsmEdit.disabled = true;
 
@@ -4997,6 +5116,17 @@ document.addEventListener("DOMContentLoaded", () => {
         client_type: clientType,
         content: content,
         result: result,
+        client_owner: clientOwner,
+        industry: industry,
+        channel: channel,
+        comp_channel: compChannel,
+        action_plan: actionPlan,
+        is_lost_retrieved: isLostRetrieved,
+        promoted_products: promotedProducts,
+        expected_month: expectedMonth,
+        competing_brand: competingBrand,
+        estimated_amount: estimatedAmount,
+        dependencies: dependencies,
         is_test: isTestMode ? "1" : "0"
       };
       if (editingRowIndex) {
@@ -5052,6 +5182,17 @@ document.addEventListener("DOMContentLoaded", () => {
         client_type: clientType,
         content: content,
         result: result,
+        client_owner: clientOwner,
+        industry: industry,
+        channel: channel,
+        comp_channel: compChannel,
+        action_plan: actionPlan,
+        is_lost_retrieved: isLostRetrieved,
+        promoted_products: promotedProducts,
+        expected_month: expectedMonth,
+        competing_brand: competingBrand,
+        estimated_amount: estimatedAmount,
+        dependencies: dependencies,
         is_syncing: true,
         updated_at: formatTwDateTime(new Date())
       };
@@ -5101,6 +5242,19 @@ document.addEventListener("DOMContentLoaded", () => {
       const salesName = getSalesName();
       const editingRowIndex = ogsmEditRowIndex ? ogsmEditRowIndex.value : "";
 
+      // 採集 11 個商機詳細欄位
+      const clientOwner = ogsmInputClientOwner ? ogsmInputClientOwner.value : "";
+      const industry = ogsmInputIndustry ? ogsmInputIndustry.value : "";
+      const channel = ogsmInputChannel ? ogsmInputChannel.value : "";
+      const compChannel = ogsmInputCompChannel ? ogsmInputCompChannel.value : "";
+      const actionPlan = ogsmInputActionPlan ? ogsmInputActionPlan.value : "";
+      const isLostRetrieved = ogsmInputLostRetrieved ? ogsmInputLostRetrieved.value : "";
+      const promotedProducts = getSelectedOgsmProducts();
+      const expectedMonth = ogsmInputExpectedMonth ? ogsmInputExpectedMonth.value : "";
+      const competingBrand = ogsmInputCompetingBrand ? ogsmInputCompetingBrand.value : "";
+      const estimatedAmount = ogsmInputEstimatedAmount ? (ogsmInputEstimatedAmount.value || "0.0") : "0.0";
+      const dependencies = ogsmInputDependencies ? ogsmInputDependencies.value.trim() : "";
+
       // 防重複點擊
       btnSaveOgsmAndCrm.disabled = true;
       btnSaveOgsmAndCrm.textContent = "⏳ 儲存中...";
@@ -5112,6 +5266,17 @@ document.addEventListener("DOMContentLoaded", () => {
         client_type: clientType,
         content: content,
         result: result,
+        client_owner: clientOwner,
+        industry: industry,
+        channel: channel,
+        comp_channel: compChannel,
+        action_plan: actionPlan,
+        is_lost_retrieved: isLostRetrieved,
+        promoted_products: promotedProducts,
+        expected_month: expectedMonth,
+        competing_brand: competingBrand,
+        estimated_amount: estimatedAmount,
+        dependencies: dependencies,
         is_test: isTestMode ? "1" : "0"
       };
       if (editingRowIndex) payload.row_index = editingRowIndex;
@@ -5131,18 +5296,25 @@ document.addEventListener("DOMContentLoaded", () => {
           renderCalendar(ogsmCurrentYear, ogsmCurrentMonth);
           refreshCurrentDayModal();
 
-          // 🚀 自動帶出 CRM 直式編輯表單（預填日報資料）
+          // 🚀 自動帶出 CRM 直式編輯表單（完整預填日報與商機選單資料）
           const crmRecord = {
             row_index: null,   // 新建 CRM，稍後由 sync_ogsm_to_crm 建立
             client_name: clientName,
-            client_owner: salesName,
+            client_owner: clientOwner || salesName,
             case_name: content,
-            promoted_products: "",
-            target_month: "",
-            estimated_amount: 0,
+            promoted_products: promotedProducts,
+            target_month: expectedMonth,
+            estimated_amount: parseFloat(estimatedAmount) || 0,
             status_desc: result,
-            competing_brand: "",
-            dependencies: ""
+            competing_brand: competingBrand,
+            dependencies: dependencies,
+            visit_date: dateStr,
+            industry: industry,
+            channel: channel,
+            comp_channel: compChannel,
+            client_nature: clientType,
+            is_lost_retrieved: isLostRetrieved,
+            action_plan: actionPlan
           };
           openCrmEditModal(crmRecord, "ogsm_save");
         } else {
@@ -6070,19 +6242,6 @@ document.addEventListener("DOMContentLoaded", () => {
     if (reassignSubModal) reassignSubModal.classList.add("hidden");
   });
 
-  // CRM 編輯視窗提報不聯繫按鈕
-  if (btnCrmEditMarkNoContact) {
-    btnCrmEditMarkNoContact.addEventListener("click", () => {
-      if (!activeCrmEditRecord) return;
-      closeCrmEditModal();
-      openNoContactModal({
-        client_name: activeCrmEditRecord.client_name || "",
-        client_owner: activeCrmEditRecord.client_owner || getSalesName(),
-        tier: activeCrmEditRecord.client_nature || "未分級",
-        row_index: activeCrmEditRecord.row_index || ""
-      });
-    });
-  }
 
   // 重新整理並載入跟催資料引擎
   async function refreshFollowUpEngine() {

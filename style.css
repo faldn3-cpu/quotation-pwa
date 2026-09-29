@@ -2469,6 +2469,32 @@ input:focus {
   white-space: nowrap;
 }
 
+/* 📍 OGSM 商機詳細資訊折疊手風琴區塊與複選框設計 */
+.ogsm-detail-accordion {
+  transition: box-shadow 0.2s ease, border-color 0.2s ease;
+}
 
+.ogsm-detail-accordion:hover {
+  border-color: #94a3b8 !important;
+}
 
+#btnToggleOgsmExtraFields:hover {
+  background-color: #e2e8f0 !important;
+}
 
+#ogsmProductsContainer label {
+  transition: background-color 0.15s ease;
+  padding: 4px 6px;
+  border-radius: 4px;
+}
+
+#ogsmProductsContainer label:hover {
+  background-color: #e0f2fe;
+}
+
+#ogsmProductsContainer input[type="checkbox"] {
+  accent-color: #2563eb;
+  width: 15px;
+  height: 15px;
+  cursor: pointer;
+}
