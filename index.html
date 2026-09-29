@@ -2,6 +2,9 @@
 <html lang="zh-TW">
 <head>
   <meta charset="UTF-8">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>智慧報價擬稿</title>
   
@@ -12,7 +15,7 @@
   
   <!-- Google Fonts: Inter -->
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=1.62">
+  <link rel="stylesheet" href="style.css?v=1.64">
   <style>
     .custom-delivery-box { display: flex !important; gap: 8px !important; align-items: center !important; }
     .custom-delivery-box .search-input { flex: 1 !important; margin-bottom: 0 !important; }
@@ -96,6 +99,18 @@
       ⚠️ 離線模式：操作將於恢復連線後自動上傳
     </div>
   </header>
+  
+  <!-- 👑 管理員身分模擬切換工具列 (僅授權帳號 tsengweisung@gmail.com 自動啟用) -->
+  <div id="adminImpersonateBar" class="admin-impersonate-bar hidden">
+    <div class="admin-impersonate-inner">
+      <span class="admin-crown-icon">👑</span>
+      <label for="adminImpersonateSelect" class="admin-impersonate-label">管理員身分模擬：</label>
+      <select id="adminImpersonateSelect" class="admin-impersonate-select">
+        <!-- 動態填入業務與主管名單 -->
+      </select>
+    </div>
+    <div class="admin-impersonate-tag">測試權限已啟用</div>
+  </div>
 
   <main class="app-main">
     
@@ -104,43 +119,6 @@
       <h2>登入</h2>
       <p>請使用您的 Google 帳號登入系統</p>
       <button id="btnLogin" class="btn btn-primary btn-block">Google 登入</button>
-      
-      <!-- 本機/手機區網測試快速進入 (免受 Google OAuth HTTP 限制) -->
-      <div id="quickTestLoginBox" class="quick-test-box" style="margin-top:1.25rem; padding:1.1rem; border:1px solid #bfdbfe; border-radius:10px; background:#f0f7ff;">
-        <div style="display:flex; align-items:center; gap:6px; margin-bottom:6px;">
-          <span style="font-size:1.15rem;">📱</span>
-          <b style="font-size:0.95rem; color:#1e40af;">實體手機／區網免密碼測試</b>
-        </div>
-        <p style="font-size:0.78rem; color:#475569; margin-bottom:0.75rem; line-height:1.4;">
-          因 Google 官方限制 HTTP 內部 IP（非 https）無法進行 OAuth 授權。請直接選取您的業務身分點擊進入：
-        </p>
-        <div style="margin-bottom:0.75rem;">
-          <label for="quickTestSalesSelect" style="font-size:0.8rem; font-weight:600; color:#334155; display:block; margin-bottom:4px;">
-            👤 選擇業務人員身分：
-          </label>
-          <select id="quickTestSalesSelect" class="search-input" style="font-size:0.92rem; padding:8px 10px; margin-bottom:0; background:#ffffff; cursor:pointer; font-weight:600; border:1px solid #93c5fd;">
-            <option value="曾仁君" selected>曾仁君</option>
-            <option value="曾維崧">曾維崧</option>
-            <option value="張何達">張何達</option>
-            <option value="何宛芬">何宛芬</option>
-            <option value="楊家豪">楊家豪</option>
-            <option value="汪富森">汪富森</option>
-            <option value="張書瑋">張書瑋</option>
-            <option value="邱文輝">邱文輝</option>
-            <option value="葉仁豪">葉仁豪</option>
-            <option value="謝聯麒">謝聯麒</option>
-            <option value="黃仁君">黃仁君</option>
-            <option value="黃維崇">黃維崇</option>
-            <option value="黃柏翰">黃柏翰</option>
-            <option value="黃秀斐">黃秀斐</option>
-            <option value="溫建仁">溫建仁</option>
-            <option value="張秀瓊">張秀瓊</option>
-          </select>
-        </div>
-        <button type="button" id="btnQuickTestLogin" class="btn btn-primary btn-block" style="background:#2563eb; color:#ffffff; font-weight:700; padding:0.75rem; font-size:0.95rem; box-shadow:0 2px 4px rgba(37,99,235,0.25);">
-          🚀 以所選身分進入測試
-        </button>
-      </div>
     </section>
 
     <!-- 報價表單 -->
@@ -1281,8 +1259,8 @@
   </div>
 
   <!-- 🚀 畫面右下角簡潔版本訊息 (字體小、不佔用頂部空間) -->
-  <div class="app-version-bottom-right" id="appVersionInfo">v 1.63</div>
+  <div class="app-version-bottom-right" id="appVersionInfo">v 1.64</div>
 
-  <script src="app.js?v=1.63"></script>
+  <script src="app.js?v=1.64"></script>
 </body>
 </html>

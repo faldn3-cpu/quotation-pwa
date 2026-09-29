@@ -44,12 +44,27 @@ function isTokenValid() {
 }
 
 document.addEventListener("DOMContentLoaded", () => {
-  // 🚀 版本自動同步與舊快取清理防護 (v 1.39)
-  const CURRENT_APP_VERSION = "1.50";
+  // 🚀 版本自動同步與舊快取清理防護 (v 1.64)
+  const CURRENT_APP_VERSION = "1.64";
+  const appVersionInfo = document.getElementById("appVersionInfo");
+  if (appVersionInfo) {
+    appVersionInfo.textContent = "v " + CURRENT_APP_VERSION;
+  }
   const lastAppVersion = localStorage.getItem("app_version");
   if (lastAppVersion !== CURRENT_APP_VERSION) {
-    console.log(`[VersionUpdate] 偵測到版本更新 (${lastAppVersion || "舊版"} -> ${CURRENT_APP_VERSION})，自動清空庫存快取`);
+    console.log(`[VersionUpdate] 偵測到版本更新 (${lastAppVersion || "舊版"} -> ${CURRENT_APP_VERSION})，強制清理舊快取`);
+    if ('caches' in window) {
+      caches.keys().then(keys => {
+        keys.forEach(k => {
+          if (k !== 'quote-draft-v1.64') {
+            caches.delete(k);
+          }
+        });
+      });
+    }
     localStorage.removeItem("inventory_cache");
+    localStorage.removeItem("products_cache");
+    localStorage.removeItem("customers_cache");
     localStorage.setItem("app_version", CURRENT_APP_VERSION);
   }
 
@@ -118,9 +133,9 @@ document.addEventListener("DOMContentLoaded", () => {
   // Service Worker 註冊與自動更新偵測
   // ====================================================
   if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('./sw.js?v=1.59')
+    navigator.serviceWorker.register('./sw.js?v=1.64')
       .then(reg => {
-        console.log('[PWA] Service Worker 已註冊 (v 1.59)', reg);
+        console.log('[PWA] Service Worker 已註冊 (v 1.64)', reg);
         // 主動檢查伺服器端是否有新版 sw.js
         reg.update();
 
@@ -174,6 +189,7 @@ document.addEventListener("DOMContentLoaded", () => {
       if (pStr) userProfile = JSON.parse(pStr);
     } catch(e) {}
     enterDraftMode(savedDisplayName);
+    setupAdminImpersonator();
 
     // 🚀 選項 A 智慧自動更新：啟動時在背景非同步連線 GAS 更新最新庫存與雲端資料
     triggerBackgroundAutoSync();
@@ -200,6 +216,8 @@ document.addEventListener("DOMContentLoaded", () => {
         localStorage.removeItem("google_access_token");
         localStorage.removeItem("google_token_expires_at");
         localStorage.removeItem("cached_backup_folder_id");
+        localStorage.removeItem("is_admin_user");
+        if (adminImpersonateBar) adminImpersonateBar.classList.add("hidden");
         accessToken = null;
         userProfile = null;
         showLoginSection();
@@ -340,15 +358,6 @@ document.addEventListener("DOMContentLoaded", () => {
   // 登入按鈕點擊
   // ====================================================
   btnLogin.addEventListener("click", () => {
-    if (isTestEnvironment()) {
-      alert("⚠️ 實體手機/區網連線 (HTTP) 受 Google 安全政策限制，無法呼叫 Google 官方 OAuth 授權。\n\n請直接使用下方「📱 實體手機／區網免密碼測試」，選取您的業務姓名後點擊藍色按鈕即可 0 秒進入測試！");
-      const sel = document.getElementById("quickTestSalesSelect");
-      if (sel) {
-        sel.scrollIntoView({ behavior: "smooth", block: "center" });
-        sel.focus();
-      }
-      return;
-    }
     if (!tokenClient) {
       alert("Google 登入模組尚在載入中，請稍候再試。");
       return;
@@ -398,11 +407,22 @@ document.addEventListener("DOMContentLoaded", () => {
         pendingDraftAfterAuth = null;
         localStorage.removeItem("google_access_token");
         localStorage.removeItem("google_token_expires_at");
+        localStorage.removeItem("is_admin_user");
+        if (adminImpersonateBar) adminImpersonateBar.classList.add("hidden");
         if (!isSilentAuth) {
           alert(checkResult.msg || "❌ 存取受限：您的帳號尚未通過管理員審核。");
         }
         showLoginSection();
         return;
+      }
+
+      // 👑 授權最高管理員 Google 帳號自動啟用 (tsengweisung@gmail.com 或後端 is_admin: true)
+      const userEmail = (userProfile.email || "").trim().toLowerCase();
+      const isAdmin = (userEmail === "tsengweisung@gmail.com") || (checkResult.is_admin === true);
+      if (isAdmin) {
+        localStorage.setItem("is_admin_user", "true");
+      } else {
+        localStorage.removeItem("is_admin_user");
       }
 
       const displayName = checkResult.name || userProfile.name || userProfile.email;
@@ -411,6 +431,8 @@ document.addEventListener("DOMContentLoaded", () => {
       localStorage.setItem("has_logged_in", "true");
       localStorage.setItem("saved_display_name", displayName);
       localStorage.setItem("saved_user_profile", JSON.stringify(userProfile));
+
+      setupAdminImpersonator();
 
       // 若有待處理的草稿（先前因未授權而暫存），立即自動接續送出！
       if (pendingDraftAfterAuth) {
@@ -476,9 +498,14 @@ document.addEventListener("DOMContentLoaded", () => {
   // 檢查白名單權限 (呼叫 GAS check_whitelist)
   // ====================================================
   async function checkWhitelist(email) {
-    if (!email) return { allowed: false, msg: "無效的使用者帳號" };
+    if (!email) return { allowed: false, msg: "未提供使用者帳號" };
+    const lowerEmail = email.trim().toLowerCase();
+    // 👑 管理員本機直接授權放行
+    if (lowerEmail === "tsengweisung@gmail.com") {
+      return { allowed: true, name: "曾維崧", is_admin: true };
+    }
     try {
-      const res = await fetch(`${GAS_URL}?action=check_whitelist&email=${encodeURIComponent(email)}`);
+      const res = await fetch(`${GAS_URL}?action=check_whitelist&email=${encodeURIComponent(lowerEmail)}`);
       if (!res.ok) {
         console.warn("[Auth] GAS 白名單檢查 HTTP 錯誤:", res.status);
         // 連線異常時，若有本機快取可允許離線使用
@@ -486,7 +513,7 @@ document.addEventListener("DOMContentLoaded", () => {
       }
       const data = await res.json();
       if (data.status === "ok") {
-        return { allowed: true, name: data.name };
+        return { allowed: true, name: data.name, is_admin: !!data.is_admin };
       } else if (data.status === "rejected") {
         return { allowed: false, msg: data.msg };
       }
@@ -527,6 +554,8 @@ document.addEventListener("DOMContentLoaded", () => {
     // 顯示庫存更新時間
     const lastUpdated = localStorage.getItem("inventory_last_updated");
     updateAllInventoryTimeDisplays(lastUpdated);
+
+    setupAdminImpersonator();
   }
 
   function updateAllInventoryTimeDisplays(timeStr) {
@@ -598,6 +627,8 @@ document.addEventListener("DOMContentLoaded", () => {
         localStorage.removeItem("google_access_token");
         localStorage.removeItem("google_token_expires_at");
         localStorage.removeItem("cached_backup_folder_id");
+        localStorage.removeItem("is_admin_user");
+        if (adminImpersonateBar) adminImpersonateBar.classList.add("hidden");
         accessToken = null;
         userProfile = null;
         pendingDraftAfterAuth = null;
@@ -2378,10 +2409,8 @@ document.addEventListener("DOMContentLoaded", () => {
   const appSwitcherTrigger     = document.getElementById("appSwitcherTrigger");
   const appSwitcherDropdown    = document.getElementById("appSwitcherDropdown");
   const appTitleText           = document.getElementById("appTitleText");
-  const appSwitcherArrow       = document.getElementById("appSwitcherArrow");
-  const quickTestLoginBox      = document.getElementById("quickTestLoginBox");
-  const quickTestSalesSelect   = document.getElementById("quickTestSalesSelect");
-  const btnQuickTestLogin      = document.getElementById("btnQuickTestLogin");
+  const adminImpersonateBar    = document.getElementById("adminImpersonateBar");
+  const adminImpersonateSelect = document.getElementById("adminImpersonateSelect");
 
   const ogsmSection            = document.getElementById("ogsmSection");
   const ogsmTestBadge          = document.getElementById("ogsmTestBadge");
@@ -2638,7 +2667,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const cached = localStorage.getItem("saved_display_name");
     let name = "";
     if (cached && !cached.includes("@")) {
-      name = cached.replace(/\s*\(測試\)\s*/g, "").replace(/^👤\s*/, "").replace(/^🧪\s*/, "").trim();
+      name = cached.replace(/\s*\(測試\)\s*/g, "").replace(/\s*\(👑\)\s*/g, "").replace(/^👤\s*/, "").replace(/^🧪\s*/, "").trim();
     } else if (userProfile && userProfile.name) {
       name = userProfile.name;
     } else {
@@ -2741,48 +2770,63 @@ document.addEventListener("DOMContentLoaded", () => {
     }).join("");
   }
 
-  // 初始化環境：依指示直接對齊正式資料，不啟用隔離分頁
-  isTestMode = false;
-  if (quickTestSalesSelect) {
-    quickTestSalesSelect.innerHTML = ALL_SALES_MEMBERS.map(m => `
-      <option value="${m}" ${m === "曾仁君" ? "selected" : ""}>${m}</option>
-    `).join("");
+  // ====================================================
+  // 👑 管理員身分模擬切換器設置 (tsengweisung@gmail.com 專屬)
+  // ====================================================
+  function setupAdminImpersonator() {
+    if (!adminImpersonateBar || !adminImpersonateSelect) return;
+    const pStr = localStorage.getItem("saved_user_profile");
+    let profEmail = "";
+    try {
+      if (pStr) profEmail = (JSON.parse(pStr).email || "").toLowerCase();
+    } catch(e) {}
+    const isAdmin = localStorage.getItem("is_admin_user") === "true" ||
+      (userProfile && userProfile.email && userProfile.email.toLowerCase() === "tsengweisung@gmail.com") ||
+      profEmail === "tsengweisung@gmail.com";
+
+    if (isAdmin) {
+      adminImpersonateBar.classList.remove("hidden");
+      const currentSales = getSalesName();
+      adminImpersonateSelect.innerHTML = ALL_SALES_MEMBERS.map(m => {
+        const isMgr = MANAGER_NAMES.some(mgr => m.includes(mgr));
+        const roleLabel = isMgr ? " (主管)" : "";
+        return `<option value="${m}" ${m === currentSales ? "selected" : ""}>👤 ${m}${roleLabel}</option>`;
+      }).join("");
+      adminImpersonateSelect.value = currentSales;
+
+      if (userInfoBadge && !userInfoBadge.textContent.includes("👑")) {
+        userInfoBadge.textContent = "👤 " + currentSales + " (👑)";
+      }
+    } else {
+      adminImpersonateBar.classList.add("hidden");
+    }
   }
-  if (isTestEnvironment()) {
-    if (quickTestLoginBox) quickTestLoginBox.classList.remove("hidden");
-    if (ogsmTestBadge) ogsmTestBadge.classList.add("hidden");
-    console.log("[Environment] 偵測為本機/區網測試環境，直接對齊正式資料庫");
+
+  function impersonateSales(targetSales) {
+    if (!targetSales) return;
+    localStorage.setItem("saved_display_name", targetSales);
+    if (userProfile) userProfile.name = targetSales;
+    if (userInfoBadge) {
+      userInfoBadge.textContent = "👤 " + targetSales + " (👑)";
+    }
+    // 重新載入行事曆、快取、日報資料與跟催覆核引擎
+    loadOgsmLocalCache(ogsmCurrentYear, ogsmCurrentMonth);
+    renderCalendar(ogsmCurrentYear, ogsmCurrentMonth);
+    loadOgsmMonthly(ogsmCurrentYear, ogsmCurrentMonth);
+    refreshFollowUpEngine();
+
+    showToast(`👑 已切換至「${targetSales}」視角進行測試`, "info");
   }
 
-  // 本機實體快速進入按鈕
-  if (btnQuickTestLogin) {
-    btnQuickTestLogin.addEventListener("click", () => {
-      isTestMode = false;
-      const chosenSales = (quickTestSalesSelect && quickTestSalesSelect.value) ? quickTestSalesSelect.value : "曾仁君";
-      const displayName = chosenSales || "曾仁君";
-      userProfile = { email: "mobile_test@quotation.internal", name: displayName };
-      
-      localStorage.setItem("has_logged_in", "true");
-      localStorage.setItem("saved_display_name", displayName);
-      localStorage.setItem("saved_user_profile", JSON.stringify(userProfile));
-
-      userInfoBadge.textContent = "👤 " + displayName;
-      userInfoBadge.classList.remove("hidden");
-      btnSync.classList.remove("hidden");
-      loginSection.classList.add("hidden");
-      if (ogsmTestBadge) ogsmTestBadge.classList.add("hidden");
-
-      // 清除本機舊的測試草稿
-      localStorage.removeItem("offline_ogsm_drafts");
-
-      // 🚀 0 秒瞬間切入 OGSM 業務日報頁面，不被雲端連線卡死
-      switchToApp("ogsm");
-      showToast(`已登入為「${displayName}」，歡迎使用業務日報！`, "success");
-
-      // 背景非同步預熱資料庫
-      initData().catch(e => console.warn("[InitData] 背景同步提示:", e));
+  if (adminImpersonateSelect) {
+    adminImpersonateSelect.addEventListener("change", () => {
+      const selected = adminImpersonateSelect.value;
+      impersonateSales(selected);
     });
   }
+
+  // 初始載入時評估管理員工具列狀態
+  setupAdminImpersonator();
 
   // ====================================================
   // App Switcher 切換選單控制
@@ -2849,6 +2893,7 @@ document.addEventListener("DOMContentLoaded", () => {
         renderCalendar(ogsmCurrentYear, ogsmCurrentMonth);
         loadOgsmMonthly(ogsmCurrentYear, ogsmCurrentMonth);
         refreshFollowUpEngine();
+        setupAdminImpersonator();
       } else {
         if (ogsmSection) ogsmSection.classList.add("hidden");
         showLoginSection();
