@@ -45,8 +45,8 @@ function isTokenValid() {
 }
 
 document.addEventListener("DOMContentLoaded", () => {
-  // 🚀 版本自動同步與舊快取清理防護 (v 1.65)
-  const CURRENT_APP_VERSION = "1.65";
+  // 🚀 版本自動同步與舊快取清理防護 (v 1.66)
+  const CURRENT_APP_VERSION = "1.66";
   const appVersionInfo = document.getElementById("appVersionInfo");
   if (appVersionInfo) {
     appVersionInfo.textContent = "v " + CURRENT_APP_VERSION;
@@ -57,7 +57,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if ('caches' in window) {
       caches.keys().then(keys => {
         keys.forEach(k => {
-          if (k !== 'quote-draft-v1.65') {
+          if (k !== 'quote-draft-v1.66') {
             caches.delete(k);
           }
         });
@@ -134,9 +134,9 @@ document.addEventListener("DOMContentLoaded", () => {
   // Service Worker 註冊與自動更新偵測
   // ====================================================
   if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('./sw.js?v=1.65')
+    navigator.serviceWorker.register('./sw.js?v=1.66')
       .then(reg => {
-        console.log('[PWA] Service Worker 已註冊 (v 1.65)', reg);
+        console.log('[PWA] Service Worker 已註冊 (v 1.66)', reg);
         // 主動檢查伺服器端是否有新版 sw.js
         reg.update();
 
@@ -2795,8 +2795,8 @@ document.addEventListener("DOMContentLoaded", () => {
       }).join("");
       adminImpersonateSelect.value = currentSales;
 
-      if (userInfoBadge && !userInfoBadge.textContent.includes("👑")) {
-        userInfoBadge.textContent = "👤 " + currentSales + " (👑)";
+      if (userInfoBadge) {
+        userInfoBadge.textContent = "👤 " + currentSales;
       }
     } else {
       adminImpersonateBar.classList.add("hidden");
@@ -2808,7 +2808,7 @@ document.addEventListener("DOMContentLoaded", () => {
     localStorage.setItem("saved_display_name", targetSales);
     if (userProfile) userProfile.name = targetSales;
     if (userInfoBadge) {
-      userInfoBadge.textContent = "👤 " + targetSales + " (👑)";
+      userInfoBadge.textContent = "👤 " + targetSales;
     }
     // 重新載入行事曆、快取、日報資料與跟催覆核引擎
     loadOgsmLocalCache(ogsmCurrentYear, ogsmCurrentMonth);
