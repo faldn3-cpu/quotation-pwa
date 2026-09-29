@@ -12,7 +12,7 @@
   
   <!-- Google Fonts: Inter -->
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=1.35">
+  <link rel="stylesheet" href="style.css?v=1.62">
   <style>
     .custom-delivery-box { display: flex !important; gap: 8px !important; align-items: center !important; }
     .custom-delivery-box .search-input { flex: 1 !important; margin-bottom: 0 !important; }
@@ -20,6 +20,36 @@
     .delivery-item { padding: 12px 14px !important; border: 1px solid var(--border-color, #e2e8f0) !important; border-radius: 8px !important; background: #ffffff !important; cursor: pointer !important; font-size: 0.95rem !important; user-select: none !important; -webkit-tap-highlight-color: transparent !important; flex-shrink: 0 !important; }
     .delivery-item:active, .delivery-item.selected { background-color: #eff6ff !important; border-color: var(--primary-color, #2563eb) !important; }
     .delivery-item.selected { color: var(--primary-color, #2563eb) !important; font-weight: 600 !important; }
+
+    /* 🚀 凍結表格第一欄 (客戶名稱) 固定不動 */
+    .monthly-report-table th.sticky-col-client,
+    .monthly-report-table td.sticky-col-client {
+      position: sticky !important;
+      left: 0 !important;
+      z-index: 5 !important;
+      background: #ffffff !important;
+      box-shadow: 2px 0 6px -2px rgba(0,0,0,0.18) !important;
+      border-right: 2px solid #cbd5e1 !important;
+      font-weight: 700 !important;
+      max-width: 140px !important;
+      min-width: 110px !important;
+      overflow: hidden !important;
+      text-overflow: ellipsis !important;
+      white-space: nowrap !important;
+    }
+    .monthly-report-table th.sticky-col-client {
+      background: #f1f5f9 !important;
+      z-index: 15 !important;
+    }
+    .monthly-report-table tr:hover td.sticky-col-client {
+      background-color: #f8fafc !important;
+    }
+    .monthly-report-table tr:nth-child(even) td.sticky-col-client {
+      background-color: #fbfcfe !important;
+    }
+    .monthly-report-table tr:nth-child(even):hover td.sticky-col-client {
+      background-color: #f1f5f9 !important;
+    }
   </style>
   <!-- Google Identity Services -->
   <script src="https://accounts.google.com/gsi/client" async defer></script>
@@ -28,9 +58,29 @@
   
   <header class="app-header">
     <div class="header-content">
-      <div style="display:flex; align-items:center; gap:8px;">
-        <h1>報價擬稿系統</h1>
-        <span class="version-tag">v 1.35</span>
+      <div style="display:flex; align-items:center; gap:8px; position:relative;" id="appSwitcherTriggerWrap">
+        <div id="appSwitcherTrigger" style="display:flex; align-items:center; gap:6px; cursor:pointer; user-select:none; white-space:nowrap;">
+          <h1 id="appTitleText" style="margin:0; white-space:nowrap;">報價擬稿系統</h1>
+          <span id="appSwitcherArrow" style="font-size:0.75rem; color:#93c5fd; transition:transform 0.2s;">▼</span>
+        </div>
+
+        <!-- App Switcher 下拉選單 -->
+        <div id="appSwitcherDropdown" class="app-switcher-dropdown hidden">
+          <div class="switcher-item active" data-app="quote">
+            <span class="switcher-icon">📝</span>
+            <div class="switcher-text">
+              <div class="switcher-title">報價擬稿系統</div>
+              <div class="switcher-desc">查牌價、打草稿、同步至電腦</div>
+            </div>
+          </div>
+          <div class="switcher-item" data-app="ogsm">
+            <span class="switcher-icon">📋</span>
+            <div class="switcher-text">
+              <div class="switcher-title">OGSM 業務日報</div>
+              <div class="switcher-desc">行事曆拜訪日報、進度記錄</div>
+            </div>
+          </div>
+        </div>
       </div>
       <div style="display:flex; gap:10px; align-items:center;">
         <span id="userInfoBadge" class="user-badge hidden" title="點擊可登出帳號" style="cursor:pointer;"></span>
@@ -54,6 +104,43 @@
       <h2>登入</h2>
       <p>請使用您的 Google 帳號登入系統</p>
       <button id="btnLogin" class="btn btn-primary btn-block">Google 登入</button>
+      
+      <!-- 本機/手機區網測試快速進入 (免受 Google OAuth HTTP 限制) -->
+      <div id="quickTestLoginBox" class="quick-test-box" style="margin-top:1.25rem; padding:1.1rem; border:1px solid #bfdbfe; border-radius:10px; background:#f0f7ff;">
+        <div style="display:flex; align-items:center; gap:6px; margin-bottom:6px;">
+          <span style="font-size:1.15rem;">📱</span>
+          <b style="font-size:0.95rem; color:#1e40af;">實體手機／區網免密碼測試</b>
+        </div>
+        <p style="font-size:0.78rem; color:#475569; margin-bottom:0.75rem; line-height:1.4;">
+          因 Google 官方限制 HTTP 內部 IP（非 https）無法進行 OAuth 授權。請直接選取您的業務身分點擊進入：
+        </p>
+        <div style="margin-bottom:0.75rem;">
+          <label for="quickTestSalesSelect" style="font-size:0.8rem; font-weight:600; color:#334155; display:block; margin-bottom:4px;">
+            👤 選擇業務人員身分：
+          </label>
+          <select id="quickTestSalesSelect" class="search-input" style="font-size:0.92rem; padding:8px 10px; margin-bottom:0; background:#ffffff; cursor:pointer; font-weight:600; border:1px solid #93c5fd;">
+            <option value="曾仁君" selected>曾仁君</option>
+            <option value="曾維崧">曾維崧</option>
+            <option value="張何達">張何達</option>
+            <option value="何宛芬">何宛芬</option>
+            <option value="楊家豪">楊家豪</option>
+            <option value="汪富森">汪富森</option>
+            <option value="張書瑋">張書瑋</option>
+            <option value="邱文輝">邱文輝</option>
+            <option value="葉仁豪">葉仁豪</option>
+            <option value="謝聯麒">謝聯麒</option>
+            <option value="黃仁君">黃仁君</option>
+            <option value="黃維崇">黃維崇</option>
+            <option value="黃柏翰">黃柏翰</option>
+            <option value="黃秀斐">黃秀斐</option>
+            <option value="溫建仁">溫建仁</option>
+            <option value="張秀瓊">張秀瓊</option>
+          </select>
+        </div>
+        <button type="button" id="btnQuickTestLogin" class="btn btn-primary btn-block" style="background:#2563eb; color:#ffffff; font-weight:700; padding:0.75rem; font-size:0.95rem; box-shadow:0 2px 4px rgba(37,99,235,0.25);">
+          🚀 以所選身分進入測試
+        </button>
+      </div>
     </section>
 
     <!-- 報價表單 -->
@@ -61,22 +148,49 @@
       <form id="draftForm">
         
         <div class="form-group">
-          <label for="customerName">客戶名稱</label>
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+            <label for="customerName" style="margin-bottom:0; font-weight:600;">客戶名稱</label>
+            <button type="button" id="btnLinkCrmCase" class="btn-text-action" style="font-size:0.82rem; color:#2563eb; background:#eff6ff; border:1px solid #bfdbfe; border-radius:6px; cursor:pointer; font-weight:600; padding:3px 8px;">
+              🔗 選擇 CRM 關聯案件
+            </button>
+          </div>
           <input type="text" id="customerName" placeholder="點擊選擇客戶..." required readonly style="cursor:pointer; background:#ffffff;">
+          
+          <!-- 內部關聯 CRM 案件標籤容器（列印與對外輸出時自動 100% 絕對隱藏） -->
+          <div id="crmLinkedCasesWrap" class="crm-linked-cases-wrap hidden">
+            <div class="crm-linked-header">
+              <span class="crm-linked-title">🔗 內部關聯 CRM 案件 (對外列印完全隱藏)：</span>
+              <button type="button" id="btnClearCrmLinks" class="btn-clear-crm-links" title="清除所有關聯">&times;</button>
+            </div>
+            <div id="crmLinkedCasesList" class="crm-linked-cases-list"></div>
+          </div>
           
           <div id="customerDetailCard" class="customer-detail-card hidden">
             <div class="customer-detail-header">
-              <span id="customerDetailSummary"></span>
-              <button type="button" id="btnToggleCustomerDetail" class="btn-icon" aria-label="展開資訊">
-                ▼
-              </button>
+              <span id="customerDetailSummary">客戶詳細資料</span>
+              <button type="button" id="btnToggleCustomerDetail" class="btn-toggle-detail" title="展開/收合明細">▼</button>
             </div>
             <div id="customerDetailBody" class="customer-detail-body hidden">
-              <div class="detail-row"><span class="detail-label">公司名稱</span><span id="cdCompany"></span></div>
-              <div class="detail-row"><span class="detail-label">統一編號</span><span id="cdTaxId"></span></div>
-              <div class="detail-row"><span class="detail-label">聯絡人員</span><span id="cdContact"></span></div>
-              <div class="detail-row"><span class="detail-label">聯絡電話</span><span id="cdPhone"></span></div>
-              <div class="detail-row"><span class="detail-label">公司地址</span><span id="cdAddress"></span></div>
+              <div class="detail-row">
+                <span class="detail-label">公司名稱</span>
+                <span class="detail-val" id="cdCompany">-</span>
+              </div>
+              <div class="detail-row">
+                <span class="detail-label">統一編號</span>
+                <span class="detail-val" id="cdTaxId">-</span>
+              </div>
+              <div class="detail-row">
+                <span class="detail-label">聯絡人</span>
+                <span class="detail-val" id="cdContact">-</span>
+              </div>
+              <div class="detail-row">
+                <span class="detail-label">電話</span>
+                <span class="detail-val" id="cdPhone">-</span>
+              </div>
+              <div class="detail-row">
+                <span class="detail-label">地址</span>
+                <span class="detail-val" id="cdAddress">-</span>
+              </div>
             </div>
           </div>
         </div>
@@ -120,6 +234,91 @@
       <h2>草稿已送出！</h2>
       <p>您的報價草稿已成功傳送，請稍後至電腦端覆核。</p>
       <button id="btnNewDraft" class="btn btn-primary btn-block mt-4">建立新草稿</button>
+    </section>
+
+    <!-- OGSM 業務日報主區塊 -->
+    <section id="ogsmSection" class="card hidden fade-in" style="padding:1.25rem;">
+      <!-- 測試環境提示條 -->
+      <div id="ogsmTestBadge" class="ogsm-test-badge hidden">
+        🧪 <b>測試隔離模式</b>：目前日報將寫入「測試_曾仁君」分頁，絕不影響正式營運
+      </div>
+
+      <!-- 全域關鍵字即時搜尋列 (置頂固定，不推擠月曆) -->
+      <div class="ogsm-search-bar-wrap">
+        <div class="ogsm-search-input-box">
+          <svg class="ogsm-search-icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="11" cy="11" r="8"></circle>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+          </svg>
+          <input type="text" id="ogsmSearchInput" class="ogsm-search-input" placeholder="搜尋客戶、工作內容或拜訪行程關鍵字...">
+          <button type="button" id="btnOgsmSearchClear" class="ogsm-search-clear hidden" title="清除搜尋">&times;</button>
+        </div>
+      </div>
+
+      <!-- 行事曆標頭與月份切換 -->
+      <div class="calendar-header">
+        <button type="button" id="btnPrevMonth" class="btn-cal-nav" title="上個月">◀</button>
+        <div class="calendar-title-wrap">
+          <h2 id="currentMonthLabel" class="calendar-month-label">2026 年 9 月</h2>
+          <button type="button" id="btnToday" class="btn-today">今天</button>
+        </div>
+        <button type="button" id="btnNextMonth" class="btn-cal-nav" title="下個月">▶</button>
+      </div>
+
+      <!-- 日報與商機跟催工具列 (含直賣/經銷雙月報、跟催紅綠燈、主管轉派覆核) -->
+      <div class="ogsm-tools-bar" style="display:flex; justify-content:flex-end; align-items:center; flex-wrap:wrap; margin-bottom:10px; gap:6px;">
+        <button type="button" id="btnOpenFollowUpModal" class="btn btn-secondary btn-sm" style="font-size:0.82rem; font-weight:600; padding:5px 9px; display:flex; align-items:center; gap:4px; border-radius:6px; background:#fff1f2; color:#be123c; border:1px solid #fecdd3; position:relative;" title="客戶拜訪跟催清單與逾期紅燈">
+          🚨 客戶跟催 <span id="followUpBadge" class="badge-count hidden">0</span>
+        </button>
+        <button type="button" id="btnOpenReviewModal" class="btn btn-secondary btn-sm hidden" style="font-size:0.82rem; font-weight:600; padding:5px 9px; display:flex; align-items:center; gap:4px; border-radius:6px; background:#f5f3ff; color:#6d28d9; border:1px solid #ddd6fe; position:relative;" title="三大主管轉派覆核專區">
+          🔄 轉派覆核 <span id="reviewBadge" class="badge-count hidden">0</span>
+        </button>
+        <button type="button" id="btnOpenOgsmMonthlyReportModal" class="btn btn-secondary btn-sm" style="font-size:0.82rem; font-weight:600; padding:5px 9px; display:flex; align-items:center; gap:4px; border-radius:6px; background:#eff6ff; color:#1d4ed8; border:1px solid #bfdbfe;">
+          📋 OGSM 商機月報
+        </button>
+        <button type="button" id="btnOpenMonthlyReportModal" class="btn btn-secondary btn-sm" style="font-size:0.82rem; font-weight:600; padding:5px 9px; display:flex; align-items:center; gap:4px; border-radius:6px; background:#ecfdf5; color:#047857; border:1px solid #a7f3d0;">
+          📊 CRM 商機月報
+        </button>
+      </div>
+
+      <!-- 星期欄標頭 (日 ~ 六) -->
+      <div class="calendar-weekdays">
+        <span class="sun">日</span>
+        <span>一</span>
+        <span>二</span>
+        <span>三</span>
+        <span>四</span>
+        <span>五</span>
+        <span class="sat">六</span>
+      </div>
+
+      <!-- 月曆網格 (7 欄動態格子) -->
+      <div id="ogsmCalendarGrid" class="calendar-grid">
+        <!-- 由 JS 動態生成日期格子與圓點 -->
+      </div>
+
+      <!-- 當日業務日報案件清單面板 (選項 B：常駐於月曆下方，與月曆上下連動) -->
+      <div id="ogsmDayPanel" class="ogsm-day-panel">
+        <div class="ogsm-day-panel-header">
+          <h3 id="ogsmDayViewTitle" class="ogsm-day-panel-title">📅 業務日報清單</h3>
+          <button type="button" id="btnAddDayReport" class="btn btn-primary btn-sm-add">
+            ➕ 新增此日日報
+          </button>
+        </div>
+
+        <div id="ogsmDayReportList" class="ogsm-day-report-list">
+          <!-- 由 JS 動態繪製當日日報卡片清單 (如圖二完整卡片) -->
+        </div>
+
+        <div class="ogsm-day-panel-footer">
+          <button type="button" id="btnCopyLineReport" class="btn btn-line-report btn-block">
+            📲 複製 LINE 業務匯報 (今日實際 + 明日預計)
+          </button>
+        </div>
+      </div>
+
+      <!-- 全域搜尋結果清單 (有搜尋時顯示) -->
+      <div id="ogsmSearchResultsPanel" class="ogsm-search-results-panel hidden"></div>
     </section>
     
   </main>
@@ -204,12 +403,886 @@
     </div>
   </div>
 
+
+
+  <!-- OGSM 填寫/編輯日報對話框 (Modal) -->
+  <div id="ogsmEditModal" class="modal hidden">
+    <div class="modal-content" style="max-height:90vh; max-height:90dvh; display:flex; flex-direction:column; padding:1.25rem;">
+      <div class="modal-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.75rem; flex-shrink:0;">
+        <h3 id="ogsmEditModalTitle" style="margin:0; font-size:1.15rem;">✍️ 填寫業務日報</h3>
+        <button type="button" id="btnCloseOgsmEditModal" class="btn-close">&times;</button>
+      </div>
+      <div class="modal-body" style="overflow-y:auto; flex:1; min-height:0; padding-right:4px;">
+        <form id="ogsmEditForm" onsubmit="return false;">
+          <input type="hidden" id="ogsmEditRowIndex" value="">
+          <input type="hidden" id="ogsmEditOfflineId" value="">
+
+          <div class="form-group" style="margin-bottom:0.85rem;">
+            <label style="font-weight:600; font-size:0.9rem; margin-bottom:4px; display:block;">拜訪日期</label>
+            <input type="date" id="ogsmInputDate" class="search-input" required readonly style="background:#f8fafc; font-weight:600; cursor:not-allowed;">
+          </div>
+
+          <div class="form-group" style="margin-bottom:0.85rem; position:relative;">
+            <label for="ogsmInputClient" style="font-weight:600; font-size:0.9rem; margin-bottom:4px; display:block;">
+              客戶名稱 <span style="color:#ef4444;">*</span>
+            </label>
+            <input type="text" id="ogsmInputClient" class="search-input" placeholder="輸入關鍵字快選或自訂新客戶..." required autocomplete="off" style="margin-bottom:0;">
+            <!-- 自動完成下拉清單 -->
+            <div id="ogsmClientAutocomplete" class="autocomplete-dropdown hidden"></div>
+          </div>
+
+          <div class="form-group" style="margin-bottom:0.85rem;">
+            <label for="ogsmSelectType" style="font-weight:600; font-size:0.9rem; margin-bottom:4px; display:block;">
+              客戶分類 <span style="color:#ef4444;">*</span>
+            </label>
+            <select id="ogsmSelectType" class="search-input" required style="cursor:pointer; background:#ffffff;">
+              <option value="">-- 請選擇客戶分類 --</option>
+              <option value="(A) 直賣A級">(A) 直賣A級</option>
+              <option value="(B) 直賣B級">(B) 直賣B級</option>
+              <option value="(C) 直賣C級">(C) 直賣C級</option>
+              <option value="(D-A) 經銷A級">(D-A) 經銷A級</option>
+              <option value="(D-B) 經銷B級">(D-B) 經銷B級</option>
+              <option value="(D-C) 經銷C級">(D-C) 經銷C級</option>
+              <option value="(O) 其它">(O) 其它</option>
+            </select>
+          </div>
+
+          <div class="form-group" style="margin-bottom:0.85rem;">
+            <label for="ogsmInputContent" style="font-weight:600; font-size:0.9rem; margin-bottom:4px; display:block;">工作內容（拜訪目的 / 案件 / 設備）</label>
+            <textarea id="ogsmInputContent" class="search-input" rows="3" placeholder="例如：拜訪廠長討論伺服換裝需求..." style="resize:vertical;"></textarea>
+          </div>
+
+          <div class="form-group" style="margin-bottom:0.85rem;">
+            <label for="ogsmInputResult" style="font-weight:600; font-size:0.9rem; margin-bottom:4px; display:block;">實際行程（案件狀況說明 / 後續行動）</label>
+            <textarea id="ogsmInputResult" class="search-input" rows="3" placeholder="例如：已提供型錄與規格書，預計下週報價..." style="resize:vertical;"></textarea>
+          </div>
+
+          <!-- 歷史變更履歷顯示區 (僅在編輯且有紀錄時顯示) -->
+          <div id="ogsmHistorySection" class="form-group hidden" style="margin-bottom:0.85rem; padding:8px 10px; background:#f8fafc; border-radius:6px; border:1px solid #e2e8f0;">
+            <label style="font-weight:600; font-size:0.82rem; color:#64748b; margin-bottom:4px; display:block;">📜 變更履歷紀錄</label>
+            <div id="ogsmHistoryText" style="font-size:0.8rem; color:#475569; white-space:pre-wrap; line-height:1.4; max-height:90px; overflow-y:auto;"></div>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer" style="padding-top:0.75rem; border-top:1px solid var(--border-color); display:flex; gap:0.5rem; flex-shrink:0; margin-top:0.5rem; flex-wrap:wrap;">
+        <button type="button" id="btnCancelOgsmEdit" class="btn btn-secondary" style="flex:1; min-width:70px;">取消</button>
+        <button type="button" id="btnSaveOgsmEdit" class="btn btn-primary" style="flex:2; font-weight:600;">💾 儲存日報</button>
+        <button type="button" id="btnSaveOgsmAndCrm" class="btn" style="flex:2; font-weight:600; background:linear-gradient(135deg,#6366f1,#8b5cf6); color:#fff; min-width:140px;">💾 儲存並轉入 CRM</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 刪除確認專用對話框 (防止瀏覽器阻擋原生 confirm) -->
+  <div id="ogsmConfirmModal" class="modal hidden">
+    <div class="modal-content" style="max-width:340px; padding:1.25rem; text-align:center;">
+      <div style="font-size:2rem; margin-bottom:0.5rem;">⚠️</div>
+      <h3 id="ogsmConfirmTitle" style="margin:0 0 0.5rem 0; font-size:1.1rem; color:#0f172a;">確認刪除日報？</h3>
+      <p id="ogsmConfirmMsg" style="font-size:0.88rem; color:#64748b; margin-bottom:1.25rem; line-height:1.4;">此動作將同步從 Google 試算表移除該筆日報，無法復原。</p>
+      <div style="display:flex; gap:0.5rem;">
+        <button type="button" id="btnCancelConfirm" class="btn btn-secondary" style="flex:1;">取消</button>
+        <button type="button" id="btnExecuteConfirm" class="btn" style="flex:1; background:#ef4444; color:#ffffff; font-weight:600;">確認刪除</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 歷史履歷檢視專用對話框 -->
+  <div id="ogsmHistoryModal" class="modal hidden">
+    <div class="modal-content" style="max-height:85vh; max-height:85dvh; display:flex; flex-direction:column; padding:1.25rem; max-width:520px;">
+      <div class="modal-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.75rem;">
+        <h3 id="ogsmHistoryModalTitle" style="margin:0; font-size:1.1rem;">📜 案件修改歷史紀錄</h3>
+        <button type="button" id="btnCloseHistoryModal" class="btn-close">&times;</button>
+      </div>
+      <div class="modal-body" style="overflow-y:auto; flex:1; min-height:0; padding-right:4px;">
+        <div id="ogsmHistoryModalList"></div>
+      </div>
+      <div class="modal-footer" style="padding-top:0.75rem; border-top:1px solid var(--border-color); text-align:right; margin-top:0.5rem;">
+        <button type="button" id="btnOkHistoryModal" class="btn btn-secondary btn-block">關閉</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 🚀 [新增 1] 同步至客戶關係表單對話框 (還原圖一所有欄位，維持 PWA 現代藍白風格) -->
+  <div id="ogsmCrmModal" class="modal hidden">
+    <div class="modal-content" style="max-height:90vh; max-height:90dvh; display:flex; flex-direction:column; padding:1.25rem; max-width:620px;">
+      <div class="modal-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.75rem; border-bottom:1px solid var(--border-color); padding-bottom:0.6rem;">
+        <div>
+          <h3 style="margin:0; font-size:1.15rem; color:#0f172a; display:flex; align-items:center; gap:6px;">
+            🔗 同步至客戶關係表單
+          </h3>
+          <p id="crmModalSubTitle" style="margin:2px 0 0 0; font-size:0.8rem; color:#64748b;">正在同步：2026-09-23 客戶名稱</p>
+        </div>
+        <button type="button" id="btnCloseCrmModal" class="btn-close">&times;</button>
+      </div>
+      <div class="modal-body" style="overflow-y:auto; flex:1; min-height:0; padding-right:4px;">
+        <form id="crmSyncForm" onsubmit="return false;">
+          <!-- 自動帶入區 (唯讀或灰色標示) -->
+          <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:10px 12px; margin-bottom:12px;">
+            <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; margin-bottom:8px;">
+              <div>
+                <label style="font-size:0.75rem; color:#64748b; font-weight:600; display:block;">填寫人 (拜訪者)</label>
+                <input type="text" id="crmInputUserName" class="search-input" readonly style="background:#ffffff; font-size:0.85rem; padding:6px 8px; margin-bottom:0;">
+              </div>
+              <div>
+                <label style="font-size:0.75rem; color:#64748b; font-weight:600; display:block;">拜訪日期</label>
+                <input type="text" id="crmInputVisitDate" class="search-input" readonly style="background:#ffffff; font-size:0.85rem; padding:6px 8px; margin-bottom:0;">
+              </div>
+              <div>
+                <label style="font-size:0.75rem; color:#64748b; font-weight:600; display:block;">客戶名稱</label>
+                <input type="text" id="crmInputClientName" class="search-input" readonly style="background:#ffffff; font-size:0.85rem; padding:6px 8px; margin-bottom:0; font-weight:600;">
+              </div>
+            </div>
+            <div style="margin-bottom:8px;">
+              <label style="font-size:0.75rem; color:#64748b; font-weight:600; display:block;">拜訪目的 & 案件名稱 (自動帶入工作內容)</label>
+              <textarea id="crmInputPurpose" class="search-input" rows="2" style="font-size:0.85rem; padding:6px 8px; margin-bottom:0;"></textarea>
+            </div>
+            <div>
+              <label style="font-size:0.75rem; color:#64748b; font-weight:600; display:block;">案件狀況說明 (自動帶入實際行程)</label>
+              <textarea id="crmInputStatusDesc" class="search-input" rows="2" style="font-size:0.85rem; padding:6px 8px; margin-bottom:0;"></textarea>
+            </div>
+          </div>
+
+          <!-- 📌 請補填以下商機資訊 -->
+          <div style="margin-bottom:8px;">
+            <span style="font-size:0.88rem; font-weight:700; color:#0f172a; display:flex; align-items:center; gap:4px;">
+              📌 請補填以下商機資訊
+            </span>
+          </div>
+
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:10px;">
+            <div>
+              <label for="crmSelectClientOwner" style="font-size:0.8rem; font-weight:600; color:#334155; display:block; margin-bottom:3px;">
+                客戶所屬 (偕同拜訪/檔案) <span style="color:#ef4444;">*</span>
+              </label>
+              <select id="crmSelectClientOwner" class="search-input" style="font-size:0.85rem; padding:6px 8px; margin-bottom:0;">
+                <!-- 由 JS 動態載入業務人員名單 -->
+              </select>
+            </div>
+            <div>
+              <label for="crmSelectIndustry" style="font-size:0.8rem; font-weight:600; color:#334155; display:block; margin-bottom:3px;">
+                產業別
+              </label>
+              <select id="crmSelectIndustry" class="search-input" style="font-size:0.85rem; padding:6px 8px; margin-bottom:0;">
+                <option value="電子產業 (半導體產業 & PCB產業 & AI產業...)">電子產業 (半導體/PCB/AI...)</option>
+                <option value="機械製造業">機械製造業</option>
+                <option value="自動化專用機">自動化專用機</option>
+                <option value="傳統產業">傳統產業</option>
+                <option value="其他">其他</option>
+              </select>
+            </div>
+          </div>
+
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:10px;">
+            <div>
+              <label for="crmSelectChannel" style="font-size:0.8rem; font-weight:600; color:#334155; display:block; margin-bottom:3px;">
+                通路商
+              </label>
+              <select id="crmSelectChannel" class="search-input" style="font-size:0.85rem; padding:6px 8px; margin-bottom:0;">
+                <option value="直販">直販</option>
+                <option value="經銷商">經銷商</option>
+                <option value="代理商">代理商</option>
+                <option value="其他">其他</option>
+              </select>
+            </div>
+            <div>
+              <label for="crmInputCompChannel" style="font-size:0.8rem; font-weight:600; color:#334155; display:block; margin-bottom:3px;">
+                競爭通路 (選填)
+              </label>
+              <input type="text" id="crmInputCompChannel" class="search-input" placeholder="競爭通路名稱" style="font-size:0.85rem; padding:6px 8px; margin-bottom:0;">
+            </div>
+          </div>
+
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:10px;">
+            <div>
+              <label for="crmSelectClientNature" style="font-size:0.8rem; font-weight:600; color:#334155; display:block; margin-bottom:3px;">
+                客戶分級 (性質)
+              </label>
+              <select id="crmSelectClientNature" class="search-input" style="font-size:0.85rem; padding:6px 8px; margin-bottom:0; font-weight:600;">
+                <!-- 由 JavaScript 根據營業員身分動態注入直賣或經銷選項 -->
+                <option value="A 級（持續大手）">A 級（持續大手）</option>
+                <option value="B 級（前年新客）">B 級（前年新客）</option>
+                <option value="C 級（今年新客/潛在客）">C 級（今年新客/潛在客）</option>
+              </select>
+            </div>
+            <div>
+              <label for="crmSelectLostRetrieved" style="font-size:0.8rem; font-weight:600; color:#334155; display:block; margin-bottom:3px;">
+                是否為流失客戶取回 (選填)
+              </label>
+              <select id="crmSelectLostRetrieved" class="search-input" style="font-size:0.85rem; padding:6px 8px; margin-bottom:0;">
+                <option value="">-- 無 / 否 --</option>
+                <option value="是">是</option>
+                <option value="評估中">評估中</option>
+              </select>
+            </div>
+          </div>
+
+          <div style="margin-bottom:10px;">
+            <label for="crmInputActionPlan" style="font-size:0.8rem; font-weight:600; color:#334155; display:block; margin-bottom:3px;">
+              行動方案
+            </label>
+            <input type="text" id="crmInputActionPlan" class="search-input" placeholder="例如：定期拜訪、樣機測試、技術支援..." style="font-size:0.85rem; padding:6px 8px; margin-bottom:0;">
+          </div>
+
+          <div style="margin-bottom:10px;">
+            <label for="crmSelectExpectedMonth" style="font-size:0.8rem; font-weight:600; color:#334155; display:block; margin-bottom:3px;">
+              案件預計產出日期 (月)
+            </label>
+            <select id="crmSelectExpectedMonth" class="search-input" style="font-size:0.85rem; padding:6px 8px; margin-bottom:0;">
+              <option value="1月">1月</option>
+              <option value="2月">2月</option>
+              <option value="3月">3月</option>
+              <option value="4月">4月</option>
+              <option value="5月">5月</option>
+              <option value="6月">6月</option>
+              <option value="7月">7月</option>
+              <option value="8月">8月</option>
+              <option value="9月">9月</option>
+              <option value="10月">10月</option>
+              <option value="11月">11月</option>
+              <option value="12月">12月</option>
+            </select>
+          </div>
+
+          <div style="margin-bottom:10px;">
+            <label style="font-size:0.8rem; font-weight:600; color:#334155; display:block; margin-bottom:4px;">
+              推廣產品 (可複選)
+            </label>
+            <div id="crmPromotedProductsWrap" style="display:flex; flex-wrap:wrap; gap:6px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px; padding:8px;">
+              <label style="font-size:0.8rem; display:flex; align-items:center; gap:4px; margin-right:8px; cursor:pointer;">
+                <input type="checkbox" name="crmProduct" value="變頻器"> 變頻器
+              </label>
+              <label style="font-size:0.8rem; display:flex; align-items:center; gap:4px; margin-right:8px; cursor:pointer;">
+                <input type="checkbox" name="crmProduct" value="伺服"> 伺服
+              </label>
+              <label style="font-size:0.8rem; display:flex; align-items:center; gap:4px; margin-right:8px; cursor:pointer;">
+                <input type="checkbox" name="crmProduct" value="小型PLC"> 小型PLC
+              </label>
+              <label style="font-size:0.8rem; display:flex; align-items:center; gap:4px; margin-right:8px; cursor:pointer;">
+                <input type="checkbox" name="crmProduct" value="中大型PLC"> 中大型PLC
+              </label>
+              <label style="font-size:0.8rem; display:flex; align-items:center; gap:4px; margin-right:8px; cursor:pointer;">
+                <input type="checkbox" name="crmProduct" value="人機介面"> 人機介面
+              </label>
+              <label style="font-size:0.8rem; display:flex; align-items:center; gap:4px; margin-right:8px; cursor:pointer;">
+                <input type="checkbox" name="crmProduct" value="主軸Nidec/利茗"> 主軸Nidec/利茗
+              </label>
+              <label style="font-size:0.8rem; display:flex; align-items:center; gap:4px; cursor:pointer;">
+                <input type="checkbox" name="crmProduct" value="其他"> 其他
+              </label>
+            </div>
+          </div>
+
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:10px;">
+            <div>
+              <label for="crmInputAmount" style="font-size:0.8rem; font-weight:600; color:#334155; display:block; margin-bottom:3px;">
+                案件預估金額 (單位: 萬)
+              </label>
+              <input type="number" id="crmInputAmount" class="search-input" value="0.0" step="0.1" min="0" style="font-size:0.85rem; padding:6px 8px; margin-bottom:0; font-weight:600;">
+            </div>
+            <div>
+              <label for="crmSelectBrand" style="font-size:0.8rem; font-weight:600; color:#334155; display:block; margin-bottom:3px;">
+                競爭品牌
+              </label>
+              <select id="crmSelectBrand" class="search-input" style="font-size:0.85rem; padding:6px 8px; margin-bottom:0;">
+                <option value="台灣品牌">台灣品牌</option>
+                <option value="台達品牌">台達品牌</option>
+                <option value="三菱品牌">三菱品牌</option>
+                <option value="士林品牌">士林品牌</option>
+                <option value="安川品牌">安川品牌</option>
+                <option value="其他品牌">其他品牌</option>
+              </select>
+            </div>
+          </div>
+
+          <div style="margin-bottom:10px;">
+            <label for="crmInputDependencies" style="font-size:0.8rem; font-weight:600; color:#334155; display:block; margin-bottom:3px;">
+              依賴事項 (選填)
+            </label>
+            <input type="text" id="crmInputDependencies" class="search-input" placeholder="例如：缺料號、待提供樣機..." style="font-size:0.85rem; padding:6px 8px; margin-bottom:0;">
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer" style="padding-top:0.75rem; border-top:1px solid var(--border-color); display:flex; gap:0.5rem; margin-top:0.5rem;">
+        <button type="button" id="btnCancelCrmModal" class="btn btn-secondary" style="flex:1;">取消返回</button>
+        <button type="button" id="btnSubmitCrmModal" class="btn btn-primary" style="flex:2; font-weight:600;">⚡ 確認上傳 CRM</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 🚀 [新增 2] 報價單多選關聯 CRM 案件對話框 (三層優先序檢索) -->
+  <div id="crmCaseSelectorModal" class="modal hidden">
+    <div class="modal-content" style="max-height:85vh; max-height:85dvh; display:flex; flex-direction:column; padding:1.25rem; max-width:560px;">
+      <div class="modal-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.75rem;">
+        <h3 style="margin:0; font-size:1.15rem; color:#0f172a;">🔗 選擇 CRM 關聯案件</h3>
+        <button type="button" id="btnCloseCrmCaseSelector" class="btn-close">&times;</button>
+      </div>
+      <div class="modal-body" style="overflow-y:auto; flex:1; min-height:0; padding-right:4px;">
+        <!-- 搜尋與層級過濾列 -->
+        <div style="display:flex; gap:6px; margin-bottom:10px;">
+          <input type="text" id="crmCaseSearchInput" class="search-input" placeholder="搜尋此客戶之案件名稱、推廣產品..." style="flex:1; margin-bottom:0;">
+        </div>
+        <p id="crmCaseTierHint" style="font-size:0.78rem; color:#64748b; margin:0 0 8px 2px;">
+          💡 依客戶精準連結專屬 CRM 商機案件，可勾選 1 至多筆進行合併報價：
+        </p>
+        <!-- 案件列表容器 -->
+        <div id="crmCaseSelectorList" style="display:flex; flex-direction:column; gap:8px;"></div>
+      </div>
+      <div class="modal-footer" style="padding-top:0.75rem; border-top:1px solid var(--border-color); display:flex; gap:0.5rem; margin-top:0.5rem;">
+        <button type="button" id="btnCancelCrmCaseSelector" class="btn btn-secondary" style="flex:1;">取消</button>
+        <button type="button" id="btnConfirmCrmCaseSelector" class="btn btn-primary" style="flex:2; font-weight:600;">✅ 確認綁定所選案件</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 🚀 [新增] CRM 商機直式編輯表單 Modal (設高 z-index 浮於月報之上) -->
+  <div id="crmEditModal" class="modal hidden" style="z-index: 2100; align-items: center; justify-content: center; background: rgba(0,0,0,0.65);">
+    <div class="modal-content" style="max-height:85vh; max-height:85dvh; display:flex; flex-direction:column; padding:1.25rem; max-width:520px; border-radius:12px; margin:auto; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.4);">
+      <div class="modal-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.75rem; flex-shrink:0;">
+        <div>
+          <h3 id="crmEditModalTitle" style="margin:0; font-size:1.15rem; color:#0f172a;">📝 編輯 CRM 商機</h3>
+          <p id="crmEditModalSubtitle" style="margin:2px 0 0 0; font-size:0.8rem; color:#64748b;">修改後將即時回寫至 CRM 試算表</p>
+        </div>
+        <button type="button" id="btnCloseCrmEditModal" class="btn-close">&times;</button>
+      </div>
+      <div class="modal-body" style="overflow-y:auto; flex:1; min-height:0; padding-right:4px;">
+        <form id="crmEditForm" onsubmit="return false;">
+          <input type="hidden" id="crmEditRowIndex" value="">
+
+          <div class="form-group" style="margin-bottom:0.85rem;">
+            <label style="font-weight:600; font-size:0.9rem; margin-bottom:4px; display:block;">客戶名稱 <span style="color:#ef4444;">*</span></label>
+            <input type="text" id="crmEditClientName" class="search-input" placeholder="客戶名稱" required style="margin-bottom:0;">
+          </div>
+
+          <div class="form-group" style="margin-bottom:0.85rem;">
+            <label style="font-weight:600; font-size:0.9rem; margin-bottom:4px; display:block;">客戶所屬（業務人員）</label>
+            <select id="crmEditClientOwner" class="search-input" style="margin-bottom:0; cursor:pointer;">
+              <option value="">-- 請選擇 --</option>
+            </select>
+          </div>
+
+          <div class="form-group" style="margin-bottom:0.85rem;">
+            <label style="font-weight:600; font-size:0.9rem; margin-bottom:4px; display:block;">案件名稱 / 拜訪目的</label>
+            <textarea id="crmEditCaseName" class="search-input" rows="2" placeholder="案件名稱或拜訪目的" style="resize:vertical;"></textarea>
+          </div>
+
+          <div class="form-group" style="margin-bottom:0.85rem;">
+            <label style="font-weight:600; font-size:0.9rem; margin-bottom:4px; display:block;">推廣產品</label>
+            <input type="text" id="crmEditProducts" class="search-input" placeholder="推廣產品型號" style="margin-bottom:0;">
+          </div>
+
+          <div style="display:flex; gap:8px; margin-bottom:0.85rem;">
+            <div class="form-group" style="flex:1;">
+              <label style="font-weight:600; font-size:0.9rem; margin-bottom:4px; display:block;">預計產出月</label>
+              <input type="text" id="crmEditExpectedMonth" class="search-input" placeholder="例：2026/10" style="margin-bottom:0;">
+            </div>
+            <div class="form-group" style="flex:1;">
+              <label style="font-weight:600; font-size:0.9rem; margin-bottom:4px; display:block;">預估金額 (萬)</label>
+              <input type="number" id="crmEditAmount" class="search-input" placeholder="0" min="0" step="0.1" style="margin-bottom:0;">
+            </div>
+          </div>
+
+          <div style="display:flex; gap:8px; margin-bottom:0.85rem;">
+            <div class="form-group" style="flex:1;">
+              <label style="font-weight:600; font-size:0.9rem; margin-bottom:4px; display:block;">拜訪日期</label>
+              <input type="text" id="crmEditVisitDate" class="search-input" placeholder="YYYY-MM-DD" style="margin-bottom:0;">
+            </div>
+            <div class="form-group" style="flex:1;">
+              <label style="font-weight:600; font-size:0.9rem; margin-bottom:4px; display:block;">產業別</label>
+              <input type="text" id="crmEditIndustry" class="search-input" placeholder="產業別" style="margin-bottom:0;">
+            </div>
+          </div>
+
+          <div style="display:flex; gap:8px; margin-bottom:0.85rem;">
+            <div class="form-group" style="flex:1;">
+              <label style="font-weight:600; font-size:0.9rem; margin-bottom:4px; display:block;">通路商</label>
+              <input type="text" id="crmEditChannel" class="search-input" placeholder="直販 / 經銷商 / 代理商" style="margin-bottom:0;">
+            </div>
+            <div class="form-group" style="flex:1;">
+              <label style="font-weight:600; font-size:0.9rem; margin-bottom:4px; display:block;">競爭通路 (選填)</label>
+              <input type="text" id="crmEditCompChannel" class="search-input" placeholder="競爭通路名稱" style="margin-bottom:0;">
+            </div>
+          </div>
+
+          <div style="display:flex; gap:8px; margin-bottom:0.85rem;">
+            <div class="form-group" style="flex:1;">
+              <label style="font-weight:600; font-size:0.9rem; margin-bottom:4px; display:block;">客戶分級 (性質)</label>
+              <select id="crmEditClientNature" class="search-input" style="margin-bottom:0; font-weight:600;">
+                <!-- 由 JavaScript 動態填入直賣或經銷選項 -->
+                <option value="A 級（持續大手）">A 級（持續大手）</option>
+                <option value="B 級（前年新客）">B 級（前年新客）</option>
+                <option value="C 級（今年新客/潛在客）">C 級（今年新客/潛在客）</option>
+              </select>
+            </div>
+            <div class="form-group" style="flex:1;">
+              <label style="font-weight:600; font-size:0.9rem; margin-bottom:4px; display:block;">是否為流失客戶取回</label>
+              <input type="text" id="crmEditLostRetrieved" class="search-input" placeholder="是 / 否 / 評估中" style="margin-bottom:0;">
+            </div>
+          </div>
+
+          <div class="form-group" style="margin-bottom:0.85rem;">
+            <label style="font-weight:600; font-size:0.9rem; margin-bottom:4px; display:block;">行動方案</label>
+            <input type="text" id="crmEditActionPlan" class="search-input" placeholder="行動方案說明" style="margin-bottom:0;">
+          </div>
+
+          <div class="form-group" style="margin-bottom:0.85rem;">
+            <label style="font-weight:600; font-size:0.9rem; margin-bottom:4px; display:block;">案件狀況說明</label>
+            <textarea id="crmEditStatusDesc" class="search-input" rows="2" placeholder="案件狀況說明" style="resize:vertical;"></textarea>
+          </div>
+
+          <div class="form-group" style="margin-bottom:0.85rem;">
+            <label style="font-weight:600; font-size:0.9rem; margin-bottom:4px; display:block;">競爭品牌</label>
+            <input type="text" id="crmEditBrand" class="search-input" placeholder="競爭品牌" style="margin-bottom:0;">
+          </div>
+
+          <div class="form-group" style="margin-bottom:0.85rem;">
+            <label style="font-weight:600; font-size:0.9rem; margin-bottom:4px; display:block;">依賴事項</label>
+            <textarea id="crmEditDependencies" class="search-input" rows="2" placeholder="依賴事項、報價單號等" style="resize:vertical;"></textarea>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer" style="padding-top:0.75rem; border-top:1px solid var(--border-color); display:flex; gap:0.5rem; flex-shrink:0; margin-top:0.5rem;">
+        <button type="button" id="btnCrmEditMarkNoContact" class="btn btn-secondary" style="color:#be123c; border-color:#fecdd3; background:#fff1f2; font-weight:600;" title="將此客戶提報至主管專區進行轉派覆核">🚫 提報不聯繫</button>
+        <button type="button" id="btnCancelCrmEdit" class="btn btn-secondary" style="flex:1;">取消</button>
+        <button type="button" id="btnSaveCrmEdit" class="btn btn-primary" style="flex:2; font-weight:600;">💾 儲存修改</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 🚀 [新增 3] CRM 商機導向精簡月報預覽與雙端匯出對話框 -->
+  <div id="monthlyReportModal" class="modal hidden">
+    <div class="modal-content" style="max-height:90vh; max-height:90dvh; display:flex; flex-direction:column; padding:1.25rem; max-width:820px;">
+      <div class="modal-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.75rem;">
+        <div>
+          <h3 style="margin:0; font-size:1.15rem; color:#0f172a; display:flex; align-items:center; gap:6px;">
+            📊 CRM 商機導向精簡月報匯出
+          </h3>
+          <p id="monthlyReportModalDesc" style="margin:2px 0 0 0; font-size:0.8rem; color:#64748b;">自動整合客戶拜訪、商機狀態與正式報價單號（點選任一列可直接修改）</p>
+        </div>
+        <button type="button" id="btnCloseMonthlyReportModal" class="btn-close">&times;</button>
+      </div>
+      <div class="modal-body" style="overflow-y:auto; flex:1; min-height:0; padding-right:4px;">
+        <!-- 雙日曆與業務篩選列 -->
+        <div style="display:flex; gap:6px; align-items:center; margin-bottom:12px; background:#f8fafc; padding:8px 10px; border-radius:6px; border:1px solid #e2e8f0; flex-wrap:wrap;">
+          <label style="font-size:0.85rem; font-weight:600; color:#334155; white-space:nowrap;">日期：</label>
+          <div class="date-range-picker-container">
+            <button type="button" id="monthlyReportDateRangeBtn" class="date-range-picker-btn">
+              <span class="date-range-display" id="monthlyReportDateDisplay">2026/08/25 ~ 2026/09/24</span>
+              <span class="date-range-caret">▼</span>
+            </button>
+            <input type="hidden" id="monthlyReportStartDate" value="2026-08-25">
+            <input type="hidden" id="monthlyReportEndDate" value="2026-09-24">
+          </div>
+          <label style="font-size:0.85rem; font-weight:600; color:#334155; margin-left:6px; white-space:nowrap;">業務人員：</label>
+          <select id="monthlyReportSalesSelect" class="search-input" style="width:auto; margin-bottom:0; font-size:0.85rem; padding:4px 6px;">
+            <option value="">-- 全體業務 (主管總覽) --</option>
+          </select>
+          <button type="button" id="btnRefreshMonthlyReport" class="btn btn-secondary" style="font-size:0.8rem; padding:5px 10px; margin-left:auto;">🔄 重新載入</button>
+          <span id="crmReportStatusHint" style="font-size:0.75rem; color:#64748b; margin-left:4px; white-space:nowrap;"></span>
+        </div>
+
+        <!-- 月報預覽表格 -->
+        <div id="monthlyReportPreviewWrap" style="overflow-x:auto;">
+          <table id="monthlyReportTable" class="monthly-report-table" style="width:100%; border-collapse:collapse; font-size:0.82rem;">
+            <thead>
+              <tr style="background:#f1f5f9; color:#1e293b;">
+                <th class="sticky-col-client" style="min-width:120px;">客戶名稱</th>
+                <th style="min-width:85px; white-space:nowrap;">拜訪日期</th>
+                <th class="col-sales" style="min-width:60px;">業務</th>
+                <th class="col-case" style="min-width:140px;">案件名稱 / 拜訪目的</th>
+                <th class="col-month" style="min-width:65px;">預計產出</th>
+                <th class="col-amount" style="min-width:70px;">預估金額</th>
+                <th class="col-quote" style="min-width:95px;">報價單號</th>
+                <th class="col-desc" style="min-width:160px;">案件狀況說明 (CRM備註)</th>
+              </tr>
+            </thead>
+            <tbody id="monthlyReportTableBody">
+              <!-- JS 動態填入 -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="modal-footer" style="padding-top:0.75rem; border-top:1px solid var(--border-color); display:flex; gap:0.5rem; margin-top:0.5rem;">
+        <button type="button" id="btnExportReportExcel" class="btn" style="flex:1; background:#10b981; color:#ffffff; font-weight:600; display:flex; align-items:center; justify-content:center; gap:6px;">
+          📥 下載 Excel (.xlsx)
+        </button>
+        <button type="button" id="btnExportReportPdf" class="btn btn-primary" style="flex:1; font-weight:600; display:flex; align-items:center; justify-content:center; gap:6px;">
+          🖨️ 產出 / 列印 PDF
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 🚀 [新增 3-2] OGSM 團隊商機月報對話框 (支援雙日曆篩選與 Excel/PDF 匯出) -->
+  <div id="ogsmMonthlyReportModal" class="modal hidden">
+    <div class="modal-content" style="max-height:90vh; max-height:90dvh; display:flex; flex-direction:column; padding:1.25rem; max-width:860px;">
+      <div class="modal-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.75rem;">
+        <div>
+          <h3 style="margin:0; font-size:1.15rem; color:#0f172a; display:flex; align-items:center; gap:6px;">
+            📋 OGSM 團隊商機月報匯出
+          </h3>
+          <p id="ogsmMonthlyReportModalDesc" style="margin:2px 0 0 0; font-size:0.8rem; color:#64748b;">整合業務日報表庫、客戶分類、推廣產品與拜訪進度（點選任一列可直接修改）</p>
+        </div>
+        <button type="button" id="btnCloseOgsmMonthlyReportModal" class="btn-close">&times;</button>
+      </div>
+      <div class="modal-body" style="overflow-y:auto; flex:1; min-height:0; padding-right:4px;">
+        <!-- 雙日曆與業務篩選列 -->
+        <div style="display:flex; gap:6px; align-items:center; margin-bottom:12px; background:#f8fafc; padding:8px 10px; border-radius:6px; border:1px solid #e2e8f0; flex-wrap:wrap;">
+          <label style="font-size:0.85rem; font-weight:600; color:#334155; white-space:nowrap;">日期：</label>
+          <div class="date-range-picker-container">
+            <button type="button" id="ogsmReportDateRangeBtn" class="date-range-picker-btn">
+              <span class="date-range-display" id="ogsmReportDateDisplay">2026/08/25 ~ 2026/09/24</span>
+              <span class="date-range-caret">▼</span>
+            </button>
+            <input type="hidden" id="ogsmReportStartDate" value="2026-08-25">
+            <input type="hidden" id="ogsmReportEndDate" value="2026-09-24">
+          </div>
+          <label style="font-size:0.85rem; font-weight:600; color:#334155; margin-left:6px; white-space:nowrap;">業務人員：</label>
+          <select id="ogsmReportSalesSelect" class="search-input" style="width:auto; margin-bottom:0; font-size:0.85rem; padding:4px 6px;">
+            <option value="">-- 全體業務 (主管總覽) --</option>
+          </select>
+          <button type="button" id="btnRefreshOgsmReport" class="btn btn-secondary" style="font-size:0.8rem; padding:5px 10px; margin-left:auto;">🔄 重新載入</button>
+          <span id="ogsmReportStatusHint" style="font-size:0.75rem; color:#64748b; margin-left:4px; white-space:nowrap;"></span>
+        </div>
+
+        <!-- OGSM 月報預覽表格 -->
+        <div id="ogsmReportPreviewWrap" style="overflow-x:auto;">
+          <table id="ogsmReportTable" class="monthly-report-table" style="width:100%; border-collapse:collapse; font-size:0.82rem;">
+            <thead>
+              <tr style="background:#f1f5f9; color:#1e293b;">
+                <th class="sticky-col-client" style="min-width:120px;">客戶名稱</th>
+                <th style="min-width:85px;">拜訪日期</th>
+                <th style="min-width:60px;">業務</th>
+                <th style="min-width:65px; text-align:center;">客戶分類</th>
+                <th style="min-width:140px;">計畫推廣內容</th>
+                <th style="min-width:180px;">實際拜訪紀錄 / 行程</th>
+                <th style="min-width:110px;">最後更新</th>
+              </tr>
+            </thead>
+            <tbody id="ogsmReportTableBody">
+              <!-- JS 動態填入 -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="modal-footer" style="padding-top:0.75rem; border-top:1px solid var(--border-color); display:flex; gap:0.5rem; margin-top:0.5rem;">
+        <button type="button" id="btnExportOgsmExcel" class="btn" style="flex:1; background:#10b981; color:#ffffff; font-weight:600; display:flex; align-items:center; justify-content:center; gap:6px;">
+          📥 下載 Excel (.xlsx)
+        </button>
+        <button type="button" id="btnExportOgsmPdf" class="btn btn-primary" style="flex:1; font-weight:600; display:flex; align-items:center; justify-content:center; gap:6px;">
+          🖨️ 產出 / 列印 PDF
+        </button>
+      </div>
+    </div>
+  </div>
+
+
+
+  <!-- 🚀 [二級覆蓋彈窗 2] OGSM 日報快速修改浮動對話框 (浮在月報大表格之上) -->
+  <div id="ogsmCaseEditModal" class="modal hidden" style="z-index:2100; align-items:center; justify-content:center; background:rgba(0,0,0,0.65);">
+    <div class="modal-content" style="max-height:85vh; max-height:85dvh; display:flex; flex-direction:column; padding:1.2rem; max-width:540px; border-radius:12px; margin:auto; box-shadow:0 20px 25px -5px rgba(0,0,0,0.4);">
+      <div class="modal-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.75rem; border-bottom:1px solid #e2e8f0; padding-bottom:6px;">
+        <h4 style="margin:0; font-size:1.05rem; color:#0f172a; display:flex; align-items:center; gap:6px;">
+          ✏️ 編輯 OGSM 拜訪紀錄
+        </h4>
+        <button type="button" id="btnCloseOgsmCaseEditModal" class="btn-close">&times;</button>
+      </div>
+      <div class="modal-body" style="overflow-y:auto; flex:1; min-height:0; display:flex; flex-direction:column; gap:10px;">
+        <input type="hidden" id="editOgsmRowIndex">
+        <input type="hidden" id="editOgsmSalesName">
+        <div style="display:flex; gap:10px;">
+          <div style="flex:1;">
+            <label style="font-size:0.8rem; font-weight:bold; color:#475569;">拜訪日期</label>
+            <input type="text" id="editOgsmDate" class="search-input" style="width:100%; margin-top:2px; font-size:0.88rem;" readonly>
+          </div>
+          <div style="flex:1;">
+            <label style="font-size:0.8rem; font-weight:bold; color:#475569;">負責業務</label>
+            <input type="text" id="editOgsmSales" class="search-input" style="width:100%; margin-top:2px; font-size:0.88rem;" readonly>
+          </div>
+        </div>
+        <div style="display:flex; gap:10px;">
+          <div style="flex:2;">
+            <label style="font-size:0.8rem; font-weight:bold; color:#475569;">客戶名稱</label>
+            <input type="text" id="editOgsmClientName" class="search-input" style="width:100%; margin-top:2px; font-size:0.88rem;" readonly>
+          </div>
+          <div style="flex:1;">
+            <label style="font-size:0.8rem; font-weight:bold; color:#475569;">客戶分類</label>
+            <select id="editOgsmClientRating" class="search-input" style="width:100%; margin-top:2px; font-size:0.88rem;">
+              <option value="(S) 查興S級">(S) 查興S級 / 重點客戶</option>
+              <option value="(A) 查興A級">(A) 查興A級 / 常規主力</option>
+              <option value="(B) 查興B級">(B) 查興B級 / 潛力開發</option>
+              <option value="(C) 查興C級">(C) 查興C級 / 一般客情</option>
+              <option value="(O) 其它">(O) 其它 / 展覽或特殊行程</option>
+            </select>
+          </div>
+        </div>
+        <div>
+          <label style="font-size:0.8rem; font-weight:bold; color:#475569;">計畫推廣內容</label>
+          <input type="text" id="editOgsmPlanPromotion" class="search-input" style="width:100%; margin-top:2px; font-size:0.88rem;">
+        </div>
+        <div>
+          <label style="font-size:0.8rem; font-weight:bold; color:#475569;">實際拜訪紀錄 / 行程結果</label>
+          <textarea id="editOgsmActualProgress" rows="4" class="search-input" style="width:100%; margin-top:2px; font-size:0.85rem; line-height:1.4; resize:vertical;"></textarea>
+        </div>
+      </div>
+      <div class="modal-footer" style="padding-top:0.75rem; border-top:1px solid #e2e8f0; display:flex; justify-content:flex-end; gap:8px; margin-top:0.5rem;">
+        <button type="button" id="btnCancelOgsmCaseEdit" class="btn btn-secondary" style="font-size:0.85rem; padding:6px 14px;">取消</button>
+        <button type="button" id="btnSaveOgsmCaseEdit" class="btn btn-primary" style="font-size:0.85rem; padding:6px 18px; font-weight:bold;">💾 儲存修改</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 🚨 [新增 1] 客戶拜訪跟催清單對話框 (Modal) -->
+  <div id="followUpModal" class="modal hidden">
+    <div class="modal-content" style="max-height:90vh; max-height:90dvh; display:flex; flex-direction:column; padding:1.25rem; max-width:680px;">
+      <div class="modal-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.75rem; flex-shrink:0;">
+        <div style="display:flex; align-items:center; gap:8px;">
+          <h3 style="margin:0; font-size:1.15rem; color:#0f172a; display:flex; align-items:center; gap:6px;">
+            🚨 客戶拜訪跟催清單 (<span id="followUpCount">0</span>)
+          </h3>
+          <button type="button" id="btnOpenFollowUpSettings" class="btn-icon" title="自訂跟催天數門檻" style="padding:4px 6px; font-size:1rem; border:1px solid #cbd5e1; border-radius:6px; background:#f8fafc; cursor:pointer;">
+            ⚙️
+          </button>
+        </div>
+        <button id="btnCloseFollowUpModal" class="btn-close">&times;</button>
+      </div>
+
+      <!-- 快速篩選標籤 -->
+      <div style="display:flex; gap:6px; margin-bottom:10px; flex-shrink:0;">
+        <button type="button" class="btn-filter-tag active" data-filter="all" id="btnFilterFollowUpAll">全部 (<span id="filterAllCount">0</span>)</button>
+        <button type="button" class="btn-filter-tag" data-filter="red" id="btnFilterFollowUpRed" style="color:#be123c; background:#fff1f2; border-color:#fecdd3;">🔴 逾期紅燈 (<span id="filterRedCount">0</span>)</button>
+        <button type="button" class="btn-filter-tag" data-filter="yellow" id="btnFilterFollowUpYellow" style="color:#b45309; background:#fef3c7; border-color:#fde68a;">🟡 提醒關注 (<span id="filterYellowCount">0</span>)</button>
+      </div>
+
+      <div style="margin-bottom:10px; flex-shrink:0;">
+        <input type="text" id="followUpSearchInput" class="search-input" placeholder="快速搜尋客戶名稱或分級..." style="margin-bottom:0; font-size:0.85rem; padding:6px 10px;">
+      </div>
+
+      <div id="followUpListContainer" class="follow-up-list-container" style="overflow-y:auto; flex:1; min-height:180px; display:flex; flex-direction:column; gap:8px; padding-right:2px;">
+        <!-- 由 JavaScript 動態生成跟催客戶卡片 -->
+      </div>
+
+      <div class="modal-footer" style="padding-top:0.75rem; border-top:1px solid #e2e8f0; display:flex; justify-content:space-between; align-items:center; margin-top:0.5rem; flex-shrink:0;">
+        <span style="font-size:0.78rem; color:#64748b;">提示：點擊「立即排訪」可跳轉日報；點擊「不聯繫」可呈報主管轉派</span>
+        <button type="button" id="btnCloseFollowUpFooter" class="btn btn-secondary" style="font-size:0.85rem; padding:6px 16px;">關閉</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ⚙️ [新增 2] 自訂跟催天數門檻設定對話框 (Modal) -->
+  <div id="followUpSettingsModal" class="modal hidden">
+    <div class="modal-content" style="max-height:85vh; max-height:85dvh; display:flex; flex-direction:column; padding:1.25rem; max-width:480px;">
+      <div class="modal-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.75rem; flex-shrink:0;">
+        <h3 style="margin:0; font-size:1.1rem; color:#0f172a;">⚙️ 客戶跟催天數門檻設定</h3>
+        <button id="btnCloseFollowUpSettings" class="btn-close">&times;</button>
+      </div>
+
+      <div class="modal-body" style="overflow-y:auto; flex:1;">
+        <p style="font-size:0.82rem; color:#64748b; margin-bottom:12px; line-height:1.4;">
+          您可以微調個人跟催門檻。當最後拜訪日（或新業務轉派日）超過設定天數時，系統將自動亮燈提醒。
+        </p>
+
+        <div style="display:flex; flex-direction:column; gap:12px;">
+          <div class="form-group" style="margin-bottom:0;">
+            <label style="font-size:0.85rem; font-weight:600; color:#334155; display:block; margin-bottom:4px;">
+              🔴 A 級 / D-A 級（持續大手）：逾期亮紅燈天數
+            </label>
+            <div style="display:flex; align-items:center; gap:8px;">
+              <input type="number" id="settingDaysA" class="search-input" min="1" max="180" value="14" style="margin-bottom:0; width:100px; text-align:center; font-weight:bold;">
+              <span style="font-size:0.85rem; color:#475569;">天未拜訪即亮紅燈（預設 14 天）</span>
+            </div>
+          </div>
+
+          <div class="form-group" style="margin-bottom:0;">
+            <label style="font-size:0.85rem; font-weight:600; color:#334155; display:block; margin-bottom:4px;">
+              🟡 B 級 / D-B 級（前年新客）：逾期提醒天數
+            </label>
+            <div style="display:flex; align-items:center; gap:8px;">
+              <input type="number" id="settingDaysB" class="search-input" min="1" max="180" value="30" style="margin-bottom:0; width:100px; text-align:center; font-weight:bold;">
+              <span style="font-size:0.85rem; color:#475569;">天未拜訪即提醒（預設 30 天）</span>
+            </div>
+          </div>
+
+          <div class="form-group" style="margin-bottom:0;">
+            <label style="font-size:0.85rem; font-weight:600; color:#334155; display:block; margin-bottom:4px;">
+              🟡 C 級 / D-C 級（今年新客/潛在客）：逾期提醒天數
+            </label>
+            <div style="display:flex; align-items:center; gap:8px;">
+              <input type="number" id="settingDaysC" class="search-input" min="1" max="180" value="30" style="margin-bottom:0; width:100px; text-align:center; font-weight:bold;">
+              <span style="font-size:0.85rem; color:#475569;">天未拜訪即提醒（預設 30 天）</span>
+            </div>
+          </div>
+
+          <div class="form-group" style="margin-bottom:0; background:#f8fafc; padding:10px; border-radius:8px; border:1px solid #e2e8f0;">
+            <label style="font-size:0.85rem; font-weight:600; color:#0f172a; display:block; margin-bottom:4px;">
+              🏢 經銷商（赫力、贊翔、台瓷、漢銓）：未聯繫提醒
+            </label>
+            <div style="display:flex; align-items:center; gap:8px;">
+              <input type="number" id="settingDaysDistributor" class="search-input" min="1" max="180" value="14" style="margin-bottom:0; width:100px; text-align:center; font-weight:bold; background:#ffffff;">
+              <span style="font-size:0.85rem; color:#475569;">天未聯繫提醒（其餘經銷商不提醒）</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-footer" style="padding-top:0.75rem; border-top:1px solid #e2e8f0; display:flex; justify-content:space-between; align-items:center; margin-top:0.75rem; flex-shrink:0;">
+        <button type="button" id="btnResetFollowUpSettings" class="btn btn-secondary" style="font-size:0.82rem; padding:6px 12px;">恢復預設</button>
+        <div style="display:flex; gap:6px;">
+          <button type="button" id="btnCancelFollowUpSettings" class="btn btn-secondary" style="font-size:0.85rem; padding:6px 14px;">取消</button>
+          <button type="button" id="btnSaveFollowUpSettings" class="btn btn-primary" style="font-size:0.85rem; padding:6px 18px; font-weight:bold;">💾 儲存設定</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 🚫 [新增 3] 提報客戶不聯繫對話框 (Modal) -->
+  <div id="noContactModal" class="modal hidden">
+    <div class="modal-content" style="max-height:85vh; max-height:85dvh; display:flex; flex-direction:column; padding:1.25rem; max-width:480px;">
+      <div class="modal-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.75rem; flex-shrink:0;">
+        <h3 style="margin:0; font-size:1.1rem; color:#be123c; display:flex; align-items:center; gap:6px;">
+          🚫 提報客戶列為不聯繫
+        </h3>
+        <button id="btnCloseNoContactModal" class="btn-close">&times;</button>
+      </div>
+
+      <div class="modal-body" style="overflow-y:auto; flex:1;">
+        <div style="background:#fff1f2; border:1px solid #fecdd3; border-radius:8px; padding:10px; margin-bottom:12px;">
+          <div style="font-size:0.85rem; font-weight:700; color:#9f1239; margin-bottom:2px;" id="noContactClientTitle">客戶名稱</div>
+          <div style="font-size:0.78rem; color:#64748b;" id="noContactClientMeta">負責業務：- | 分級：-</div>
+        </div>
+
+        <div class="form-group" style="margin-bottom:12px;">
+          <label style="font-size:0.85rem; font-weight:600; color:#334155; display:block; margin-bottom:4px;">
+            請選擇不聯繫主要原因 (必選)
+          </label>
+          <select id="noContactReasonType" class="search-input" style="font-size:0.9rem; padding:8px 10px; margin-bottom:0; font-weight:600; background:#ffffff;">
+            <option value="價格無競爭優勢">價格無競爭優勢</option>
+            <option value="客戶暫無採購需求 / 專案終止">客戶暫無採購需求 / 專案終止</option>
+            <option value="窗口離職 / 人事異動失聯">窗口離職 / 人事異動失聯</option>
+            <option value="客戶轉向競品品牌採購">客戶轉向競品品牌採購</option>
+            <option value="客戶歇業 / 產線停產">客戶歇業 / 產線停產</option>
+            <option value="其他特殊原因">其他特殊原因</option>
+          </select>
+        </div>
+
+        <div class="form-group" style="margin-bottom:12px;">
+          <label style="font-size:0.85rem; font-weight:600; color:#334155; display:block; margin-bottom:4px;">
+            補充詳細說明 (選填)
+          </label>
+          <textarea id="noContactReasonDesc" class="search-input" rows="3" placeholder="請簡述與客戶互動現況，供直賣主管或經銷主管了解..." style="font-size:0.85rem; line-height:1.4; resize:vertical;"></textarea>
+        </div>
+
+        <div style="background:#f1f5f9; border-radius:6px; padding:8px 10px; font-size:0.75rem; color:#475569; line-height:1.4;">
+          ℹ️ <b>轉派機制說明</b>：送出後此客戶將從您的個人跟催清單移出，並即刻呈報至三大主管（曾維崧、曾仁君、張何達）專區。若主管評估仍有商機，可重新指派其他人接手攻略。
+        </div>
+      </div>
+
+      <div class="modal-footer" style="padding-top:0.75rem; border-top:1px solid #e2e8f0; display:flex; justify-content:flex-end; gap:8px; margin-top:0.75rem; flex-shrink:0;">
+        <button type="button" id="btnCancelNoContact" class="btn btn-secondary" style="font-size:0.85rem; padding:6px 14px;">取消</button>
+        <button type="button" id="btnConfirmSubmitNoContact" class="btn btn-primary" style="background:#be123c; border-color:#9f1239; font-size:0.85rem; padding:6px 18px; font-weight:bold;">📤 確認呈報主管</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 🔄 [新增 4] 三大主管轉派覆核專區對話框 (Modal) -->
+  <div id="managerReviewModal" class="modal hidden">
+    <div class="modal-content" style="max-height:90vh; max-height:90dvh; display:flex; flex-direction:column; padding:1.25rem; max-width:760px;">
+      <div class="modal-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.75rem; flex-shrink:0;">
+        <div>
+          <h3 style="margin:0; font-size:1.15rem; color:#4c1d95; display:flex; align-items:center; gap:6px;">
+            🔄 三大主管轉派覆核專區 (<span id="managerReviewCount">0</span>)
+          </h3>
+          <p style="margin:2px 0 0 0; font-size:0.75rem; color:#64748b;">
+            審查組員提報之不聯繫客戶，可了解原因並執行【轉派新業務】、【同意結案封存】或【退回原業務】
+          </p>
+        </div>
+        <button id="btnCloseManagerReviewModal" class="btn-close">&times;</button>
+      </div>
+
+      <div id="managerReviewListContainer" class="manager-review-list-container" style="overflow-y:auto; flex:1; min-height:220px; display:flex; flex-direction:column; gap:10px; padding-right:2px;">
+        <!-- 由 JavaScript 動態生成主管待審卡片 -->
+      </div>
+
+      <div class="modal-footer" style="padding-top:0.75rem; border-top:1px solid #e2e8f0; display:flex; justify-content:flex-end; gap:8px; margin-top:0.5rem; flex-shrink:0;">
+        <button type="button" id="btnRefreshManagerReview" class="btn btn-secondary" style="font-size:0.85rem; padding:6px 14px;">🔄 重新整理</button>
+        <button type="button" id="btnCloseManagerReviewFooter" class="btn btn-secondary" style="font-size:0.85rem; padding:6px 16px;">關閉</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 轉派新業務指派子對話框 (Sub-Modal) -->
+  <div id="reassignSubModal" class="modal hidden" style="z-index:10050;">
+    <div class="modal-content" style="max-height:80vh; max-height:80dvh; display:flex; flex-direction:column; padding:1.25rem; max-width:440px;">
+      <div class="modal-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.75rem; flex-shrink:0;">
+        <h3 style="margin:0; font-size:1.05rem; color:#1e40af;">👤 指派新業務接手攻略</h3>
+        <button id="btnCloseReassignSubModal" class="btn-close">&times;</button>
+      </div>
+      <div class="modal-body" style="overflow-y:auto; flex:1;">
+        <div style="font-size:0.85rem; font-weight:bold; color:#1e293b; margin-bottom:8px;" id="reassignTargetClientName">客戶：-</div>
+        
+        <div class="form-group" style="margin-bottom:12px;">
+          <label style="font-size:0.85rem; font-weight:600; color:#334155; display:block; margin-bottom:4px;">
+            指派新業務員 (必選)
+          </label>
+          <select id="reassignNewOwnerSelect" class="search-input" style="font-size:0.9rem; padding:8px 10px; margin-bottom:0; font-weight:600; background:#ffffff;">
+            <!-- 由 JS 動態注入主管管轄組員 -->
+          </select>
+        </div>
+
+        <div class="form-group" style="margin-bottom:10px;">
+          <label style="font-size:0.85rem; font-weight:600; color:#334155; display:block; margin-bottom:4px;">
+            主管轉派批示 / 指導策略 (選填)
+          </label>
+          <textarea id="reassignManagerNote" class="search-input" rows="2" placeholder="例如：由資深業務重新切入、主推高階機能品項..." style="font-size:0.85rem; resize:vertical;"></textarea>
+        </div>
+
+        <div style="background:#eff6ff; border:1px solid #bfdbfe; border-radius:6px; padding:8px 10px; font-size:0.75rem; color:#1e40af; line-height:1.4;">
+          💡 <b>緩衝期起算</b>：確認轉派後，新業務的跟催起算日將設為今天，給予全新拜訪寬限期（A 級 14 天 / B 級 30 天 / C 級 30 天），不會首日亮紅燈。
+        </div>
+      </div>
+      <div class="modal-footer" style="padding-top:0.75rem; border-top:1px solid #e2e8f0; display:flex; justify-content:flex-end; gap:8px; margin-top:0.75rem; flex-shrink:0;">
+        <button type="button" id="btnCancelReassignSub" class="btn btn-secondary" style="font-size:0.85rem; padding:6px 14px;">取消</button>
+        <button type="button" id="btnConfirmReassignSub" class="btn btn-primary" style="font-size:0.85rem; padding:6px 18px; font-weight:bold;">✅ 確認轉派</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Loading Overlay -->
   <div id="loadingOverlay" class="loading-overlay hidden">
     <div class="spinner"></div>
-    <p>處理中...</p>
+    <p id="loadingOverlayText">處理中...</p>
   </div>
 
-  <script src="app.js?v=1.35"></script>
+  <!-- 輕量浮動通知 (Toast) -->
+  <div id="ogsmToast" class="ogsm-toast"></div>
+
+  <!-- 🚀 [共用桌機版風格] 日期範圍選取浮動月曆 (RangeCalendarPopup) -->
+  <div id="webDateRangePickerPopup" class="web-date-range-popup hidden">
+    <div class="drp-header">
+      <button type="button" class="drp-nav-btn" id="drpPrevBtn" title="上一月">&lt;</button>
+      <div class="drp-title" id="drpTitle">2026 年 九月</div>
+      <button type="button" class="drp-nav-btn" id="drpNextBtn" title="下一月">&gt;</button>
+    </div>
+    <div class="drp-weekdays">
+      <span class="drp-we">日</span>
+      <span>一</span>
+      <span>二</span>
+      <span>三</span>
+      <span>四</span>
+      <span>五</span>
+      <span class="drp-we">六</span>
+    </div>
+    <div class="drp-grid" id="drpGrid">
+      <!-- 42 個日期格由 JS 動態生成 -->
+    </div>
+    <div class="drp-status" id="drpStatus">2026/08/25 ～ 2026/09/24</div>
+    <div class="drp-footer">
+      <button type="button" class="drp-btn-clear" id="drpBtnClear">清除</button>
+      <button type="button" class="drp-btn-ok" id="drpBtnOk">確定</button>
+    </div>
+  </div>
+
+  <!-- 🚀 畫面右下角簡潔版本訊息 (字體小、不佔用頂部空間) -->
+  <div class="app-version-bottom-right" id="appVersionInfo">v 1.63</div>
+
+  <script src="app.js?v=1.63"></script>
 </body>
 </html>

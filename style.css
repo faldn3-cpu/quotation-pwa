@@ -32,7 +32,7 @@ body {
 .app-header {
   background-color: var(--primary-color);
   color: white;
-  padding: 1rem;
+  padding: 0.65rem 0.85rem;
   box-shadow: var(--shadow-sm);
   position: sticky;
   top: 0;
@@ -45,11 +45,16 @@ body {
   align-items: center;
   max-width: 600px;
   margin: 0 auto;
+  gap: 8px;
+  flex-wrap: nowrap;
 }
 
 .app-header h1 {
-  font-size: 1.25rem;
+  font-size: 1.12rem;
   font-weight: 600;
+  white-space: nowrap;
+  letter-spacing: -0.2px;
+  margin: 0;
 }
 
 .offline-indicator {
@@ -603,15 +608,23 @@ input:focus {
   to { opacity: 1; transform: translateY(0); }
 }
 
-/* 版本標籤 */
-.version-tag {
-  font-size: 0.72rem;
-  font-weight: 600;
-  color: #ffffff;
-  background: rgba(255, 255, 255, 0.22);
-  border: 1px solid rgba(255, 255, 255, 0.35);
-  border-radius: 6px;
-  padding: 2px 7px;
+/* 右下角版本資訊標籤 (字體小、沉穩不干擾排版) */
+.app-version-bottom-right {
+  position: fixed;
+  bottom: 6px;
+  right: 8px;
+  font-size: 0.62rem;
+  font-weight: 500;
+  color: #94a3b8;
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(4px);
+  padding: 1px 6px;
+  border-radius: 4px;
+  border: 1px solid rgba(226, 232, 240, 0.7);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+  z-index: 99;
+  pointer-events: none;
+  user-select: none;
   letter-spacing: 0.5px;
 }
 
@@ -619,15 +632,16 @@ input:focus {
 .user-badge {
   font-size: 0.8rem;
   font-weight: 600;
-  color: rgba(255, 255, 255, 0.9);
+  color: rgba(255, 255, 255, 0.95);
   background: rgba(255, 255, 255, 0.18);
   border: 1px solid rgba(255, 255, 255, 0.3);
   border-radius: 20px;
-  padding: 4px 10px;
+  padding: 3px 8px;
   white-space: nowrap;
-  max-width: 140px;
+  max-width: 110px;
   overflow: hidden;
   text-overflow: ellipsis;
+  flex-shrink: 0;
 }
 
 /* 同步圖示按鈕 */
@@ -637,10 +651,13 @@ input:focus {
   border-radius: 8px;
   color: white;
   cursor: pointer;
-  padding: 6px;
+  padding: 5px;
+  width: 32px;
+  height: 32px;
   display: flex;
   align-items: center;
   justify-content: center;
+  flex-shrink: 0;
   transition: background 0.2s;
 }
 .btn-icon:hover { background: rgba(255, 255, 255, 0.28); }
@@ -823,3 +840,1568 @@ input:focus {
   box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.15);
   background: #ffffff;
 }
+
+/* ====================================================
+   OGSM 模組專屬樣式庫 (行動裝置最佳化)
+   ==================================================== */
+
+/* App Switcher 下拉切換選單 */
+.app-switcher-dropdown {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  width: 260px;
+  background: #ffffff;
+  border-radius: 12px;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.2), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+  border: 1px solid #e2e8f0;
+  padding: 6px;
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  animation: dropdownFade 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes dropdownFade {
+  from { opacity: 0; transform: translateY(-8px) scale(0.96); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.switcher-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.switcher-item:hover, .switcher-item:active {
+  background: #f1f5f9;
+}
+
+.switcher-item.active {
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+}
+
+.switcher-icon {
+  font-size: 1.35rem;
+  flex-shrink: 0;
+}
+
+.switcher-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.switcher-title {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #1e293b;
+  margin-bottom: 2px;
+}
+
+.switcher-desc {
+  font-size: 0.75rem;
+  color: #64748b;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* 測試隔離提示徽章 */
+.ogsm-test-badge {
+  background: #fff7ed;
+  border: 1px solid #ffedd5;
+  color: #c2410c;
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  margin-bottom: 1rem;
+  line-height: 1.4;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* 行事曆月份導航列 */
+.calendar-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  padding: 0 4px;
+}
+
+.calendar-title-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.calendar-month-label {
+  margin: 0;
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: #1e293b;
+  letter-spacing: -0.5px;
+}
+
+.btn-today {
+  background: #f1f5f9;
+  border: 1px solid #cbd5e1;
+  color: #475569;
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.btn-today:active {
+  background: #e2e8f0;
+}
+
+.btn-cal-nav {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 1px solid #e2e8f0;
+  background: #ffffff;
+  color: #334155;
+  font-size: 0.9rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  transition: all 0.15s;
+}
+
+.btn-cal-nav:active {
+  background: #f8fafc;
+  transform: scale(0.92);
+}
+
+/* 星期欄標頭 */
+.calendar-weekdays {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  text-align: center;
+  padding: 8px 0;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #64748b;
+  border-bottom: 1px solid #f1f5f9;
+  margin-bottom: 4px;
+}
+
+.calendar-weekdays .sun { color: #ef4444; }
+.calendar-weekdays .sat { color: #2563eb; }
+
+/* 月曆網格 (7 欄) */
+.calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+}
+
+/* 單一日曆格子 */
+.calendar-day {
+  min-height: 52px;
+  border-radius: 10px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  padding-top: 6px;
+  background: #ffffff;
+  border: 1px solid transparent;
+  cursor: pointer;
+  position: relative;
+  transition: background 0.15s, border-color 0.15s;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.calendar-day:active {
+  background: #eff6ff;
+}
+
+.calendar-day.other-month {
+  color: #cbd5e1;
+  background: #fafafa;
+}
+
+.calendar-day.today {
+  border-color: #e2e8f0;
+  background: transparent;
+}
+
+.calendar-day.today .day-number {
+  font-weight: 700;
+  color: #2563eb;
+  position: relative;
+}
+
+.calendar-day.today .day-number::after {
+  content: "";
+  display: block;
+  width: 12px;
+  height: 2px;
+  background-color: #2563eb;
+  border-radius: 1px;
+  margin: 1px auto 0 auto;
+}
+
+.day-number {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #334155;
+  line-height: 1;
+}
+
+.calendar-day.other-month .day-number {
+  color: #94a3b8;
+}
+
+.calendar-day.selected {
+  border-color: #2563eb !important;
+  background-color: #eff6ff !important;
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.25) !important;
+  font-weight: 700;
+}
+
+/* 日報小圓點指示器 (藍點：全部已完成 / 紅點：實際行程待回填) */
+.day-dot-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  margin-top: 6px;
+  height: 8px;
+}
+
+.day-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  display: inline-block;
+  transition: transform 0.15s, background-color 0.15s;
+}
+
+.day-dot.dot-blue {
+  background-color: #2563eb;
+  box-shadow: 0 0 3px rgba(37, 99, 235, 0.6);
+}
+
+.day-dot.dot-red, .day-dot.dot-orange {
+  background-color: #ef4444;
+  box-shadow: 0 0 3px rgba(239, 68, 68, 0.6);
+}
+
+/* 當日業務日報案件清單面板 (選項 B：常駐於月曆下方) */
+.ogsm-day-panel {
+  margin-top: 1.25rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid #e2e8f0;
+  animation: fadeIn 0.2s ease-out;
+}
+
+.ogsm-day-panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.85rem;
+}
+
+.ogsm-day-panel-title {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.btn-sm-add {
+  padding: 6px 12px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  border-radius: 6px;
+  white-space: nowrap;
+}
+
+.ogsm-day-panel-footer {
+  margin-top: 0.85rem;
+}
+
+/* 客戶關鍵字搜尋自動完成下拉選單 */
+.autocomplete-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+  max-height: 180px;
+  overflow-y: auto;
+  z-index: 150;
+  margin-top: 4px;
+}
+
+.autocomplete-item {
+  padding: 10px 12px;
+  font-size: 0.9rem;
+  cursor: pointer;
+  border-bottom: 1px solid #f1f5f9;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.autocomplete-item:last-child {
+  border-bottom: none;
+}
+
+.autocomplete-item:active, .autocomplete-item:hover {
+  background: #f8fafc;
+  color: #2563eb;
+}
+
+.autocomplete-match {
+  font-weight: 700;
+  color: #2563eb;
+}
+
+/* 當日日報清單卡片 */
+.ogsm-day-report-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.ogsm-report-card {
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 12px;
+  background: #ffffff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  cursor: pointer;
+  transition: border-color 0.15s, box-shadow 0.15s, background-color 0.15s;
+}
+
+.ogsm-report-card:hover {
+  border-color: #93c5fd;
+  box-shadow: 0 4px 8px -1px rgba(37, 99, 235, 0.08);
+}
+
+.ogsm-report-card:active {
+  background: #f8fafc;
+}
+
+.ogsm-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.ogsm-card-client {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.badge-client-type {
+  display: inline-block;
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 12px;
+  background: #e0f2fe;
+  color: #0369a1;
+}
+
+.ogsm-card-section {
+  margin-top: 6px;
+  font-size: 0.88rem;
+  line-height: 1.5;
+}
+
+.ogsm-card-label {
+  font-weight: 600;
+  color: #64748b;
+  margin-right: 4px;
+}
+
+.ogsm-card-text {
+  color: #334155;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.ogsm-card-footer {
+  margin-top: 8px;
+  padding-top: 6px;
+  border-top: 1px dashed #f1f5f9;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.75rem;
+  color: #94a3b8;
+}
+
+.ogsm-card-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.btn-resend-ogsm {
+  background: #fef08a;
+  border: 1px solid #fde047;
+  color: #854d0e;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 3px 8px;
+  border-radius: 6px;
+  transition: background-color 0.15s;
+}
+
+.btn-resend-ogsm:active {
+  background: #facc15;
+}
+
+.btn-edit-ogsm {
+  background: none;
+  border: none;
+  color: #2563eb;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 4px 6px;
+  border-radius: 4px;
+}
+
+.btn-edit-ogsm:active {
+  background: #eff6ff;
+}
+
+.btn-history-ogsm {
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  color: #15803d;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 3px 8px;
+  border-radius: 6px;
+  transition: background-color 0.15s;
+}
+
+.btn-history-ogsm:active {
+  background: #dcfce7;
+}
+
+.btn-del-ogsm {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: #fff1f2;
+  border: 1px solid #fecdd3;
+  color: #e11d48;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 6px;
+  transition: all 0.15s ease;
+}
+
+.btn-del-ogsm svg {
+  width: 13px;
+  height: 13px;
+  stroke: currentColor;
+  stroke-width: 2;
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.btn-del-ogsm:hover, .btn-del-ogsm:active {
+  background: #ffe4e6;
+  border-color: #fda4af;
+  color: #be123c;
+  transform: translateY(-1px);
+}
+
+/* LINE 業務匯報一鍵複製按鈕 */
+.btn-line-report {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  background: #06c755;
+  color: #ffffff;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 0.88rem;
+  padding: 0.65rem 1rem;
+  cursor: pointer;
+  transition: background-color 0.15s, transform 0.1s;
+  box-shadow: 0 2px 4px rgba(6, 199, 85, 0.25);
+}
+
+.btn-line-report:active {
+  background: #05b04b;
+  transform: scale(0.98);
+}
+
+/* 全域關鍵字搜尋列 */
+.ogsm-search-bar-wrap {
+  margin-bottom: 0.85rem;
+  width: 100%;
+}
+
+.ogsm-search-input-box {
+  position: relative;
+  width: 100%;
+  display: flex;
+  align-items: center;
+}
+
+.ogsm-search-input {
+  width: 100%;
+  padding: 10px 38px 10px 42px !important;
+  border: 1px solid #cbd5e1;
+  border-radius: 20px;
+  font-size: 0.9rem;
+  background: #ffffff;
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+  box-sizing: border-box;
+  line-height: 1.4;
+}
+
+.ogsm-search-input:focus {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+}
+
+.ogsm-search-icon {
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 18px;
+  height: 18px;
+  color: #94a3b8;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.ogsm-search-clear {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: #f1f5f9;
+  border: none;
+  border-radius: 50%;
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1rem;
+  color: #64748b;
+  cursor: pointer;
+  padding: 0;
+  line-height: 1;
+  z-index: 2;
+  transition: background-color 0.15s, color 0.15s;
+}
+
+.ogsm-search-clear:hover {
+  background: #e2e8f0;
+  color: #0f172a;
+}
+
+/* 搜尋結果面板 (置於月曆下方，獨立區塊不推擠月曆) */
+.ogsm-search-results-panel {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.06);
+  margin-top: 1.25rem;
+  max-height: 380px;
+  overflow-y: auto;
+  padding: 10px;
+  animation: fadeIn 0.2s ease-out;
+}
+
+.ogsm-search-results-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 4px 8px 8px 8px;
+  border-bottom: 1px solid #f1f5f9;
+  margin-bottom: 6px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #64748b;
+}
+
+.ogsm-search-item {
+  padding: 10px 12px;
+  border-bottom: 1px solid #f1f5f9;
+  cursor: pointer;
+  border-radius: 6px;
+  transition: background-color 0.15s;
+}
+
+.ogsm-search-item:last-child {
+  border-bottom: none;
+}
+
+.ogsm-search-item:hover, .ogsm-search-item:active {
+  background: #f8fafc;
+}
+
+.ogsm-search-item-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 4px;
+}
+
+.ogsm-search-item-client {
+  font-weight: 600;
+  font-size: 0.92rem;
+  color: #1e293b;
+}
+
+.ogsm-search-item-date {
+  font-size: 0.78rem;
+  color: #64748b;
+}
+
+.ogsm-search-item-body {
+  font-size: 0.82rem;
+  color: #475569;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* 歷史歷程對照卡片 */
+.history-entry-card {
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  margin-bottom: 12px;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.history-entry-header-open {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  background: #f1f5f9;
+  border-bottom: 1px solid #e2e8f0;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.history-entry-meta {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #1e293b;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.history-editor {
+  color: #2563eb;
+  font-weight: 600;
+}
+
+.history-badge {
+  font-size: 0.72rem;
+  background: #e2e8f0;
+  color: #475569;
+  padding: 2px 7px;
+  border-radius: 4px;
+  font-weight: 500;
+}
+
+.history-entry-body {
+  padding: 10px 12px;
+  font-size: 0.84rem;
+  color: #334155;
+  background: #ffffff;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.history-field-box {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.history-field-title {
+  font-weight: 600;
+  color: #64748b;
+  font-size: 0.78rem;
+}
+
+.history-field-content {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-left: 3px solid #3b82f6;
+  padding: 6px 10px;
+  border-radius: 4px;
+  white-space: pre-wrap;
+  color: #1e293b;
+  font-size: 0.84rem;
+  line-height: 1.5;
+}
+
+.history-field-content.result-field {
+  border-left-color: #10b981;
+}
+
+.history-field-content.type-field {
+  border-left-color: #8b5cf6;
+}
+
+.ogsm-empty-tip {
+  text-align: center;
+  padding: 2rem 1rem;
+  color: #94a3b8;
+  font-size: 0.95rem;
+}
+
+/* 狀態徽章：同步中與離線暫存 */
+.badge-syncing {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.75rem;
+  background: #e0f2fe;
+  color: #0369a1;
+  border: 1px solid #bae6fd;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-weight: 600;
+  animation: pulse-sync 1.8s infinite ease-in-out;
+}
+
+@keyframes pulse-sync {
+  0% { opacity: 0.7; }
+  50% { opacity: 1; transform: scale(1.02); }
+  100% { opacity: 0.7; }
+}
+
+.badge-offline {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.75rem;
+  background: #fef9c3;
+  color: #854d0e;
+  border: 1px solid #fef08a;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-weight: 600;
+}
+
+/* 輕量浮動通知 (Toast) */
+.ogsm-toast {
+  position: fixed;
+  top: 18px;
+  left: 50%;
+  transform: translateX(-50%) translateY(-20px);
+  background: rgba(15, 23, 42, 0.92);
+  color: #f8fafc;
+  padding: 10px 18px;
+  border-radius: 24px;
+  font-size: 0.88rem;
+  font-weight: 500;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
+  z-index: 10000;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s ease, transform 0.25s ease;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ogsm-toast.show {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+.ogsm-toast.success {
+  background: rgba(16, 185, 129, 0.95);
+}
+
+.ogsm-toast.warning {
+  background: rgba(245, 158, 11, 0.95);
+}
+
+.ogsm-toast.error {
+  background: rgba(239, 68, 68, 0.95);
+}
+
+/* ====================================================
+   報價單內部 CRM 關聯標籤與對外列印 100% 遮蔽
+   ==================================================== */
+.crm-linked-cases-wrap {
+  margin-top: 8px;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  border-radius: 8px;
+  padding: 8px 10px;
+}
+
+.crm-linked-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.crm-linked-title {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #1e40af;
+}
+
+.btn-clear-crm-links {
+  background: none;
+  border: none;
+  font-size: 1.1rem;
+  color: #94a3b8;
+  cursor: pointer;
+  line-height: 1;
+  padding: 0 4px;
+}
+.btn-clear-crm-links:hover {
+  color: #ef4444;
+}
+
+.crm-linked-cases-list {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.crm-case-tag {
+  background: #ffffff;
+  border: 1px solid #93c5fd;
+  border-radius: 6px;
+  padding: 5px 8px;
+  font-size: 0.8rem;
+  color: #1e3a8a;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.crm-case-tag-name {
+  font-weight: 600;
+}
+
+.crm-case-tag-amount {
+  font-size: 0.75rem;
+  color: #059669;
+  font-weight: 700;
+  background: #ecfdf5;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+/* 🚀 核心資安防護：對外列印與匯出 PDF 時 100% 絕對遮蔽內部 CRM 資訊 */
+@media print {
+  .crm-linked-cases-wrap,
+  #crmLinkedCasesWrap,
+  .btn-text-action,
+  #btnLinkCrmCase {
+    display: none !important;
+  }
+}
+
+/* ====================================================
+   日報案件卡片之「🔗 轉入 CRM」按鈕樣式
+   ==================================================== */
+.btn-crm-sync {
+  background: #f1f5f9;
+  color: #2563eb;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  padding: 4px 8px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  transition: all 0.15s;
+}
+
+.btn-crm-sync:hover {
+  background: #dbeafe;
+  border-color: #93c5fd;
+}
+
+.btn-crm-sync.synced {
+  background: #ecfdf5;
+  color: #059669;
+  border-color: #a7f3d0;
+}
+
+/* ====================================================
+   主管團隊動態清單分組樣式
+   ==================================================== */
+.team-sales-card {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 12px;
+  margin-bottom: 12px;
+}
+
+.team-sales-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.team-sales-name {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.team-sales-status-badge {
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 12px;
+}
+
+.team-sales-status-badge.completed {
+  background: #dbeafe;
+  color: #1e40af;
+}
+
+.team-sales-status-badge.pending {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+/* ====================================================
+   商機導向精簡月報表格 (固定表頭 + 彈性最適欄寬)
+   ==================================================== */
+#monthlyReportPreviewWrap,
+#ogsmReportPreviewWrap {
+  max-height: 58vh;
+  overflow: auto;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  background: #ffffff;
+}
+
+.monthly-report-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.82rem;
+  table-layout: auto;
+}
+
+.monthly-report-table th {
+  position: sticky;
+  top: 0;
+  background: #f1f5f9;
+  color: #1e293b;
+  font-weight: 700;
+  padding: 9px 8px;
+  border-bottom: 2px solid #cbd5e1;
+  z-index: 10;
+  white-space: nowrap;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+}
+
+.monthly-report-table td {
+  padding: 8px 8px;
+  border-bottom: 1px solid #e2e8f0;
+  vertical-align: top;
+  color: #334155;
+}
+
+.monthly-report-table tr.clickable-row {
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.monthly-report-table tr.clickable-row:hover td {
+  background: #eff6ff !important;
+}
+
+.rating-badge {
+  display: inline-block;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-weight: bold;
+  font-size: 0.75rem;
+  text-align: center;
+}
+.rating-S { background: #fee2e2; color: #b91c1c; border: 1px solid #fca5a5; }
+.rating-A { background: #fef3c7; color: #92400e; border: 1px solid #fcd34d; }
+.rating-B { background: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd; }
+.rating-C { background: #f1f5f9; color: #475569; border: 1px solid #cbd5e1; }
+.rating-O { background: #f3e8ff; color: #7e22ce; border: 1px solid #d8b4fe; }
+.rating-default { background: #f8fafc; color: #64748b; border: 1px solid #e2e8f0; }
+
+/* 各欄位最適寬度設定 (圖三、圖四修正) */
+.col-sales { width: 75px; min-width: 75px; white-space: nowrap; font-weight: 600; text-align: center; }
+.col-client { width: 105px; min-width: 105px; font-weight: 600; color: #0f172a; white-space: nowrap; }
+.col-case { min-width: 160px; max-width: 250px; white-space: normal; word-break: break-all; line-height: 1.4; color: #1e293b; }
+.col-month { width: 75px; min-width: 75px; text-align: center; white-space: nowrap; color: #475569; }
+.col-amount { width: 85px; min-width: 85px; text-align: right; font-weight: 700; color: #059669; white-space: nowrap; }
+.col-quote { width: 105px; min-width: 105px; text-align: center; font-family: monospace; font-weight: 600; color: #2563eb; white-space: nowrap; }
+.col-desc { min-width: 180px; max-width: 280px; white-space: normal; word-break: break-all; line-height: 1.4; color: #64748b; font-size: 0.78rem; }
+
+/* ====================================================
+   桌機版風格日期範圍選取器 (DateRangePicker)
+   ==================================================== */
+.date-range-picker-container {
+  display: inline-flex;
+  align-items: center;
+  position: relative;
+}
+
+.date-range-picker-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  background-color: #ffffff;
+  color: #1e293b;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  padding: 5px 10px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  min-width: 215px;
+  outline: none;
+}
+
+.date-range-picker-btn:hover {
+  background-color: #f8fafc;
+  border-color: #94a3b8;
+}
+
+.date-range-picker-btn:active {
+  background-color: #f1f5f9;
+}
+
+.date-range-caret {
+  font-size: 0.7rem;
+  color: #64748b;
+  transition: transform 0.2s ease;
+}
+
+/* 浮動月曆面板 */
+.web-date-range-popup {
+  position: fixed;
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  box-shadow: 0 12px 28px -4px rgba(0, 0, 0, 0.22), 0 8px 12px -4px rgba(0, 0, 0, 0.12);
+  width: 310px;
+  padding: 12px;
+  z-index: 3000;
+  user-select: none;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Microsoft JhengHei", sans-serif;
+  animation: drpFadeIn 0.15s ease-out;
+}
+
+.web-date-range-popup.hidden {
+  display: none !important;
+}
+
+@keyframes drpFadeIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* 導航列 */
+.drp-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.drp-nav-btn {
+  background: transparent;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-weight: bold;
+  color: #475569;
+  font-size: 0.95rem;
+  transition: background 0.15s;
+}
+
+.drp-nav-btn:hover {
+  background: #f1f5f9;
+  color: #0f172a;
+}
+
+.drp-title {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #1e293b;
+  cursor: default;
+}
+
+/* 星期標頭 */
+.drp-weekdays {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  text-align: center;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #64748b;
+  margin-bottom: 6px;
+}
+
+.drp-weekdays span {
+  padding: 4px 0;
+}
+
+.drp-weekdays span.drp-we {
+  color: #ef4444;
+}
+
+/* 日期矩陣 */
+.drp-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+  margin-bottom: 10px;
+}
+
+.drp-day-btn {
+  aspect-ratio: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: transparent;
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: #1e293b;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: all 0.1s ease;
+  padding: 0;
+  margin: 1px 0;
+}
+
+.drp-day-btn.drp-out {
+  color: #cbd5e1;
+}
+
+.drp-day-btn.drp-we:not(.drp-sel-start):not(.drp-sel-end):not(.drp-in-range) {
+  color: #ef4444;
+}
+
+.drp-day-btn:hover:not(.drp-sel-start):not(.drp-sel-end):not(.drp-in-range) {
+  background-color: #f1f5f9;
+}
+
+/* 區間開始與結束 (深藍圓形高亮，對齊圖二) */
+.drp-day-btn.drp-sel-start,
+.drp-day-btn.drp-sel-end {
+  background-color: #0284c7 !important;
+  color: #ffffff !important;
+  font-weight: 700 !important;
+  border-radius: 50% !important;
+  box-shadow: 0 2px 4px rgba(2, 132, 199, 0.35);
+}
+
+/* 連續區間高亮 (淡藍條狀連續區塊，對齊圖二) */
+.drp-day-btn.drp-in-range {
+  background-color: #e0f2fe !important;
+  color: #0369a1 !important;
+  border-radius: 0 !important;
+  font-weight: 600;
+}
+
+/* 今日邊框 */
+.drp-day-btn.drp-today:not(.drp-sel-start):not(.drp-sel-end) {
+  border: 1px solid #38bdf8;
+}
+
+/* 狀態提示字串 (對齊圖二藍色區間字串) */
+.drp-status {
+  text-align: center;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #0284c7;
+  padding: 6px 0;
+  margin-bottom: 8px;
+  background: #f8fafc;
+  border-radius: 6px;
+  border: 1px dashed #bae6fd;
+}
+
+/* 底部操作按鈕 */
+.drp-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 8px;
+  border-top: 1px solid #f1f5f9;
+}
+
+.drp-btn-clear {
+  background: #e2e8f0;
+  color: #475569;
+  border: none;
+  border-radius: 6px;
+  padding: 5px 14px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.drp-btn-clear:hover {
+  background: #cbd5e1;
+}
+
+.drp-btn-ok {
+  background: #0284c7;
+  color: #ffffff;
+  border: none;
+  border-radius: 6px;
+  padding: 5px 18px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s;
+  box-shadow: 0 1px 3px rgba(2, 132, 199, 0.3);
+}
+
+.drp-btn-ok:hover {
+  background: #0369a1;
+}
+
+/* ====================================================
+   客戶拜訪跟催紅綠燈清單與三大主管轉派覆核專區樣式
+==================================================== */
+
+.badge-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 9px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.follow-up-badge, #followUpBadge {
+  background: #e11d48;
+  color: #ffffff;
+  box-shadow: 0 1px 2px rgba(225, 29, 72, 0.4);
+}
+
+.review-badge, #reviewBadge {
+  background: #7c3aed;
+  color: #ffffff;
+  box-shadow: 0 1px 2px rgba(124, 58, 237, 0.4);
+}
+
+.btn-filter-tag {
+  background: #f1f5f9;
+  border: 1px solid #cbd5e1;
+  color: #475569;
+  font-size: 0.78rem;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-filter-tag.active {
+  background: #0f172a;
+  color: #ffffff;
+  border-color: #0f172a;
+}
+
+.follow-up-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  transition: transform 0.1s ease, box-shadow 0.1s ease;
+}
+
+.follow-up-card:hover {
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.08);
+}
+
+.follow-up-card.card-border-red {
+  border-left: 5px solid #ef4444;
+  background: #fffafa;
+}
+
+.follow-up-card.card-border-yellow {
+  border-left: 5px solid #f59e0b;
+  background: #fffdfa;
+}
+
+.follow-up-card.card-border-green {
+  border-left: 5px solid #10b981;
+}
+
+.follow-up-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.follow-up-client-title {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #0f172a;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.badge-status-red {
+  background: #fee2e2;
+  color: #991b1b;
+  border: 1px solid #fca5a5;
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 4px;
+}
+
+.badge-status-yellow {
+  background: #fef3c7;
+  color: #92400e;
+  border: 1px solid #fcd34d;
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 4px;
+}
+
+.badge-status-green {
+  background: #d1fae5;
+  color: #065f46;
+  border: 1px solid #6ee7b7;
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 2px 7px;
+  border-radius: 4px;
+}
+
+.badge-tier {
+  background: #f1f5f9;
+  color: #334155;
+  font-size: 0.74rem;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 4px;
+  border: 1px solid #cbd5e1;
+}
+
+.follow-up-card-body {
+  font-size: 0.82rem;
+  color: #475569;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  background: #f8fafc;
+  padding: 6px 10px;
+  border-radius: 6px;
+}
+
+.follow-up-card-actions {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 8px;
+  margin-top: 2px;
+}
+
+.btn-card-action {
+  font-size: 0.78rem;
+  font-weight: 600;
+  padding: 5px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  transition: all 0.15s ease;
+  border: 1px solid transparent;
+}
+
+.btn-card-action-visit {
+  background: #eff6ff;
+  color: #1d4ed8;
+  border-color: #bfdbfe;
+}
+
+.btn-card-action-visit:hover {
+  background: #dbeafe;
+}
+
+.btn-card-action-nocontact {
+  background: #fff1f2;
+  color: #be123c;
+  border-color: #fecdd3;
+}
+
+.btn-card-action-nocontact:hover {
+  background: #ffe4e6;
+}
+
+/* 主管覆核專區卡片樣式 */
+.manager-review-card {
+  background: #ffffff;
+  border: 1px solid #ddd6fe;
+  border-left: 5px solid #7c3aed;
+  border-radius: 10px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  box-shadow: 0 2px 6px rgba(124, 58, 237, 0.06);
+}
+
+.manager-review-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.manager-review-title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #3b0764;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.manager-review-meta {
+  font-size: 0.8rem;
+  color: #64748b;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.manager-review-reason-box {
+  background: #faf5ff;
+  border: 1px solid #e9d5ff;
+  border-radius: 6px;
+  padding: 8px 12px;
+  font-size: 0.82rem;
+  color: #581c87;
+  line-height: 1.45;
+}
+
+.manager-review-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding-top: 4px;
+  border-top: 1px dashed #e2e8f0;
+}
+
+.btn-mgr-reassign {
+  background: #2563eb;
+  color: #ffffff;
+  border: none;
+  font-size: 0.82rem;
+  font-weight: 700;
+  padding: 6px 14px;
+  border-radius: 6px;
+  cursor: pointer;
+  box-shadow: 0 1px 3px rgba(37, 99, 235, 0.25);
+}
+
+.btn-mgr-archive {
+  background: #f1f5f9;
+  color: #475569;
+  border: 1px solid #cbd5e1;
+  font-size: 0.82rem;
+  font-weight: 600;
+  padding: 6px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.btn-mgr-reject {
+  background: #fff1f2;
+  color: #be123c;
+  border: 1px solid #fecdd3;
+  font-size: 0.82rem;
+  font-weight: 600;
+  padding: 6px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+
+
