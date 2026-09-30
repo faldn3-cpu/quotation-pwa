@@ -45,27 +45,26 @@ function isTokenValid() {
 }
 
 document.addEventListener("DOMContentLoaded", () => {
-  // 🚀 版本自動同步與舊快取清理防護 (v 1.76)
-  const CURRENT_APP_VERSION = "1.76";
+  // 🚀 版本自動同步與舊快取清理防護 (v 1.77)
+  const CURRENT_APP_VERSION = "1.77";
   const appVersionInfo = document.getElementById("appVersionInfo");
   if (appVersionInfo) {
     appVersionInfo.textContent = "v " + CURRENT_APP_VERSION;
   }
   const lastAppVersion = localStorage.getItem("app_version");
   if (lastAppVersion !== CURRENT_APP_VERSION) {
-    console.log(`[VersionUpdate] 偵測到版本更新 (${lastAppVersion || "舊版"} -> ${CURRENT_APP_VERSION})，強制清理舊快取`);
+    console.log(`[VersionUpdate] 偵測到版本更新 (${lastAppVersion || "舊版"} -> ${CURRENT_APP_VERSION})`);
     if ('caches' in window) {
       caches.keys().then(keys => {
         keys.forEach(k => {
-          if (k !== 'quote-draft-v1.76') {
+          if (k !== 'quote-draft-v1.77') {
             caches.delete(k);
           }
         });
       });
     }
+    // ⚠️ 僅清理每日庫存快取，嚴禁清除 products_cache 與 customers_cache 離線主檔，防止離線打單資料遺失
     localStorage.removeItem("inventory_cache");
-    localStorage.removeItem("products_cache");
-    localStorage.removeItem("customers_cache");
     localStorage.setItem("app_version", CURRENT_APP_VERSION);
   }
 
@@ -121,6 +120,33 @@ document.addEventListener("DOMContentLoaded", () => {
   let selectedProductName = null;
   let itemCount = 0;
 
+  // 🚀 [置頂宣告避免 TDZ 崩潰] 產品搜尋與分批加載狀態
+  const PRODUCT_PAGE_SIZE = 50;
+  let currentProductMatches = [];
+  let renderedProductCount = 0;
+  let productDebounceTimer = null;
+  let isProductComposing = false;
+
+  // 🚀 [置頂宣告避免 TDZ 崩潰] 頂部 App Switcher 與管理員模擬切換器 DOM 元素
+  const appSwitcherTriggerWrap = document.getElementById("appSwitcherTriggerWrap");
+  const appSwitcherTrigger     = document.getElementById("appSwitcherTrigger");
+  const appSwitcherDropdown    = document.getElementById("appSwitcherDropdown");
+  const appTitleText           = document.getElementById("appTitleText");
+  const adminImpersonateBar    = document.getElementById("adminImpersonateBar");
+  const adminImpersonateSelect = document.getElementById("adminImpersonateSelect");
+  const btnOpenPermModal       = document.getElementById("btnOpenPermModal");
+
+  // 🚀 [置頂宣告避免 TDZ 崩潰] 業務團隊名單指定順序與組織分組定義
+  const ORDERED_SALES_MEMBERS = [
+    "曾維崧", "張何達", "曾仁君", "葉仁豪", "溫達仁", "邱文輝", "楊家豪", "莊富丞", "何宛茹", "張書偉", "黃柏翰"
+  ];
+  let ALL_SALES_MEMBERS = [
+    "曾維崧", "張何達", "曾仁君", "葉仁豪", "溫達仁", "邱文輝", "楊家豪", "莊富丞", "何宛茹", "張書偉", "黃柏翰"
+  ];
+  const DIRECT_SALES_MEMBERS = ["何宛茹", "張書偉", "曾仁君", "楊家豪", "溫達仁", "莊富丞", "黃柏翰"];
+  const DEALER_SALES_MEMBERS = ["張何達", "葉仁豪", "邱文輝"];
+  const REMINDER_DEALERS = ["赫力", "贊翔", "台瓷", "黃柏翰", "漢銓"];
+
   // 切換至登入卡片畫面
   function showLoginSection() {
     loginSection.classList.remove("hidden");
@@ -134,9 +160,9 @@ document.addEventListener("DOMContentLoaded", () => {
   // Service Worker 註冊與自動更新偵測
   // ====================================================
   if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('./sw.js?v=1.76')
+    navigator.serviceWorker.register('./sw.js?v=1.77')
       .then(reg => {
-        console.log('[PWA] Service Worker 已註冊 (v 1.76)', reg);
+        console.log('[PWA] Service Worker 已註冊 (v 1.77)', reg);
         // 主動檢查伺服器端是否有新版 sw.js
         reg.update();
 
@@ -183,8 +209,16 @@ document.addEventListener("DOMContentLoaded", () => {
   loadFromCache();
   const hasLocalData = (MOCK_CUSTOMERS && MOCK_CUSTOMERS.length > 0) || (MOCK_PRODUCTS && MOCK_PRODUCTS.length > 0);
 
-  if (hasLoggedIn && hasLocalData) {
-    console.log("[Auth] 偵測到本機登入資訊與快取資料，直接進入報價表單：", savedDisplayName);
+  // 🚀 防禦機制：若產品資料庫為空，背景立即自 GAS 載入全公司產品庫
+  if (!MOCK_PRODUCTS || MOCK_PRODUCTS.length === 0) {
+    if (navigator.onLine) {
+      console.log("[Products] 本機產品資料庫為空，背景自動自 GAS 載入公司產品庫...");
+      loadProductsFromGAS().catch(e => console.warn("[Products] GAS 產品庫載入失敗:", e));
+    }
+  }
+
+  if (hasLoggedIn) {
+    console.log("[Auth] 偵測到本機登入資訊，直接進入報價表單：", savedDisplayName);
     try {
       const pStr = localStorage.getItem("saved_user_profile");
       if (pStr) userProfile = JSON.parse(pStr);
@@ -195,8 +229,8 @@ document.addEventListener("DOMContentLoaded", () => {
     // 🚀 選項 A 智慧自動更新：啟動時在背景非同步連線 GAS 更新最新庫存與雲端資料
     triggerBackgroundAutoSync();
   } else {
-    // 若無本機資料或無登入紀錄，顯示登入畫面以完成資料拉取
-    console.log("[Auth] 顯示登入畫面 (hasLoggedIn:", hasLoggedIn, ", hasLocalData:", hasLocalData, ")");
+    // 若無登入紀錄，顯示登入畫面以完成資料拉取
+    console.log("[Auth] 顯示登入畫面 (hasLoggedIn: false)");
     showLoginSection();
   }
 
@@ -260,6 +294,11 @@ document.addEventListener("DOMContentLoaded", () => {
       console.warn("[AutoSync] 背景庫存更新失敗（維持本機快取）：", err);
     } finally {
       isAutoSyncing = false;
+    }
+
+    // 若本機產品庫仍為空，無論 Token 效期為何，立即強制向 GAS 補載公司產品庫
+    if (!MOCK_PRODUCTS || MOCK_PRODUCTS.length === 0) {
+      loadProductsFromGAS().catch(err => console.warn("[AutoSync] 補載產品庫失敗:", err));
     }
 
     // 若 Access Token 仍有效，同步非同步更新個人客戶、產品與財務設定
@@ -1030,6 +1069,9 @@ document.addEventListener("DOMContentLoaded", () => {
       MOCK_CUSTOMERS = sortCustomerList(MOCK_CUSTOMERS);
       localStorage.setItem("customers_cache", JSON.stringify(MOCK_CUSTOMERS));
       console.log("[Drive] 客戶資料同步成功，共", MOCK_CUSTOMERS.length, "筆");
+      if (customerModal && !customerModal.classList.contains("hidden")) {
+        renderCustomerModal(MOCK_CUSTOMERS);
+      }
 
     } catch (e) {
       console.error("[Drive] 讀取客戶資料失敗:", e);
@@ -1108,6 +1150,9 @@ document.addEventListener("DOMContentLoaded", () => {
         MOCK_PRODUCTS = personalProducts;
         localStorage.setItem("products_cache", JSON.stringify(MOCK_PRODUCTS));
         console.log("[Drive] 個人產品資料同步成功，共", MOCK_PRODUCTS.length, "筆");
+        if (productModal && !productModal.classList.contains("hidden")) {
+          performProductFilter(productSearch ? productSearch.value : "");
+        }
       } else {
         console.warn("[Drive] 個人產品檔案為空，降級使用 GAS 公司產品庫");
         await loadProductsFromGAS();
@@ -1132,6 +1177,9 @@ document.addEventListener("DOMContentLoaded", () => {
         MOCK_PRODUCTS = data.data;
         localStorage.setItem("products_cache", JSON.stringify(MOCK_PRODUCTS));
         console.log("[GAS] 產品資料同步成功，共", MOCK_PRODUCTS.length, "筆");
+        if (productModal && !productModal.classList.contains("hidden")) {
+          performProductFilter(productSearch ? productSearch.value : "");
+        }
       } else {
         throw new Error(data.msg || "GAS 回傳格式異常");
       }
@@ -1868,14 +1916,8 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   // ====================================================
-  // 產品選擇 Modal（防抖 250ms + 分批加載 50 筆 + 滾動加載）
+  // 產品選擇 Modal（防抖 200ms + 分批加載 50 筆 + 滾動加載）
   // ====================================================
-  const PRODUCT_PAGE_SIZE = 50;
-  let currentProductMatches = [];
-  let renderedProductCount = 0;
-  let productDebounceTimer = null;
-  let isProductComposing = false;
-
   btnCloseModal.addEventListener("click", () => productModal.classList.add("hidden"));
 
   // 輸入法合成事件監聽（防止中文注音/拼音組字時頻繁計算）
@@ -1889,11 +1931,12 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   productSearch.addEventListener("input", (e) => {
+    if (e.isComposing === false) isProductComposing = false;
     if (isProductComposing) return;
     clearTimeout(productDebounceTimer);
     productDebounceTimer = setTimeout(() => {
       performProductFilter(e.target.value);
-    }, 250);
+    }, 200);
   });
 
   function performProductFilter(keyword) {
@@ -1978,8 +2021,23 @@ document.addEventListener("DOMContentLoaded", () => {
     productResults.innerHTML = "";
     productResults.scrollTop = 0;
 
+    if (!MOCK_PRODUCTS || MOCK_PRODUCTS.length === 0) {
+      productResults.innerHTML = `
+        <div style="text-align:center; color:#64748b; padding:2.5rem 1rem; font-size:0.95rem;">
+          <div style="font-size:2rem; margin-bottom:8px;">⏳</div>
+          <div>產品庫同步中，請稍候...</div>
+        </div>
+      `;
+      return;
+    }
+
     if (!currentProductMatches || currentProductMatches.length === 0) {
-      productResults.innerHTML = `<div class="text-center text-muted mt-3">找不到符合的產品</div>`;
+      productResults.innerHTML = `
+        <div style="text-align:center; color:#64748b; padding:2.5rem 1rem; font-size:0.95rem;">
+          <div style="font-size:2rem; margin-bottom:8px;">🔍</div>
+          <div>找不到符合的產品項目</div>
+        </div>
+      `;
       return;
     }
 
@@ -2412,14 +2470,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }, 2800);
   }
 
-  // DOM 元素引用
-  const appSwitcherTriggerWrap = document.getElementById("appSwitcherTriggerWrap");
-  const appSwitcherTrigger     = document.getElementById("appSwitcherTrigger");
-  const appSwitcherDropdown    = document.getElementById("appSwitcherDropdown");
-  const appTitleText           = document.getElementById("appTitleText");
-  const adminImpersonateBar    = document.getElementById("adminImpersonateBar");
-  const adminImpersonateSelect = document.getElementById("adminImpersonateSelect");
-
+  // DOM 元素引用 (通用導航與日報日曆)
   const ogsmSection            = document.getElementById("ogsmSection");
   const ogsmTestBadge          = document.getElementById("ogsmTestBadge");
   const btnPrevMonth           = document.getElementById("btnPrevMonth");
@@ -2702,11 +2753,6 @@ document.addEventListener("DOMContentLoaded", () => {
     return name || "曾仁君";
   }
 
-  // 🚀 業務團隊名單指定順序 (與使用者明確指定之 11 位同仁順序 100% 精準對齊)
-  const ORDERED_SALES_MEMBERS = [
-    "曾維崧", "張何達", "曾仁君", "葉仁豪", "溫達仁", "邱文輝", "楊家豪", "莊富丞", "何宛茹", "張書偉", "黃柏翰"
-  ];
-
   function sortSalesMembers(list) {
     if (!Array.isArray(list)) return [];
     return [...list].sort((a, b) => {
@@ -2718,16 +2764,6 @@ document.addEventListener("DOMContentLoaded", () => {
       return a.localeCompare(b, "zh-Hant");
     });
   }
-
-  let ALL_SALES_MEMBERS = [
-    "曾維崧", "張何達", "曾仁君", "葉仁豪", "溫達仁", "邱文輝", "楊家豪", "莊富丞", "何宛茹", "張書偉", "黃柏翰"
-  ];
-
-  // 組織分組定義
-  const DIRECT_SALES_MEMBERS = ["何宛茹", "張書偉", "曾仁君", "楊家豪", "溫達仁", "莊富丞", "黃柏翰"];
-  const DEALER_SALES_MEMBERS = ["張何達", "葉仁豪", "邱文輝"];
-  // 指定需提醒之經銷商名單（超過 14 天未聯繫提醒；良鴻、松金、紅偉等不提醒）
-  const REMINDER_DEALERS = ["赫力", "贊翔", "台瓷", "黃柏翰", "漢銓"];
 
   // 👑 雲端動態檢視權限快取
   let cachedViewPermissions = {
@@ -2827,8 +2863,6 @@ document.addEventListener("DOMContentLoaded", () => {
   // ====================================================
   // 👑 業務檢視權限設定 DOM 元件與曾維崧身分判定
   // ====================================================
-  const btnOpenPermModal = document.getElementById("btnOpenPermModal");
-
   function isViewerWeiSong() {
     const curName = (typeof getSalesName === "function") ? getSalesName() : "";
     const profEmail = (userProfile?.email || localStorage.getItem("saved_user_email") || "").toLowerCase();
@@ -2947,8 +2981,19 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
+  // 🚀 全域 Modal 點擊遮罩 (Backdrop) 空白處自動關閉，避免畫面被透明層鎖死
+  document.querySelectorAll(".modal").forEach(m => {
+    m.addEventListener("click", (e) => {
+      if (e.target === m) {
+        m.classList.add("hidden");
+      }
+    });
+  });
+
   // 切換 App (報價擬稿 vs OGSM 日報)
   function switchToApp(mode) {
+    // 切換時關閉所有開啟中的 Modal，避免覆蓋遮蔽
+    document.querySelectorAll(".modal").forEach(m => m.classList.add("hidden"));
     currentAppMode = mode;
     document.querySelectorAll("#appSwitcherDropdown .switcher-item").forEach(item => {
       item.classList.toggle("active", item.dataset.app === mode);
