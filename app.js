@@ -2994,6 +2994,8 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     localStorage.removeItem("dismissed_reassign_ts");
+    activeBannerTask = null;
+    if (reassignedClientBanner) reassignedClientBanner.classList.add("hidden");
 
     // 重新載入行事曆、快取、日報資料與跟催覆核引擎
     loadOgsmLocalCache(ogsmCurrentYear, ogsmCurrentMonth);
@@ -7259,12 +7261,15 @@ document.addEventListener("DOMContentLoaded", () => {
     renderFollowUpList();
   }
 
+  // 🔔 頂部提醒橫幅當前關聯之任務/客戶紀錄 (供立即排訪一鍵建檔帶入)
+  let activeBannerTask = null;
+
   // 🔔 渲染頂部新轉派客戶提醒橫幅
   function renderReassignedBanner(reassignedList) {
     if (!reassignedClientBanner || !reassignedBannerTitle) return;
 
     if (!reassignedList || reassignedList.length === 0) {
-      reassignedClientBanner.classList.add("hidden");
+      if (!activeBannerTask) reassignedClientBanner.classList.add("hidden");
       return;
     }
 
@@ -7278,6 +7283,14 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const count = reassignedList.length;
     const firstClient = reassignedList[0];
+    activeBannerTask = {
+      client_name: firstClient.client_name,
+      task_type: "指派他人運作",
+      manager: firstClient.reassign_manager || "",
+      manager_note: firstClient.reassign_note || "",
+      deadline: firstClient.reassign_date || ""
+    };
+
     const mgrName = firstClient.reassign_manager ? `【${firstClient.reassign_manager}】` : "";
     reassignedBannerTitle.textContent = `🔔 ${mgrName}已指派他人運作 ${count} 筆新客戶待聯繫：${firstClient.client_name}`;
     if (reassignedBannerSub) {
@@ -7289,12 +7302,34 @@ document.addEventListener("DOMContentLoaded", () => {
     reassignedClientBanner.classList.remove("hidden");
   }
 
+  // 🚀 [方案 A] 點擊「立即排訪」直達「✍️ 填寫業務日報」對話框，自動預填目標客戶與交辦內容
   if (btnBannerViewFollowUp) {
     btnBannerViewFollowUp.addEventListener("click", () => {
-      if (btnOpenFollowUpModal) btnOpenFollowUpModal.click();
-      setTimeout(() => {
-        setFollowUpFilter("reassigned");
-      }, 200);
+      const targetDate = currentViewingDate || (typeof formatDateToYMD === "function" ? formatDateToYMD(new Date()) : new Date().toISOString().split("T")[0]);
+
+      if (activeBannerTask && activeBannerTask.client_name) {
+        const clientName = activeBannerTask.client_name;
+        let noteContent = "";
+        if (activeBannerTask.task_type === "覆核退回") {
+          noteContent = `【覆核退回】${activeBannerTask.manager_note || '請再次聯絡客戶了解現況'}`;
+        } else if (activeBannerTask.task_type === "久未聯繫跟催" || activeBannerTask.task_type === "商機指派方針") {
+          noteContent = `【任務交辦】${activeBannerTask.manager_note || '請排程拜訪'}`;
+        } else {
+          noteContent = `【指派運作】${activeBannerTask.manager_note || '請安排首次拜訪或排程建檔'}`;
+        }
+
+        openOgsmEditModal(targetDate, {
+          client_name: clientName,
+          content: noteContent,
+          client_owner: getSalesName()
+        });
+
+        if (reassignedClientBanner) reassignedClientBanner.classList.add("hidden");
+        showToast(`✍️ 已載入【${clientName}】日報填寫視窗`, "info");
+      } else {
+        // 防呆備援：直接開啟當前日期之日報填寫視窗
+        openOgsmEditModal(targetDate);
+      }
     });
   }
 
@@ -7863,9 +7898,11 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const rejectedTask = myTasks.find(t => t.task_type === "覆核退回");
     if (rejectedTask) {
+      activeBannerTask = rejectedTask;
+      const cleanDeadline = formatDisplayDate(rejectedTask.deadline);
       reassignedBannerTitle.textContent = `⚠️ 【${rejectedTask.manager}】退回不聯繫：${rejectedTask.client_name}`;
       if (reassignedBannerSub) {
-        reassignedBannerSub.textContent = `退回交辦事項：${rejectedTask.manager_note || '請再次聯絡客戶了解現況'}（完成期限：${rejectedTask.deadline}），請點擊立即排訪建檔。`;
+        reassignedBannerSub.textContent = `退回交辦事項：${rejectedTask.manager_note || '請再次聯絡客戶了解現況'}（完成期限：${cleanDeadline}），請點擊立即排訪建檔。`;
       }
       reassignedClientBanner.classList.remove("hidden");
       return;
@@ -7873,9 +7910,11 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const directiveTask = myTasks.find(t => t.task_type === "久未聯繫跟催" || t.task_type === "商機指派方針");
     if (directiveTask) {
+      activeBannerTask = directiveTask;
+      const cleanDeadline = formatDisplayDate(directiveTask.deadline);
       reassignedBannerTitle.textContent = `📢 【${directiveTask.manager}】任務交辦：${directiveTask.client_name}`;
       if (reassignedBannerSub) {
-        reassignedBannerSub.textContent = `運作方向：${directiveTask.manager_note || '請排程拜訪'}（要求期限：${directiveTask.deadline}），請盡速排訪以完成銷案。`;
+        reassignedBannerSub.textContent = `運作方向：${directiveTask.manager_note || '請排程拜訪'}（要求期限：${cleanDeadline}），請盡速排訪以完成銷案。`;
       }
       reassignedClientBanner.classList.remove("hidden");
       return;
@@ -7883,11 +7922,19 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const reassignTask = myTasks.find(t => t.task_type === "覆核轉派");
     if (reassignTask) {
+      activeBannerTask = reassignTask;
+      const cleanDeadline = formatDisplayDate(reassignTask.deadline);
       reassignedBannerTitle.textContent = `🔔 【${reassignTask.manager}】指派他人運作接手：${reassignTask.client_name}`;
       if (reassignedBannerSub) {
-        reassignedBannerSub.textContent = `交辦事項：${reassignTask.manager_note || '請安排首次拜訪或排程建檔'}（要求期限：${reassignTask.deadline}）。`;
+        reassignedBannerSub.textContent = `交辦事項：${reassignTask.manager_note || '請安排首次拜訪或排程建檔'}（要求期限：${cleanDeadline}）。`;
       }
       reassignedClientBanner.classList.remove("hidden");
+      return;
+    }
+
+    // 若無任何主管任務且無一般轉派，則隱藏橫幅
+    if (!activeBannerTask || activeBannerTask.task_type !== "指派他人運作") {
+      reassignedClientBanner.classList.add("hidden");
     }
   }
 
