@@ -45,8 +45,8 @@ function isTokenValid() {
 }
 
 document.addEventListener("DOMContentLoaded", () => {
-  // 🚀 版本自動同步與舊快取清理防護 (v 1.77)
-  const CURRENT_APP_VERSION = "1.77";
+  // 🚀 版本自動同步與舊快取清理防護 (v 1.78)
+  const CURRENT_APP_VERSION = "1.78";
   const appVersionInfo = document.getElementById("appVersionInfo");
   if (appVersionInfo) {
     appVersionInfo.textContent = "v " + CURRENT_APP_VERSION;
@@ -57,7 +57,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if ('caches' in window) {
       caches.keys().then(keys => {
         keys.forEach(k => {
-          if (k !== 'quote-draft-v1.77') {
+          if (k !== 'quote-draft-v1.78') {
             caches.delete(k);
           }
         });
@@ -2662,11 +2662,20 @@ document.addEventListener("DOMContentLoaded", () => {
   const followUpSearchInput        = document.getElementById("followUpSearchInput");
   const followUpListContainer      = document.getElementById("followUpListContainer");
   const btnFilterFollowUpAll       = document.getElementById("btnFilterFollowUpAll");
+  const btnFilterFollowUpReassigned = document.getElementById("btnFilterFollowUpReassigned");
   const btnFilterFollowUpRed       = document.getElementById("btnFilterFollowUpRed");
   const btnFilterFollowUpYellow    = document.getElementById("btnFilterFollowUpYellow");
   const filterAllCount             = document.getElementById("filterAllCount");
+  const filterReassignedCount      = document.getElementById("filterReassignedCount");
   const filterRedCount             = document.getElementById("filterRedCount");
   const filterYellowCount          = document.getElementById("filterYellowCount");
+
+  // 🔔 主管轉派新客戶提醒橫幅
+  const reassignedClientBanner     = document.getElementById("reassignedClientBanner");
+  const reassignedBannerTitle      = document.getElementById("reassignedBannerTitle");
+  const reassignedBannerSub        = document.getElementById("reassignedBannerSub");
+  const btnBannerViewFollowUp      = document.getElementById("btnBannerViewFollowUp");
+  const btnDismissBanner           = document.getElementById("btnDismissBanner");
 
   const followUpSettingsModal      = document.getElementById("followUpSettingsModal");
   const btnCloseFollowUpSettings   = document.getElementById("btnCloseFollowUpSettings");
@@ -2927,6 +2936,8 @@ document.addEventListener("DOMContentLoaded", () => {
     if (!isCurrentUserManager()) {
       ogsmTeamDotsMap = {};
     }
+
+    localStorage.removeItem("dismissed_reassign_ts");
 
     // 重新載入行事曆、快取、日報資料與跟催覆核引擎
     loadOgsmLocalCache(ogsmCurrentYear, ogsmCurrentMonth);
@@ -6456,12 +6467,14 @@ document.addEventListener("DOMContentLoaded", () => {
   function setFollowUpFilter(filter) {
     currentFollowUpFilter = filter;
     if (btnFilterFollowUpAll) btnFilterFollowUpAll.classList.toggle("active", filter === "all");
+    if (btnFilterFollowUpReassigned) btnFilterFollowUpReassigned.classList.toggle("active", filter === "reassigned");
     if (btnFilterFollowUpRed) btnFilterFollowUpRed.classList.toggle("active", filter === "red");
     if (btnFilterFollowUpYellow) btnFilterFollowUpYellow.classList.toggle("active", filter === "yellow");
     renderFollowUpList();
   }
 
   if (btnFilterFollowUpAll) btnFilterFollowUpAll.addEventListener("click", () => setFollowUpFilter("all"));
+  if (btnFilterFollowUpReassigned) btnFilterFollowUpReassigned.addEventListener("click", () => setFollowUpFilter("reassigned"));
   if (btnFilterFollowUpRed) btnFilterFollowUpRed.addEventListener("click", () => setFollowUpFilter("red"));
   if (btnFilterFollowUpYellow) btnFilterFollowUpYellow.addEventListener("click", () => setFollowUpFilter("yellow"));
 
@@ -6626,11 +6639,28 @@ document.addEventListener("DOMContentLoaded", () => {
 
       let reassignTime = 0;
       let reassignDateStr = "";
-      if (r.reassigned_info) {
-        const rm = String(r.reassigned_info).match(/(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})/);
+      let isReassigned = false;
+      let reassignManager = "";
+      let reassignNote = "";
+      const rawReassigned = String(r.reassigned_info || "").trim();
+
+      if (rawReassigned) {
+        const rm = rawReassigned.match(/(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})/);
         if (rm) {
           reassignDateStr = `${rm[1]}/${rm[2]}/${rm[3]}`;
           reassignTime = new Date(parseInt(rm[1], 10), parseInt(rm[2], 10) - 1, parseInt(rm[3], 10)).getTime();
+        }
+        // 解析格式: YYYY/MM/DD (曾維崧 轉派給 溫達仁: 請盡速拜訪)
+        const fullMatch = rawReassigned.match(/(\d{4}[\/\-]\d{1,2}[\/\-]\d{1,2})\s*\(([^)]*?)\s*轉派給\s*([^:)]*?)(?::\s*([^)]*))?\)/);
+        if (fullMatch) {
+          reassignManager = fullMatch[2].trim();
+          const targetOwner = fullMatch[3].trim();
+          reassignNote = (fullMatch[4] || "").trim();
+          if (targetOwner === currentSales || r.client_owner === currentSales) {
+            isReassigned = true;
+          }
+        } else if (rawReassigned.includes("轉派") && r.client_owner === currentSales) {
+          isReassigned = true;
         }
       }
 
@@ -6644,6 +6674,11 @@ document.addEventListener("DOMContentLoaded", () => {
           effective_time: effectiveTime,
           visit_date: visitDateStr,
           reassign_date: reassignDateStr,
+          reassign_time: reassignTime,
+          is_reassigned: isReassigned,
+          reassign_manager: reassignManager,
+          reassign_note: reassignNote,
+          reassigned_info: rawReassigned,
           latest_case_name: r.case_name || "",
           estimated_amount: r.estimated_amount || 0,
           row_index: r.row_index
@@ -6654,6 +6689,11 @@ document.addEventListener("DOMContentLoaded", () => {
           existing.effective_time = effectiveTime;
           existing.visit_date = visitDateStr;
           existing.reassign_date = reassignDateStr;
+          existing.reassign_time = reassignTime;
+          existing.is_reassigned = isReassigned || existing.is_reassigned;
+          existing.reassign_manager = reassignManager || existing.reassign_manager;
+          existing.reassign_note = reassignNote || existing.reassign_note;
+          existing.reassigned_info = rawReassigned || existing.reassigned_info;
           existing.latest_case_name = r.case_name || existing.latest_case_name;
           existing.estimated_amount = r.estimated_amount || existing.estimated_amount;
           existing.client_nature = r.client_nature || existing.client_nature;
@@ -6769,12 +6809,19 @@ document.addEventListener("DOMContentLoaded", () => {
         }
       }
 
+      // 判斷是否為待聯繫之新轉派客戶：具備轉派紀錄且有效聯繫時間未超過轉派時間 (即新業務尚未排訪/填日報)
+      c.is_pending_reassignment = !!(c.is_reassigned && c.reassign_time && (!c.visit_date || c.effective_time <= c.reassign_time));
+
       c.tier_display = tierType;
       c.threshold = threshold;
       resultList.push(c);
     });
 
     resultList.sort((a, b) => {
+      // 👑 主管轉派新客戶優先置頂排在最前方
+      if (a.is_pending_reassignment !== b.is_pending_reassignment) {
+        return a.is_pending_reassignment ? -1 : 1;
+      }
       const score = { "red": 3, "yellow": 2, "green": 1 };
       if (score[b.alert_level] !== score[a.alert_level]) {
         return score[b.alert_level] - score[a.alert_level];
@@ -6784,24 +6831,79 @@ document.addEventListener("DOMContentLoaded", () => {
 
     activeFollowUpList = resultList;
 
+    // 篩選出當前業務待聯繫的新轉派客戶名單
+    const reassignedList = resultList.filter(item => item.is_pending_reassignment);
+    const reassignedCount = reassignedList.length;
+
     const urgentCount = resultList.filter(item => item.alert_level === "red" || item.alert_level === "yellow").length;
     if (followUpBadge) {
-      followUpBadge.textContent = urgentCount;
-      if (urgentCount > 0) {
+      const totalBadge = urgentCount + reassignedCount;
+      followUpBadge.textContent = totalBadge;
+      if (totalBadge > 0) {
         followUpBadge.classList.remove("hidden");
       } else {
         followUpBadge.classList.add("hidden");
       }
     }
-    if (followUpCount) followUpCount.textContent = urgentCount;
+    if (followUpCount) followUpCount.textContent = urgentCount + reassignedCount;
 
     const redCount = resultList.filter(item => item.alert_level === "red").length;
     const yellowCount = resultList.filter(item => item.alert_level === "yellow").length;
     if (filterAllCount) filterAllCount.textContent = resultList.length;
+    if (filterReassignedCount) filterReassignedCount.textContent = reassignedCount;
     if (filterRedCount) filterRedCount.textContent = redCount;
     if (filterYellowCount) filterYellowCount.textContent = yellowCount;
 
+    // 🔔 觸發頂部主管轉派新客戶橫幅提醒
+    renderReassignedBanner(reassignedList);
+
     renderFollowUpList();
+  }
+
+  // 🔔 渲染頂部主管轉派新客戶提醒橫幅
+  function renderReassignedBanner(reassignedList) {
+    if (!reassignedClientBanner || !reassignedBannerTitle) return;
+
+    if (!reassignedList || reassignedList.length === 0) {
+      reassignedClientBanner.classList.add("hidden");
+      return;
+    }
+
+    // 檢查是否已被手動關閉 (若有最新的轉派時間，以時間戳記比對)
+    const latestReassignTime = Math.max(...reassignedList.map(c => c.reassign_time || 0));
+    const dismissedTs = parseInt(localStorage.getItem("dismissed_reassign_ts") || "0", 10);
+    if (dismissedTs && dismissedTs >= latestReassignTime) {
+      reassignedClientBanner.classList.add("hidden");
+      return;
+    }
+
+    const count = reassignedList.length;
+    const firstClient = reassignedList[0];
+    const mgrName = firstClient.reassign_manager ? `【${firstClient.reassign_manager}】` : "";
+    reassignedBannerTitle.textContent = `🔔 主管${mgrName}轉派 ${count} 筆新客戶待聯繫：${firstClient.client_name}`;
+    if (reassignedBannerSub) {
+      reassignedBannerSub.textContent = firstClient.reassign_note
+        ? `主管指示：${firstClient.reassign_note}（轉派日：${firstClient.reassign_date}）`
+        : `轉派日期：${firstClient.reassign_date}，請盡速安排首次拜訪或排程建檔。`;
+    }
+
+    reassignedClientBanner.classList.remove("hidden");
+  }
+
+  if (btnBannerViewFollowUp) {
+    btnBannerViewFollowUp.addEventListener("click", () => {
+      if (btnOpenFollowUpModal) btnOpenFollowUpModal.click();
+      setTimeout(() => {
+        setFollowUpFilter("reassigned");
+      }, 200);
+    });
+  }
+
+  if (btnDismissBanner) {
+    btnDismissBanner.addEventListener("click", () => {
+      if (reassignedClientBanner) reassignedClientBanner.classList.add("hidden");
+      localStorage.setItem("dismissed_reassign_ts", Date.now().toString());
+    });
   }
 
   function renderFollowUpList() {
@@ -6809,7 +6911,9 @@ document.addEventListener("DOMContentLoaded", () => {
     const keyword = (followUpSearchInput ? followUpSearchInput.value : "").trim().toLowerCase();
 
     let filtered = activeFollowUpList;
-    if (currentFollowUpFilter === "red") {
+    if (currentFollowUpFilter === "reassigned") {
+      filtered = filtered.filter(i => i.is_pending_reassignment);
+    } else if (currentFollowUpFilter === "red") {
       filtered = filtered.filter(i => i.alert_level === "red");
     } else if (currentFollowUpFilter === "yellow") {
       filtered = filtered.filter(i => i.alert_level === "yellow");
@@ -6824,15 +6928,27 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     if (filtered.length === 0) {
-      followUpListContainer.innerHTML = '<div style="text-align:center; padding:30px; color:#64748b; font-size:0.88rem;">🎉 目前無任何久未聯繫提醒客戶</div>';
+      if (currentFollowUpFilter === "reassigned") {
+        followUpListContainer.innerHTML = '<div style="text-align:center; padding:30px; color:#64748b; font-size:0.88rem;">🎉 目前無任何主管轉派之待聯繫客戶</div>';
+      } else {
+        followUpListContainer.innerHTML = '<div style="text-align:center; padding:30px; color:#64748b; font-size:0.88rem;">🎉 目前無任何久未聯繫提醒客戶</div>';
+      }
       return;
     }
 
     followUpListContainer.innerHTML = filtered.map(c => {
-      const borderClass = c.alert_level === "red" ? "card-border-red" : (c.alert_level === "yellow" ? "card-border-yellow" : "card-border-green");
+      const borderClass = c.is_pending_reassignment
+        ? "card-border-purple"
+        : (c.alert_level === "red" ? "card-border-red" : (c.alert_level === "yellow" ? "card-border-yellow" : "card-border-green"));
       const badgeClass = c.alert_level === "red" ? "badge-status-red" : (c.alert_level === "yellow" ? "badge-status-yellow" : "badge-status-green");
+      const reassignedBadge = c.is_pending_reassignment ? `<span class="badge-reassigned">👑 主管轉派</span>` : "";
       const daysText = c.diff_days >= 999 ? "無更新紀錄" : `${c.diff_days} 天前更新`;
       const dateInfo = c.reassign_date ? `📅 轉派日: ${c.reassign_date} (緩衝期)` : (c.visit_date ? `📅 最後拜訪: ${c.visit_date}` : "尚未拜訪");
+      const reassignedDetailHtml = (c.is_pending_reassignment && c.reassigned_info) ? `
+        <div class="reassigned-detail-box">
+          <b>👑 主管轉派說明：</b>${escapeHtml(c.reassigned_info)}
+        </div>
+      ` : "";
 
       return `
         <div class="follow-up-card ${borderClass}">
@@ -6840,6 +6956,7 @@ document.addEventListener("DOMContentLoaded", () => {
             <div class="follow-up-client-title">
               <span class="follow-up-client-name">${escapeHtml(c.client_name)}</span>
               <span class="badge-tier">${escapeHtml(c.tier_display)}</span>
+              ${reassignedBadge}
               <span class="${badgeClass}">${escapeHtml(c.alert_label)}</span>
             </div>
             <span class="follow-up-days-text ${c.alert_level === 'red' ? 'text-red' : 'text-yellow'}">
@@ -6853,6 +6970,7 @@ document.addEventListener("DOMContentLoaded", () => {
               <span>${dateInfo}</span>
             </div>
             ${c.latest_case_name ? `<div>💼 最新案件：${c.latest_case_name} ${c.estimated_amount > 0 ? `(${c.estimated_amount}萬)` : ''}</div>` : ''}
+            ${reassignedDetailHtml}
           </div>
 
           <div class="follow-up-card-actions">

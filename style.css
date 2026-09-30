@@ -2203,6 +2203,11 @@ input:focus {
   border-left: 5px solid #10b981;
 }
 
+.follow-up-card.card-border-purple {
+  border-left: 5px solid #7c3aed;
+  background: #fbfaff;
+}
+
 .follow-up-card-header {
   display: flex;
   justify-content: space-between;
@@ -2533,3 +2538,135 @@ input:focus {
   height: 15px;
   cursor: pointer;
 }
+
+/* ====================================================
+   👑 主管轉派新客戶提醒橫幅與醒目徽章樣式
+   ==================================================== */
+.reassigned-banner {
+  background: linear-gradient(135deg, #f5f3ff 0%, #ede9fe 100%);
+  border: 1px solid #c4b5fd;
+  border-left: 5px solid #7c3aed;
+  border-radius: 10px;
+  padding: 10px 14px;
+  margin: 10px 0 14px 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  box-shadow: 0 2px 8px rgba(124, 58, 237, 0.12);
+  animation: fadeInReassignedBanner 0.3s ease;
+}
+
+@keyframes fadeInReassignedBanner {
+  from { opacity: 0; transform: translateY(-6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.reassigned-banner-content {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  flex: 1;
+}
+
+.reassigned-banner-icon {
+  font-size: 1.5rem;
+  line-height: 1;
+  flex-shrink: 0;
+  animation: pulseBell 2s infinite ease-in-out;
+}
+
+@keyframes pulseBell {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.15) rotate(6deg); }
+}
+
+.reassigned-banner-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.reassigned-banner-title {
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: #4c1d95;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.reassigned-banner-sub {
+  font-size: 0.8rem;
+  color: #6d28d9;
+  line-height: 1.35;
+  margin-top: 2px;
+}
+
+.reassigned-banner-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.btn-banner-action {
+  background: #6d28d9;
+  color: #ffffff;
+  border: none;
+  border-radius: 6px;
+  padding: 6px 12px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s ease, transform 0.1s ease;
+  box-shadow: 0 1px 3px rgba(109, 40, 217, 0.3);
+}
+
+.btn-banner-action:hover {
+  background: #5b21b6;
+  transform: translateY(-1px);
+}
+
+.btn-banner-close {
+  background: transparent;
+  border: none;
+  font-size: 1.3rem;
+  color: #7c3aed;
+  cursor: pointer;
+  padding: 0 4px;
+  line-height: 1;
+}
+
+.btn-banner-close:hover {
+  color: #4c1d95;
+}
+
+.badge-reassigned {
+  background: #ede9fe;
+  color: #6d28d9;
+  border: 1px solid #c4b5fd;
+  font-size: 0.74rem;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 4px;
+  white-space: nowrap;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.reassigned-detail-box {
+  background: #f5f3ff;
+  border: 1px solid #ddd6fe;
+  border-radius: 6px;
+  padding: 6px 10px;
+  margin-top: 6px;
+  font-size: 0.8rem;
+  color: #5b21b6;
+  line-height: 1.4;
+}
+
