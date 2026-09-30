@@ -1073,11 +1073,11 @@
           <label style="font-size:0.85rem; font-weight:600; color:#334155; white-space:nowrap;">日期：</label>
           <div class="date-range-picker-container">
             <button type="button" id="monthlyReportDateRangeBtn" class="date-range-picker-btn">
-              <span class="date-range-display" id="monthlyReportDateDisplay">2026/08/25 ~ 2026/09/24</span>
+              <span class="date-range-display" id="monthlyReportDateDisplay">近 30 天</span>
               <span class="date-range-caret">▼</span>
             </button>
-            <input type="hidden" id="monthlyReportStartDate" value="2026-08-25">
-            <input type="hidden" id="monthlyReportEndDate" value="2026-09-24">
+            <input type="hidden" id="monthlyReportStartDate" value="">
+            <input type="hidden" id="monthlyReportEndDate" value="">
           </div>
           <label style="font-size:0.85rem; font-weight:600; color:#334155; margin-left:6px; white-space:nowrap;">業務人員：</label>
           <select id="monthlyReportSalesSelect" class="search-input" style="width:auto; margin-bottom:0; font-size:0.85rem; padding:4px 6px;">
@@ -1137,11 +1137,11 @@
           <label style="font-size:0.85rem; font-weight:600; color:#334155; white-space:nowrap;">日期：</label>
           <div class="date-range-picker-container">
             <button type="button" id="ogsmReportDateRangeBtn" class="date-range-picker-btn">
-              <span class="date-range-display" id="ogsmReportDateDisplay">2026/08/25 ~ 2026/09/24</span>
+              <span class="date-range-display" id="ogsmReportDateDisplay">近 30 天</span>
               <span class="date-range-caret">▼</span>
             </button>
-            <input type="hidden" id="ogsmReportStartDate" value="2026-08-25">
-            <input type="hidden" id="ogsmReportEndDate" value="2026-09-24">
+            <input type="hidden" id="ogsmReportStartDate" value="">
+            <input type="hidden" id="ogsmReportEndDate" value="">
           </div>
           <label style="font-size:0.85rem; font-weight:600; color:#334155; margin-left:6px; white-space:nowrap;">業務人員：</label>
           <select id="ogsmReportSalesSelect" class="search-input" style="width:auto; margin-bottom:0; font-size:0.85rem; padding:4px 6px;">
@@ -1162,6 +1162,7 @@
                 <th style="min-width:65px; text-align:center;">客戶分類</th>
                 <th style="min-width:140px;">計畫推廣內容</th>
                 <th style="min-width:180px;">實際拜訪紀錄 / 行程</th>
+                <th style="min-width:140px; color:#1d4ed8;">建議行動方案</th>
                 <th style="min-width:110px;">最後更新</th>
               </tr>
             </thead>
@@ -1229,6 +1230,12 @@
         <div>
           <label style="font-size:0.8rem; font-weight:bold; color:#475569;">實際拜訪紀錄 / 行程結果</label>
           <textarea id="editOgsmActualProgress" rows="4" class="search-input" style="width:100%; margin-top:2px; font-size:0.85rem; line-height:1.4; resize:vertical;"></textarea>
+        </div>
+        <div id="editOgsmActionSuggestionWrap" style="background:#eff6ff; border:1px solid #bfdbfe; border-radius:6px; padding:8px 10px;">
+          <label style="font-size:0.8rem; font-weight:bold; color:#1d4ed8; display:flex; align-items:center; gap:4px; margin-bottom:4px;">
+            💡 建議行動方案
+          </label>
+          <textarea id="editOgsmActionSuggestion" rows="2" class="search-input" style="width:100%; margin-top:0; font-size:0.85rem; line-height:1.4; resize:vertical; background:#ffffff; border-color:#93c5fd;" placeholder="請輸入指導方針或建議行動方案..."></textarea>
         </div>
       </div>
       <div class="modal-footer" style="padding-top:0.75rem; border-top:1px solid #e2e8f0; display:flex; justify-content:flex-end; gap:8px; margin-top:0.5rem;">

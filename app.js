@@ -2675,6 +2675,8 @@ document.addEventListener("DOMContentLoaded", () => {
   const editOgsmClientRating           = document.getElementById("editOgsmClientRating");
   const editOgsmPlanPromotion          = document.getElementById("editOgsmPlanPromotion");
   const editOgsmActualProgress         = document.getElementById("editOgsmActualProgress");
+  const editOgsmActionSuggestionWrap   = document.getElementById("editOgsmActionSuggestionWrap");
+  const editOgsmActionSuggestion       = document.getElementById("editOgsmActionSuggestion");
 
   // 🚀 CRM 直式編輯 Modal DOM 元件
   const crmEditModal               = document.getElementById("crmEditModal");
@@ -4636,32 +4638,34 @@ document.addEventListener("DOMContentLoaded", () => {
     if (!monthlyReportModal) return;
     const now = new Date();
     const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+    const startStr = formatDateToYMD(thirtyDaysAgo);
+    const endStr = formatDateToYMD(now);
 
-    // 預設日期區間：近 30 天至今日 (可自由自選起訖)
-    if (monthlyReportStartDate && !monthlyReportStartDate.value) {
-      monthlyReportStartDate.value = formatDateToYMD(thirtyDaysAgo);
-    }
-    if (monthlyReportEndDate && !monthlyReportEndDate.value) {
-      monthlyReportEndDate.value = formatDateToYMD(now);
-    }
+    // 方案 B：滑動近 30 天制，每次開啟預設皆動態前推至 [今日 - 30 天] ~ [今日]
+    if (monthlyReportStartDate) monthlyReportStartDate.value = startStr;
+    if (monthlyReportEndDate) monthlyReportEndDate.value = endStr;
 
-    if (monthlyReportDateDisplay && monthlyReportStartDate && monthlyReportEndDate) {
-      monthlyReportDateDisplay.textContent = `${monthlyReportStartDate.value.replace(/-/g, "/")} ~ ${monthlyReportEndDate.value.replace(/-/g, "/")}`;
+    if (monthlyReportDateDisplay) {
+      monthlyReportDateDisplay.textContent = `${startStr.replace(/-/g, "/")} ~ ${endStr.replace(/-/g, "/")}`;
     }
 
-    // 初始化業務人員清單 (移除非北區與未啟用人員，以 ACTIVE_SALES_MEMBERS 為唯一來源)
+    // 初始化業務人員清單 (支援白名單授權名單)
     if (monthlyReportSalesSelect) {
-      if (isCurrentUserManager()) {
-        const cur = monthlyReportSalesSelect.value || "";
+      const myName = getSalesName();
+      const allowedMembers = (cachedViewPermissions && cachedViewPermissions[myName]) ? cachedViewPermissions[myName] : [myName];
+      const isTopMgr = ["曾維崧", "張何達", "曾仁君"].includes(myName);
+      const membersToShow = isTopMgr ? ACTIVE_SALES_MEMBERS : ACTIVE_SALES_MEMBERS.filter(m => allowedMembers.includes(m));
+
+      const cur = monthlyReportSalesSelect.value || "";
+      if (membersToShow.length > 1) {
         monthlyReportSalesSelect.disabled = false;
         monthlyReportSalesSelect.innerHTML = `
-          <option value="">-- 全體業務總覽 --</option>
-          ${ACTIVE_SALES_MEMBERS.map(m => `<option value="${m}" ${m === cur ? "selected" : ""}>${m}</option>`).join("")}
+          <option value="">${isTopMgr ? '-- 全體業務總覽 --' : '-- 授權業務總覽 --'}</option>
+          ${membersToShow.map(m => `<option value="${m}" ${m === cur ? "selected" : ""}>${m}</option>`).join("")}
         `;
       } else {
-        const myName = getSalesName();
         monthlyReportSalesSelect.innerHTML = `<option value="${myName}">${myName}</option>`;
-        monthlyReportSalesSelect.disabled = true; // 權限隔離：一般業務鎖死
+        monthlyReportSalesSelect.disabled = true; // 僅授權本人時鎖定
       }
     }
 
@@ -4715,13 +4719,21 @@ document.addEventListener("DOMContentLoaded", () => {
         // 寫入 SWR 快取
         crmReportCacheMap.set(cacheKey, { records: currentMonthlyReportRecords, all_sales: data.all_sales, timestamp: Date.now() });
 
-        // 僅保留 ACTIVE_SALES_MEMBERS 在職同仁，嚴格移除非北區與未啟用人員
-        if (isCurrentUserManager() && monthlyReportSalesSelect) {
-          const currentSelected = monthlyReportSalesSelect.value;
-          monthlyReportSalesSelect.innerHTML = `
-            <option value="">-- 全體業務總覽 --</option>
-            ${ACTIVE_SALES_MEMBERS.map(m => `<option value="${m}" ${m === currentSelected ? "selected" : ""}>${m}</option>`).join("")}
-          `;
+        // 僅保留授權業務清單
+        if (monthlyReportSalesSelect) {
+          const myName = getSalesName();
+          const allowedMembers = (cachedViewPermissions && cachedViewPermissions[myName]) ? cachedViewPermissions[myName] : [myName];
+          const isTopMgr = ["曾維崧", "張何達", "曾仁君"].includes(myName);
+          const membersToShow = isTopMgr ? ACTIVE_SALES_MEMBERS : ACTIVE_SALES_MEMBERS.filter(m => allowedMembers.includes(m));
+
+          if (membersToShow.length > 1) {
+            const currentSelected = monthlyReportSalesSelect.value;
+            monthlyReportSalesSelect.disabled = false;
+            monthlyReportSalesSelect.innerHTML = `
+              <option value="">${isTopMgr ? '-- 全體業務總覽 --' : '-- 授權業務總覽 --'}</option>
+              ${membersToShow.map(m => `<option value="${m}" ${m === currentSelected ? "selected" : ""}>${m}</option>`).join("")}
+            `;
+          }
         }
 
         renderMonthlyReportTable(currentMonthlyReportRecords);
@@ -4843,30 +4855,33 @@ document.addEventListener("DOMContentLoaded", () => {
     if (!ogsmMonthlyReportModal) return;
     const now = new Date();
     const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+    const startStr = formatDateToYMD(thirtyDaysAgo);
+    const endStr = formatDateToYMD(now);
 
-    if (ogsmReportStartDate && !ogsmReportStartDate.value) {
-      ogsmReportStartDate.value = formatDateToYMD(thirtyDaysAgo);
-    }
-    if (ogsmReportEndDate && !ogsmReportEndDate.value) {
-      ogsmReportEndDate.value = formatDateToYMD(now);
-    }
+    // 方案 B：滑動近 30 天制，每次開啟預設皆動態前推至 [今日 - 30 天] ~ [今日]
+    if (ogsmReportStartDate) ogsmReportStartDate.value = startStr;
+    if (ogsmReportEndDate) ogsmReportEndDate.value = endStr;
 
-    if (ogsmReportDateDisplay && ogsmReportStartDate && ogsmReportEndDate) {
-      ogsmReportDateDisplay.textContent = `${ogsmReportStartDate.value.replace(/-/g, "/")} ~ ${ogsmReportEndDate.value.replace(/-/g, "/")}`;
+    if (ogsmReportDateDisplay) {
+      ogsmReportDateDisplay.textContent = `${startStr.replace(/-/g, "/")} ~ ${endStr.replace(/-/g, "/")}`;
     }
 
     if (ogsmReportSalesSelect) {
-      if (isCurrentUserManager()) {
-        const cur = ogsmReportSalesSelect.value || "";
+      const myName = getSalesName();
+      const allowedMembers = (cachedViewPermissions && cachedViewPermissions[myName]) ? cachedViewPermissions[myName] : [myName];
+      const isTopMgr = ["曾維崧", "張何達", "曾仁君"].includes(myName);
+      const membersToShow = isTopMgr ? ACTIVE_SALES_MEMBERS : ACTIVE_SALES_MEMBERS.filter(m => allowedMembers.includes(m));
+
+      const cur = ogsmReportSalesSelect.value || "";
+      if (membersToShow.length > 1) {
         ogsmReportSalesSelect.disabled = false;
         ogsmReportSalesSelect.innerHTML = `
-          <option value="">-- 全體業務總覽 --</option>
-          ${ACTIVE_SALES_MEMBERS.map(m => `<option value="${m}" ${m === cur ? "selected" : ""}>${m}</option>`).join("")}
+          <option value="">${isTopMgr ? '-- 全體業務總覽 --' : '-- 授權業務總覽 --'}</option>
+          ${membersToShow.map(m => `<option value="${m}" ${m === cur ? "selected" : ""}>${m}</option>`).join("")}
         `;
       } else {
-        const myName = getSalesName();
         ogsmReportSalesSelect.innerHTML = `<option value="${myName}">${myName}</option>`;
-        ogsmReportSalesSelect.disabled = true; // 權限隔離：一般業務鎖死
+        ogsmReportSalesSelect.disabled = true; // 僅授權本人時鎖定
       }
     }
 
@@ -4893,7 +4908,7 @@ document.addEventListener("DOMContentLoaded", () => {
         ogsmReportStatusHint.innerHTML = '<span style="color:#2563eb; font-weight:600;">⚡ 0秒快取 (同步中...)</span>';
       }
     } else {
-      ogsmReportTableBody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:20px; color:#64748b;">⏳ 正在自雲端整合 OGSM 日報...</td></tr>';
+      ogsmReportTableBody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding:20px; color:#64748b;">⏳ 正在自雲端整合 OGSM 日報...</td></tr>';
       if (ogsmReportStatusHint) ogsmReportStatusHint.textContent = "";
     }
 
@@ -4914,13 +4929,21 @@ document.addEventListener("DOMContentLoaded", () => {
         currentOgsmReportRecords = data.records;
         ogsmReportCacheMap.set(cacheKey, { records: currentOgsmReportRecords, all_sales: data.all_sales, timestamp: Date.now() });
 
-        // 僅保留 ACTIVE_SALES_MEMBERS 在職同仁，嚴格移除非北區與未啟用人員
-        if (isCurrentUserManager() && ogsmReportSalesSelect) {
-          const currentSelected = ogsmReportSalesSelect.value;
-          ogsmReportSalesSelect.innerHTML = `
-            <option value="">-- 全體業務總覽 --</option>
-            ${ACTIVE_SALES_MEMBERS.map(m => `<option value="${m}" ${m === currentSelected ? "selected" : ""}>${m}</option>`).join("")}
-          `;
+        // 僅保留授權業務清單
+        if (ogsmReportSalesSelect) {
+          const myName = getSalesName();
+          const allowedMembers = (cachedViewPermissions && cachedViewPermissions[myName]) ? cachedViewPermissions[myName] : [myName];
+          const isTopMgr = ["曾維崧", "張何達", "曾仁君"].includes(myName);
+          const membersToShow = isTopMgr ? ACTIVE_SALES_MEMBERS : ACTIVE_SALES_MEMBERS.filter(m => allowedMembers.includes(m));
+
+          if (membersToShow.length > 1) {
+            const currentSelected = ogsmReportSalesSelect.value;
+            ogsmReportSalesSelect.disabled = false;
+            ogsmReportSalesSelect.innerHTML = `
+              <option value="">${isTopMgr ? '-- 全體業務總覽 --' : '-- 授權業務總覽 --'}</option>
+              ${membersToShow.map(m => `<option value="${m}" ${m === currentSelected ? "selected" : ""}>${m}</option>`).join("")}
+            `;
+          }
         }
 
         renderOgsmReportTable(currentOgsmReportRecords);
@@ -4930,13 +4953,13 @@ document.addEventListener("DOMContentLoaded", () => {
         }
       } else {
         if (!hasRenderedCache) {
-          ogsmReportTableBody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:15px; color:#64748b;">該區間尚無 OGSM 拜訪紀錄</td></tr>';
+          ogsmReportTableBody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding:15px; color:#64748b;">該區間尚無 OGSM 拜訪紀錄</td></tr>';
         }
       }
     } catch (e) {
       console.warn("載入 OGSM 月報失敗:", e);
       if (!hasRenderedCache) {
-        ogsmReportTableBody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:15px; color:#ef4444;">連線失敗，無法取得 OGSM 月報數據</td></tr>';
+        ogsmReportTableBody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding:15px; color:#ef4444;">連線失敗，無法取得 OGSM 月報數據</td></tr>';
       }
       if (ogsmReportStatusHint) {
         ogsmReportStatusHint.innerHTML = '<span style="color:#ef4444;">⚠️ 離線快取</span>';
@@ -4947,7 +4970,7 @@ document.addEventListener("DOMContentLoaded", () => {
   function renderOgsmReportTable(records) {
     if (!ogsmReportTableBody) return;
     if (!records || records.length === 0) {
-      ogsmReportTableBody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:15px; color:#64748b;">該區間尚無 OGSM 拜訪紀錄</td></tr>';
+      ogsmReportTableBody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding:15px; color:#64748b;">該區間尚無 OGSM 拜訪紀錄</td></tr>';
       return;
     }
 
@@ -4967,6 +4990,7 @@ document.addEventListener("DOMContentLoaded", () => {
           <td style="text-align:center;"><span class="rating-badge ${ratingClass}">${escapeHtml(formatClientTier(ratingRaw))}</span></td>
           <td style="color:#2563eb; line-height:1.4;">${escapeHtml(r.plan_promotion || '-')}</td>
           <td style="color:#334155; line-height:1.4;">${escapeHtml(r.actual_progress || '-')}</td>
+          <td style="color:#1d4ed8; line-height:1.4; font-size:0.82rem;">${escapeHtml(r.action_suggestion || '-')}</td>
           <td style="font-size:0.75rem; color:#64748b; white-space:nowrap;">${escapeHtml(r.updated_at || '-')}</td>
         </tr>
       `;
@@ -5020,11 +5044,13 @@ document.addEventListener("DOMContentLoaded", () => {
     }
     if (editOgsmPlanPromotion) editOgsmPlanPromotion.value = record.plan_promotion || "";
     if (editOgsmActualProgress) editOgsmActualProgress.value = record.actual_progress || "";
+    if (editOgsmActionSuggestion) {
+      editOgsmActionSuggestion.value = record.action_suggestion || "";
+    }
 
-    // 🛡️ 方案 A 防篡改保護：非本人填報之日報，所有原始欄位強制灰底鎖死唯讀
+    // 🛡️ 方案 A 防篡改保護：非本人填報之日報，所有原始欄位強制灰底鎖死唯讀；開放「建議行動方案」填報
     const myName = getSalesName();
     const isOwner = (record.sales_name === myName);
-    const isMgr = isCurrentUserManager();
 
     if (editOgsmDate) {
       editOgsmDate.disabled = !isOwner;
@@ -5043,8 +5069,17 @@ document.addEventListener("DOMContentLoaded", () => {
       editOgsmActualProgress.style.background = isOwner ? '#ffffff' : '#f1f5f9';
     }
 
+    if (editOgsmActionSuggestion) {
+      editOgsmActionSuggestion.readOnly = isOwner;
+      editOgsmActionSuggestion.style.background = isOwner ? '#f8fafc' : '#ffffff';
+      if (!isOwner) {
+        setTimeout(() => editOgsmActionSuggestion.focus(), 150);
+      }
+    }
+
     if (btnSaveOgsmCaseEdit) {
-      btnSaveOgsmCaseEdit.style.display = isOwner ? '' : 'none';
+      btnSaveOgsmCaseEdit.style.display = '';
+      btnSaveOgsmCaseEdit.textContent = isOwner ? '💾 儲存修改' : '💾 儲存建議行動方案';
     }
 
     ogsmCaseEditModal.classList.remove("hidden");
@@ -5070,20 +5105,66 @@ document.addEventListener("DOMContentLoaded", () => {
     btnSaveOgsmCaseEdit.addEventListener("click", () => {
       const rowIndex = editOgsmRowIndex?.value || "";
       const salesName = editOgsmSalesName?.value || getSalesName();
+      const myName = getSalesName();
+      const isOwner = (salesName === myName);
+
+      if (!rowIndex || !salesName) {
+        alert("資料不完整，無法儲存");
+        return;
+      }
+
+      if (!isOwner) {
+        // 非本人（如主管或授權查閱者）：儲存「建議行動方案」
+        const actionSuggestion = editOgsmActionSuggestion?.value?.trim() || "";
+
+        // 1. 樂觀更新 Optimistic UI
+        if (currentOgsmReportRecords) {
+          const target = currentOgsmReportRecords.find(r => String(r.row_index) === String(rowIndex) && r.sales_name === salesName);
+          if (target) {
+            target.action_suggestion = actionSuggestion;
+            target.updated_at = "剛剛";
+            renderOgsmReportTable(currentOgsmReportRecords);
+          }
+        }
+
+        showToast("💡 建議行動方案已成功儲存", "success");
+        closeOgsmCaseEditModal();
+        invalidateMonthlyReportCaches();
+
+        // 2. 背景非同步同步至 Google 試算表
+        const params = new URLSearchParams({
+          action: "update_ogsm_action_suggestion",
+          sales_name: salesName,
+          row_index: rowIndex,
+          action_suggestion: actionSuggestion,
+          viewer: myName,
+          is_test: isTestMode ? "1" : "0"
+        });
+
+        fetch(`${GAS_URL}?${params.toString()}`).then(res => res.json()).then(data => {
+          if (data && data.status !== "ok") {
+            console.warn("後端儲存建議行動方案未完全成功:", data.msg);
+          }
+        }).catch(err => console.warn("背景同步建議行動方案失敗:", err));
+
+        return;
+      }
+
+      // 本人：儲存修改原始日報
       const dateStr = editOgsmDate?.value || "";
       const clientName = editOgsmClientName?.value || "";
       const clientRating = editOgsmClientRating?.value || "直賣A級";
       const planPromotion = editOgsmPlanPromotion?.value?.trim() || "";
       const actualProgress = editOgsmActualProgress?.value?.trim() || "";
 
-      if (!rowIndex || !salesName || !dateStr) {
+      if (!dateStr) {
         alert("資料不完整，無法儲存");
         return;
       }
 
       // 1. 立即樂觀更新 Optimistic UI (秒開秒關)
       if (currentOgsmReportRecords) {
-        const target = currentOgsmReportRecords.find(r => String(r.row_index) === String(rowIndex));
+        const target = currentOgsmReportRecords.find(r => String(r.row_index) === String(rowIndex) && r.sales_name === salesName);
         if (target) {
           target.date = dateStr;
           target.client_rating = clientRating;
@@ -5128,7 +5209,7 @@ document.addEventListener("DOMContentLoaded", () => {
         return;
       }
 
-      const headers = ["客戶名稱", "拜訪日期", "業務人員", "客戶分類", "計畫推廣內容", "實際拜訪紀錄/行程", "最後更新時間"];
+      const headers = ["客戶名稱", "拜訪日期", "業務人員", "客戶分類", "計畫推廣內容", "實際拜訪紀錄/行程", "建議行動方案", "最後更新時間"];
       const rows = currentOgsmReportRecords.map(r => [
         `"${(r.client_name || '').replace(/"/g, '""')}"`,
         `"${(r.date || '').replace(/"/g, '""')}"`,
@@ -5136,6 +5217,7 @@ document.addEventListener("DOMContentLoaded", () => {
         `"${(r.client_rating || '').replace(/"/g, '""')}"`,
         `"${(r.plan_promotion || '').replace(/"/g, '""')}"`,
         `"${(r.actual_progress || '').replace(/"/g, '""')}"`,
+        `"${(r.action_suggestion || '').replace(/"/g, '""')}"`,
         `"${(r.updated_at || '').replace(/"/g, '""')}"`
       ]);
 
@@ -5179,6 +5261,7 @@ document.addEventListener("DOMContentLoaded", () => {
             <td style="border:1px solid #cbd5e1; padding:6px; text-align:center;">${escapeHtml(r.client_rating || '-')}</td>
             <td style="border:1px solid #cbd5e1; padding:6px;">${escapeHtml(r.plan_promotion || '-')}</td>
             <td style="border:1px solid #cbd5e1; padding:6px;">${escapeHtml(r.actual_progress || '-')}</td>
+            <td style="border:1px solid #cbd5e1; padding:6px; color:#1d4ed8;">${escapeHtml(r.action_suggestion || '-')}</td>
           </tr>
         `;
       });
@@ -5213,6 +5296,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 <th style="width:65px; text-align:center;">客戶分類</th>
                 <th>計畫推廣內容</th>
                 <th>實際拜訪紀錄 / 行程</th>
+                <th style="width:130px;">建議行動方案</th>
               </tr>
             </thead>
             <tbody>
