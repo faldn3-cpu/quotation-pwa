@@ -15,7 +15,7 @@
   
   <!-- Google Fonts: Inter -->
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=1.78">
+  <link rel="stylesheet" href="style.css?v=1.79">
   <style>
     .custom-delivery-box { display: flex !important; gap: 8px !important; align-items: center !important; }
     .custom-delivery-box .search-input { flex: 1 !important; margin-bottom: 0 !important; }
@@ -470,6 +470,29 @@
           <div class="form-group" style="margin-bottom:0.85rem;">
             <label for="ogsmInputResult" style="font-weight:600; font-size:0.9rem; margin-bottom:4px; display:block;">案件狀況說明 / 實際行程</label>
             <textarea id="ogsmInputResult" class="search-input" rows="3" placeholder="請輸入案件當前進度、客戶反饋與後續行動..." style="resize:vertical;"></textarea>
+          </div>
+
+          <!-- 👑 [主管專屬] 商機建議方針與交辦管考區塊 -->
+          <div id="ogsmSupervisorSection" class="hidden" style="margin-bottom:0.85rem; border:1px solid #ddd6fe; border-radius:8px; background:#fbfbfe; padding:10px 12px;">
+            <div style="font-size:0.88rem; font-weight:bold; color:#5b21b6; display:flex; align-items:center; gap:6px; margin-bottom:8px;">
+              👑 主管商機建議方針與交辦管考
+            </div>
+            <div style="display:flex; gap:8px; margin-bottom:8px;">
+              <div class="form-group" style="flex:1; margin-bottom:0;">
+                <label for="ogsmSupervisorAssignee" style="font-size:0.8rem; font-weight:600; color:#4c1d95; display:block; margin-bottom:3px;">交辦 / 協同業務</label>
+                <select id="ogsmSupervisorAssignee" class="search-input" style="font-size:0.85rem; padding:6px 8px; margin-bottom:0; background:#ffffff;">
+                  <!-- 動態載入組員名單 -->
+                </select>
+              </div>
+              <div class="form-group" style="flex:1; margin-bottom:0;">
+                <label for="ogsmSupervisorDeadline" style="font-size:0.8rem; font-weight:600; color:#4c1d95; display:block; margin-bottom:3px;">指定完成期限</label>
+                <input type="date" id="ogsmSupervisorDeadline" class="search-input" style="font-size:0.85rem; padding:6px 8px; margin-bottom:0; background:#ffffff;">
+              </div>
+            </div>
+            <div class="form-group" style="margin-bottom:0;">
+              <label for="ogsmSupervisorDirective" style="font-size:0.8rem; font-weight:600; color:#4c1d95; display:block; margin-bottom:3px;">主管指導方針或推進策略 (填寫後自動立案管考)</label>
+              <textarea id="ogsmSupervisorDirective" class="search-input" rows="2" placeholder="輸入主管指導方針（例如：建議協同主管與客戶高層餐敘、主推指定品項...）" style="font-size:0.85rem; padding:6px 8px; margin-bottom:0; resize:vertical;"></textarea>
+            </div>
           </div>
 
           <!-- 📍 請補填以下資訊（折疊手風琴區塊） -->
@@ -1367,7 +1390,7 @@
 
   <!-- 🔄 [新增 4] 三大主管轉派覆核專區對話框 (Modal) -->
   <div id="managerReviewModal" class="modal hidden">
-    <div class="modal-content" style="max-height:90vh; max-height:90dvh; display:flex; flex-direction:column; padding:1.25rem; max-width:760px;">
+    <div class="modal-content" style="max-height:90vh; max-height:90dvh; display:flex; flex-direction:column; padding:1.25rem; max-width:780px;">
       <div class="modal-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.75rem; flex-shrink:0;">
         <div>
           <h3 style="margin:0; font-size:1.15rem; color:#4c1d95; display:flex; align-items:center; gap:6px;">
@@ -1380,8 +1403,26 @@
         <button id="btnCloseManagerReviewModal" class="btn-close">&times;</button>
       </div>
 
+      <!-- 分頁標籤組：待覆核 / 覆核歷程紀錄 / 封存客戶庫 -->
+      <div class="manager-review-tabs" style="display:flex; gap:8px; margin-bottom:10px; border-bottom:1px solid #e2e8f0; padding-bottom:8px; flex-shrink:0;">
+        <button type="button" id="btnTabReviewPending" class="btn-filter-tag active" style="font-weight:bold; font-size:0.85rem; padding:6px 14px;">待覆核 (<span id="managerReviewPendingCount">0</span>)</button>
+        <button type="button" id="btnTabReviewHistory" class="btn-filter-tag" style="font-size:0.85rem; padding:6px 14px; color:#1e40af; background:#eff6ff; border-color:#bfdbfe;">📜 覆核歷程紀錄 (<span id="managerReviewHistoryCount">0</span>)</button>
+        <button type="button" id="btnTabReviewArchive" class="btn-filter-tag" style="font-size:0.85rem; padding:6px 14px; color:#475569; background:#f1f5f9; border-color:#cbd5e1;">🗄️ 封存客戶庫 (<span id="managerReviewArchiveCount">0</span>)</button>
+      </div>
+
+      <!-- 容器 1: 待覆核列表 -->
       <div id="managerReviewListContainer" class="manager-review-list-container" style="overflow-y:auto; flex:1; min-height:220px; display:flex; flex-direction:column; gap:10px; padding-right:2px;">
         <!-- 由 JavaScript 動態生成主管待審卡片 -->
+      </div>
+
+      <!-- 容器 2: 覆核歷程紀錄 -->
+      <div id="managerReviewHistoryContainer" class="manager-review-list-container hidden" style="overflow-y:auto; flex:1; min-height:220px; display:flex; flex-direction:column; gap:10px; padding-right:2px;">
+        <!-- 由 JavaScript 動態生成歷程卡片 -->
+      </div>
+
+      <!-- 容器 3: 封存客戶庫 -->
+      <div id="managerReviewArchiveContainer" class="manager-review-list-container hidden" style="overflow-y:auto; flex:1; min-height:220px; display:flex; flex-direction:column; gap:10px; padding-right:2px;">
+        <!-- 由 JavaScript 動態生成封存客戶卡片 -->
       </div>
 
       <div class="modal-footer" style="padding-top:0.75rem; border-top:1px solid #e2e8f0; display:flex; justify-content:flex-end; gap:8px; margin-top:0.5rem; flex-shrink:0;">
@@ -1424,6 +1465,49 @@
       <div class="modal-footer" style="padding-top:0.75rem; border-top:1px solid #e2e8f0; display:flex; justify-content:flex-end; gap:8px; margin-top:0.75rem; flex-shrink:0;">
         <button type="button" id="btnCancelReassignSub" class="btn btn-secondary" style="font-size:0.85rem; padding:6px 14px;">取消</button>
         <button type="button" id="btnConfirmReassignSub" class="btn btn-primary" style="font-size:0.85rem; padding:6px 18px; font-weight:bold;">✅ 確認轉派</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 📢 [新增 5] 主管督導指派跟催對話框 (Modal) -->
+  <div id="assignFollowUpModal" class="modal hidden" style="z-index:10050;">
+    <div class="modal-content" style="max-height:85vh; max-height:85dvh; display:flex; flex-direction:column; padding:1.25rem; max-width:460px;">
+      <div class="modal-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.75rem; flex-shrink:0;">
+        <h3 style="margin:0; font-size:1.1rem; color:#6d28d9; display:flex; align-items:center; gap:6px;">
+          📢 主管指派督導跟催
+        </h3>
+        <button id="btnCloseAssignFollowUpModal" class="btn-close">&times;</button>
+      </div>
+      <div class="modal-body" style="overflow-y:auto; flex:1;">
+        <div style="font-size:0.9rem; font-weight:bold; color:#1e293b; margin-bottom:4px;" id="assignFollowUpTargetClient">目標客戶：-</div>
+        <div style="font-size:0.8rem; color:#64748b; margin-bottom:12px;" id="assignFollowUpTargetMeta">原負責業務：-</div>
+
+        <div class="form-group" style="margin-bottom:12px;">
+          <label style="font-size:0.85rem; font-weight:600; color:#334155; display:block; margin-bottom:4px;">
+            指派受派業務 (必選)
+          </label>
+          <select id="assignFollowUpNewOwnerSelect" class="search-input" style="font-size:0.9rem; padding:8px 10px; margin-bottom:0; font-weight:600; background:#ffffff;">
+            <!-- 動態注入組員名單 -->
+          </select>
+        </div>
+
+        <div class="form-group" style="margin-bottom:12px;">
+          <label style="font-size:0.85rem; font-weight:600; color:#334155; display:block; margin-bottom:4px;">
+            指定完成期限 (預設一週)
+          </label>
+          <input type="date" id="assignFollowUpDeadlineInput" class="search-input" style="font-size:0.9rem; padding:8px 10px; margin-bottom:0; background:#ffffff;">
+        </div>
+
+        <div class="form-group" style="margin-bottom:6px;">
+          <label style="font-size:0.85rem; font-weight:600; color:#334155; display:block; margin-bottom:4px;">
+            主管督導指示方針與行動策略
+          </label>
+          <textarea id="assignFollowUpManagerNote" class="search-input" rows="3" placeholder="例如：此客戶為關鍵客戶，請業務於期限內排訪並協同主管拜訪..." style="font-size:0.85rem; padding:8px; resize:vertical;"></textarea>
+        </div>
+      </div>
+      <div class="modal-footer" style="padding-top:0.75rem; border-top:1px solid #e2e8f0; display:flex; justify-content:flex-end; gap:8px; margin-top:0.75rem; flex-shrink:0;">
+        <button type="button" id="btnCancelAssignFollowUp" class="btn btn-secondary" style="font-size:0.85rem; padding:6px 14px;">取消</button>
+        <button type="button" id="btnConfirmAssignFollowUp" class="btn btn-primary" style="background:#6d28d9; border-color:#5b21b6; font-size:0.85rem; padding:6px 18px; font-weight:bold;">📢 確認指派跟催</button>
       </div>
     </div>
   </div>
@@ -1511,8 +1595,8 @@
   </div>
 
   <!-- 🚀 畫面右下角簡潔版本訊息 (字體小、不佔用頂部空間) -->
-  <div class="app-version-bottom-right" id="appVersionInfo">v 1.78</div>
+  <div class="app-version-bottom-right" id="appVersionInfo">v 1.79</div>
 
-  <script src="app.js?v=1.78"></script>
+  <script src="app.js?v=1.79"></script>
 </body>
 </html>

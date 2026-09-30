@@ -45,8 +45,8 @@ function isTokenValid() {
 }
 
 document.addEventListener("DOMContentLoaded", () => {
-  // 🚀 版本自動同步與舊快取清理防護 (v 1.78)
-  const CURRENT_APP_VERSION = "1.78";
+  // 🚀 版本自動同步與舊快取清理防護 (v 1.79)
+  const CURRENT_APP_VERSION = "1.79";
   const appVersionInfo = document.getElementById("appVersionInfo");
   if (appVersionInfo) {
     appVersionInfo.textContent = "v " + CURRENT_APP_VERSION;
@@ -57,7 +57,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if ('caches' in window) {
       caches.keys().then(keys => {
         keys.forEach(k => {
-          if (k !== 'quote-draft-v1.78') {
+          if (k !== 'quote-draft-v1.79') {
             caches.delete(k);
           }
         });
@@ -5302,6 +5302,33 @@ document.addEventListener("DOMContentLoaded", () => {
       if (ogsmHistorySection) ogsmHistorySection.classList.add("hidden");
     }
 
+    // 👑 主管商機建議方針區塊初始化
+    if (ogsmSupervisorSection) {
+      if (isCurrentUserManager()) {
+        ogsmSupervisorSection.classList.remove("hidden");
+        const viewer = getSalesName();
+        let assignableList = ALL_SALES_MEMBERS;
+        if (viewer === "曾仁君") assignableList = DIRECT_SALES_MEMBERS;
+        else if (viewer === "張何達") assignableList = DEALER_SALES_MEMBERS;
+
+        const defaultAssignee = (itemToEdit && (itemToEdit.sales_name || itemToEdit.client_owner)) ? (itemToEdit.sales_name || itemToEdit.client_owner) : viewer;
+        if (ogsmSupervisorAssignee) {
+          ogsmSupervisorAssignee.innerHTML = assignableList
+            .map(m => `<option value="${m}" ${m === defaultAssignee ? 'selected' : ''}>${m}</option>`).join("");
+        }
+
+        const d = new Date();
+        d.setDate(d.getDate() + 7);
+        const yyyy = d.getFullYear();
+        const mm = String(d.getMonth() + 1).padStart(2, "0");
+        const dd = String(d.getDate()).padStart(2, "0");
+        if (ogsmSupervisorDeadline) ogsmSupervisorDeadline.value = `${yyyy}-${mm}-${dd}`;
+        if (ogsmSupervisorDirective) ogsmSupervisorDirective.value = "";
+      } else {
+        ogsmSupervisorSection.classList.add("hidden");
+      }
+    }
+
     if (ogsmClientAutocomplete) ogsmClientAutocomplete.classList.add("hidden");
 
     ogsmEditModal.classList.remove("hidden");
@@ -5500,10 +5527,34 @@ document.addEventListener("DOMContentLoaded", () => {
       currentViewingDate = dateStr;
       refreshCurrentDayModal();
 
-      showToast(`⏳「${clientName}」日報已保存，背景同步中...`, "info");
-
       // 5. 於背景非同步發送雲端請求
       executeSaveOgsmInBackground(payload, tempId, editingRowIndex, editingOfflineId);
+
+      // 👑 若主管填寫了商機方針，自動非同步發布督導交辦任務至管考表
+      if (isCurrentUserManager() && ogsmSupervisorDirective) {
+        const directiveText = ogsmSupervisorDirective.value.trim();
+        if (directiveText) {
+          const supAssignee = ogsmSupervisorAssignee ? ogsmSupervisorAssignee.value : salesName;
+          const supDeadline = ogsmSupervisorDeadline ? ogsmSupervisorDeadline.value.replace(/-/g, "/") : "";
+          const supParams = new URLSearchParams({
+            action: "assign_supervisor_task",
+            viewer: salesName,
+            task_type: "商機指派方針",
+            client_name: clientName,
+            case_name: content || "商機日報",
+            old_owner: clientOwner || supAssignee,
+            new_owner: supAssignee,
+            manager_note: directiveText,
+            deadline: supDeadline
+          });
+          fetch(`${GAS_URL}?${supParams.toString()}`).then(r => r.json()).then(data => {
+            if (data.status === "ok") {
+              showToast(`👑 主管方針已發布交辦給【${supAssignee}】`, "success");
+              loadSupervisorTasks();
+            }
+          }).catch(e => console.warn("主管方針發布非同步異常:", e));
+        }
+      }
     });
   }
 
@@ -5585,6 +5636,8 @@ document.addEventListener("DOMContentLoaded", () => {
           ogsmDatesWithReports.add(dateStr);
           renderCalendar(ogsmCurrentYear, ogsmCurrentMonth);
           refreshCurrentDayModal();
+          loadSupervisorTasks();
+          refreshFollowUpEngine();
 
           // 🚀 自動帶出 CRM 直式編輯表單（完整預填日報與商機選單資料）
           const crmRecord = {
@@ -6425,6 +6478,39 @@ document.addEventListener("DOMContentLoaded", () => {
   let activeReassignTarget = null;
   let activePendingReviews = [];
 
+  // 📋 主管督導交辦管考表狀態與 DOM 元素
+  let supervisorPendingTasks = [];
+  let supervisorHistoryTasks = [];
+  let supervisorArchivedClients = [];
+  let currentReviewTab = "pending";
+  let activeAssignFollowUpTarget = null;
+
+  const btnTabReviewPending = document.getElementById("btnTabReviewPending");
+  const btnTabReviewHistory = document.getElementById("btnTabReviewHistory");
+  const btnTabReviewArchive = document.getElementById("btnTabReviewArchive");
+  const managerReviewPendingCount = document.getElementById("managerReviewPendingCount");
+  const managerReviewHistoryCount = document.getElementById("managerReviewHistoryCount");
+  const managerReviewArchiveCount = document.getElementById("managerReviewArchiveCount");
+  const managerReviewHistoryContainer = document.getElementById("managerReviewHistoryContainer");
+  const managerReviewArchiveContainer = document.getElementById("managerReviewArchiveContainer");
+
+  // 📢 主管督導指派跟催對話框 DOM
+  const assignFollowUpModal = document.getElementById("assignFollowUpModal");
+  const btnCloseAssignFollowUpModal = document.getElementById("btnCloseAssignFollowUpModal");
+  const btnCancelAssignFollowUp = document.getElementById("btnCancelAssignFollowUp");
+  const btnConfirmAssignFollowUp = document.getElementById("btnConfirmAssignFollowUp");
+  const assignFollowUpTargetClient = document.getElementById("assignFollowUpTargetClient");
+  const assignFollowUpTargetMeta = document.getElementById("assignFollowUpTargetMeta");
+  const assignFollowUpNewOwnerSelect = document.getElementById("assignFollowUpNewOwnerSelect");
+  const assignFollowUpDeadlineInput = document.getElementById("assignFollowUpDeadlineInput");
+  const assignFollowUpManagerNote = document.getElementById("assignFollowUpManagerNote");
+
+  // 👑 商機主管方針 DOM
+  const ogsmSupervisorSection = document.getElementById("ogsmSupervisorSection");
+  const ogsmSupervisorAssignee = document.getElementById("ogsmSupervisorAssignee");
+  const ogsmSupervisorDeadline = document.getElementById("ogsmSupervisorDeadline");
+  const ogsmSupervisorDirective = document.getElementById("ogsmSupervisorDirective");
+
   // 工具列「🚨 客戶跟催」按鈕開啟對話框
   if (btnOpenFollowUpModal) {
     btnOpenFollowUpModal.addEventListener("click", () => {
@@ -6443,7 +6529,9 @@ document.addEventListener("DOMContentLoaded", () => {
   if (btnOpenReviewModal) {
     btnOpenReviewModal.addEventListener("click", () => {
       if (managerReviewModal) managerReviewModal.classList.remove("hidden");
+      switchReviewTab("pending");
       loadPendingReviews();
+      loadSupervisorTasks();
     });
   }
   if (btnCloseManagerReviewModal) btnCloseManagerReviewModal.addEventListener("click", () => {
@@ -6454,6 +6542,35 @@ document.addEventListener("DOMContentLoaded", () => {
   });
   if (btnRefreshManagerReview) btnRefreshManagerReview.addEventListener("click", () => {
     loadPendingReviews();
+    loadSupervisorTasks();
+  });
+
+  // 覆核專區 Tab 切換事件
+  function switchReviewTab(tab) {
+    currentReviewTab = tab;
+    if (btnTabReviewPending) btnTabReviewPending.classList.toggle("active", tab === "pending");
+    if (btnTabReviewHistory) btnTabReviewHistory.classList.toggle("active", tab === "history");
+    if (btnTabReviewArchive) btnTabReviewArchive.classList.toggle("active", tab === "archive");
+
+    if (managerReviewListContainer) managerReviewListContainer.classList.toggle("hidden", tab !== "pending");
+    if (managerReviewHistoryContainer) managerReviewHistoryContainer.classList.toggle("hidden", tab !== "history");
+    if (managerReviewArchiveContainer) managerReviewArchiveContainer.classList.toggle("hidden", tab !== "archive");
+
+    if (tab === "pending") renderManagerReviewList();
+    if (tab === "history") renderSupervisorHistoryList();
+    if (tab === "archive") renderSupervisorArchiveList();
+  }
+
+  if (btnTabReviewPending) btnTabReviewPending.addEventListener("click", () => switchReviewTab("pending"));
+  if (btnTabReviewHistory) btnTabReviewHistory.addEventListener("click", () => switchReviewTab("history"));
+  if (btnTabReviewArchive) btnTabReviewArchive.addEventListener("click", () => switchReviewTab("archive"));
+
+  // 指派跟催對話框取消事件
+  if (btnCloseAssignFollowUpModal) btnCloseAssignFollowUpModal.addEventListener("click", () => {
+    if (assignFollowUpModal) assignFollowUpModal.classList.add("hidden");
+  });
+  if (btnCancelAssignFollowUp) btnCancelAssignFollowUp.addEventListener("click", () => {
+    if (assignFollowUpModal) assignFollowUpModal.classList.add("hidden");
   });
 
   // 跟催清單即時關鍵字搜尋
@@ -6937,6 +7054,37 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     followUpListContainer.innerHTML = filtered.map(c => {
+      const pendingTask = supervisorPendingTasks.find(t => t.client_name === c.client_name && (t.status === "待處置" || t.status === "逾期未辦"));
+      let taskBadge = "";
+      let taskDirectiveHtml = "";
+      if (pendingTask) {
+        if (pendingTask.task_type === "覆核退回") {
+          taskBadge = `<span class="badge-status-yellow">⚠️ 主管退回</span>`;
+          taskDirectiveHtml = `
+            <div style="background:#fffbeb; border:1px solid #fef08a; border-radius:6px; padding:6px 10px; margin-top:6px; font-size:0.8rem; color:#b45309; line-height:1.4;">
+              <b>⚠️ 主管退回指示：</b>${escapeHtml(pendingTask.manager_note || '請再次聯絡客戶了解現況')}
+              <div style="font-size:0.75rem; color:#92400e; margin-top:2px;">期限：${pendingTask.deadline} | 督導主管：${pendingTask.manager}</div>
+            </div>
+          `;
+        } else if (pendingTask.task_type === "久未聯繫跟催") {
+          taskBadge = `<span class="badge-reassigned">📢 督導跟催中</span>`;
+          taskDirectiveHtml = `
+            <div style="background:#f5f3ff; border:1px solid #ddd6fe; border-radius:6px; padding:6px 10px; margin-top:6px; font-size:0.8rem; color:#6d28d9; line-height:1.4;">
+              <b>📢 主管跟催方針：</b>${escapeHtml(pendingTask.manager_note || '請於期限內排訪以完成銷案')}
+              <div style="font-size:0.75rem; color:#5b21b6; margin-top:2px;">要求期限：${pendingTask.deadline} | 指派主管：${pendingTask.manager}</div>
+            </div>
+          `;
+        } else if (pendingTask.task_type === "商機指派方針") {
+          taskBadge = `<span class="badge-reassigned">💡 商機方針交辦</span>`;
+          taskDirectiveHtml = `
+            <div style="background:#eff6ff; border:1px solid #bfdbfe; border-radius:6px; padding:6px 10px; margin-top:6px; font-size:0.8rem; color:#1d4ed8; line-height:1.4;">
+              <b>💡 主管推進策略：</b>${escapeHtml(pendingTask.manager_note || '')}
+              <div style="font-size:0.75rem; color:#1e40af; margin-top:2px;">期限：${pendingTask.deadline} | 督導：${pendingTask.manager}</div>
+            </div>
+          `;
+        }
+      }
+
       const borderClass = c.is_pending_reassignment
         ? "card-border-purple"
         : (c.alert_level === "red" ? "card-border-red" : (c.alert_level === "yellow" ? "card-border-yellow" : "card-border-green"));
@@ -6956,6 +7104,7 @@ document.addEventListener("DOMContentLoaded", () => {
             <div class="follow-up-client-title">
               <span class="follow-up-client-name">${escapeHtml(c.client_name)}</span>
               <span class="badge-tier">${escapeHtml(c.tier_display)}</span>
+              ${taskBadge}
               ${reassignedBadge}
               <span class="${badgeClass}">${escapeHtml(c.alert_label)}</span>
             </div>
@@ -6970,10 +7119,16 @@ document.addEventListener("DOMContentLoaded", () => {
               <span>${dateInfo}</span>
             </div>
             ${c.latest_case_name ? `<div>💼 最新案件：${c.latest_case_name} ${c.estimated_amount > 0 ? `(${c.estimated_amount}萬)` : ''}</div>` : ''}
+            ${taskDirectiveHtml}
             ${reassignedDetailHtml}
           </div>
 
           <div class="follow-up-card-actions">
+            ${isCurrentUserManager() ? `
+              <button type="button" class="btn-card-action btn-card-action-assign" data-client="${c.client_name}" data-owner="${c.client_owner}">
+                📢 指派跟催
+              </button>
+            ` : ''}
             <button type="button" class="btn-card-action btn-card-action-nocontact" data-client="${c.client_name}" data-owner="${c.client_owner}" data-tier="${c.tier_display}" data-row="${c.row_index || ''}">
               🚫 標記不聯繫
             </button>
@@ -6984,6 +7139,14 @@ document.addEventListener("DOMContentLoaded", () => {
         </div>
       `;
     }).join("");
+
+    followUpListContainer.querySelectorAll(".btn-card-action-assign").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const client = btn.getAttribute("data-client");
+        const owner = btn.getAttribute("data-owner");
+        openAssignFollowUpModal({ client_name: client, client_owner: owner });
+      });
+    });
 
     followUpListContainer.querySelectorAll(".btn-card-action-visit").forEach(btn => {
       btn.addEventListener("click", () => {
@@ -7269,4 +7432,241 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
+  // ====================================================
+  // 📋 模組八擴充：主管督導管考表資料引擎與渲染 (歷程、封存庫、跟催指派)
+  // ====================================================
+
+  async function loadSupervisorTasks() {
+    const currentSales = getSalesName();
+    if (!currentSales) return;
+
+    try {
+      const params = new URLSearchParams({
+        action: "get_supervisor_tasks",
+        viewer: currentSales
+      });
+      const res = await fetch(`${GAS_URL}?${params.toString()}`);
+      const data = await res.json();
+
+      if (data.status === "ok") {
+        supervisorPendingTasks = Array.isArray(data.pending_tasks) ? data.pending_tasks : [];
+        supervisorHistoryTasks = Array.isArray(data.history_tasks) ? data.history_tasks : [];
+        supervisorArchivedClients = Array.isArray(data.archived_clients) ? data.archived_clients : [];
+
+        if (managerReviewPendingCount) managerReviewPendingCount.textContent = activePendingReviews.length;
+        if (managerReviewHistoryCount) managerReviewHistoryCount.textContent = supervisorHistoryTasks.length;
+        if (managerReviewArchiveCount) managerReviewArchiveCount.textContent = supervisorArchivedClients.length;
+
+        renderSalesSupervisorBanner();
+        if (currentReviewTab === "history") renderSupervisorHistoryList();
+        if (currentReviewTab === "archive") renderSupervisorArchiveList();
+      }
+    } catch(err) {
+      console.warn("載入主管交辦管考表異常:", err);
+    }
+  }
+
+  function renderSupervisorHistoryList() {
+    if (!managerReviewHistoryContainer) return;
+
+    if (supervisorHistoryTasks.length === 0) {
+      managerReviewHistoryContainer.innerHTML = '<div style="text-align:center; padding:30px; color:#64748b; font-size:0.88rem;">📜 尚無任何主管覆核與督導歷程紀錄</div>';
+      return;
+    }
+
+    managerReviewHistoryContainer.innerHTML = supervisorHistoryTasks.map(t => {
+      let statusBadge = `<span class="badge-task-resolved">已完成銷案</span>`;
+      if (t.status === "待處置") {
+        statusBadge = `<span class="badge-task-pending">待處置</span>`;
+      } else if (t.status === "逾期未辦") {
+        statusBadge = `<span class="badge-task-overdue">逾期未辦</span>`;
+      } else if (t.status === "已結案封存") {
+        statusBadge = `<span class="badge-task-archived">已結案封存</span>`;
+      }
+
+      const resolveInfo = t.resolved_time ? `<div>✅ 銷案時間：${escapeHtml(t.resolved_time)} ${t.report_date ? `(日報: ${escapeHtml(t.report_date)})` : ''}</div>` : '';
+
+      return `
+        <div class="manager-history-card">
+          <div class="manager-history-header">
+            <div class="manager-history-title">
+              <span>🏢 ${escapeHtml(t.client_name)}</span>
+              <span class="badge-tier">${escapeHtml(t.task_type)}</span>
+              ${statusBadge}
+            </div>
+            <span style="font-size:0.75rem; color:#64748b;">${escapeHtml(t.created_at)}</span>
+          </div>
+
+          <div class="manager-history-meta">
+            <span>👑 督導主管：<b>${escapeHtml(t.manager)}</b></span>
+            <span>👤 原業務：${escapeHtml(t.old_owner)}</span>
+            <span>👉 受派業務：<b>${escapeHtml(t.assignee)}</b></span>
+            <span>⏳ 要求期限：<b>${escapeHtml(t.deadline)}</b></span>
+            ${resolveInfo}
+          </div>
+
+          ${t.manager_note ? `
+            <div class="manager-history-note">
+              <b>📝 主管指導方針與指示：</b><br>
+              ${escapeHtml(t.manager_note)}
+            </div>
+          ` : ''}
+        </div>
+      `;
+    }).join("");
+  }
+
+  function renderSupervisorArchiveList() {
+    if (!managerReviewArchiveContainer) return;
+
+    if (supervisorArchivedClients.length === 0) {
+      managerReviewArchiveContainer.innerHTML = '<div style="text-align:center; padding:30px; color:#64748b; font-size:0.88rem;">🗄️ 尚無任何被主管同意結案封存之客戶</div>';
+      return;
+    }
+
+    managerReviewArchiveContainer.innerHTML = supervisorArchivedClients.map(t => {
+      return `
+        <div class="manager-archive-card">
+          <div class="manager-history-header">
+            <div class="manager-history-title">
+              <span>🏢 ${escapeHtml(t.client_name)}</span>
+              <span class="badge-task-archived">🗄️ 已結案封存</span>
+            </div>
+            <span style="font-size:0.75rem; color:#64748b;">封存時間：${escapeHtml(t.created_at)}</span>
+          </div>
+
+          <div class="manager-history-meta">
+            <span>👑 核准主管：<b>${escapeHtml(t.manager)}</b></span>
+            <span>👤 原提報業務：${escapeHtml(t.old_owner)}</span>
+            ${t.case_name && t.case_name !== '-' ? `<span>💼 關聯案件：${escapeHtml(t.case_name)}</span>` : ''}
+          </div>
+
+          ${t.manager_note ? `
+            <div class="manager-history-note" style="border-left-color:#64748b; background:#f8fafc;">
+              <b>📝 封存批示理由：</b><br>
+              ${escapeHtml(t.manager_note)}
+            </div>
+          ` : ''}
+        </div>
+      `;
+    }).join("");
+  }
+
+  function renderSalesSupervisorBanner() {
+    if (!reassignedClientBanner || !reassignedBannerTitle) return;
+    const currentSales = getSalesName();
+    if (!currentSales) return;
+
+    const myTasks = supervisorPendingTasks.filter(t => t.assignee === currentSales && (t.status === "待處置" || t.status === "逾期未辦"));
+
+    const rejectedTask = myTasks.find(t => t.task_type === "覆核退回");
+    if (rejectedTask) {
+      reassignedBannerTitle.textContent = `⚠️ 主管【${rejectedTask.manager}】駁回退回不聯繫申請：${rejectedTask.client_name}`;
+      if (reassignedBannerSub) {
+        reassignedBannerSub.textContent = `退回指示：${rejectedTask.manager_note || '請再次聯絡客戶了解現況'}（完成期限：${rejectedTask.deadline}），請點擊立即排訪建檔。`;
+      }
+      reassignedClientBanner.classList.remove("hidden");
+      return;
+    }
+
+    const directiveTask = myTasks.find(t => t.task_type === "久未聯繫跟催" || t.task_type === "商機指派方針");
+    if (directiveTask) {
+      reassignedBannerTitle.textContent = `📢 主管【${directiveTask.manager}】指派督導跟催：${directiveTask.client_name}`;
+      if (reassignedBannerSub) {
+        reassignedBannerSub.textContent = `方針指示：${directiveTask.manager_note || '請排程拜訪'}（要求期限：${directiveTask.deadline}），請盡速排訪以完成銷案。`;
+      }
+      reassignedClientBanner.classList.remove("hidden");
+      return;
+    }
+
+    const reassignTask = myTasks.find(t => t.task_type === "覆核轉派");
+    if (reassignTask) {
+      reassignedBannerTitle.textContent = `🔔 主管【${reassignTask.manager}】轉派新客戶接手：${reassignTask.client_name}`;
+      if (reassignedBannerSub) {
+        reassignedBannerSub.textContent = `轉派指示：${reassignTask.manager_note || '請安排首次拜訪或排程建檔'}（要求期限：${reassignTask.deadline}）。`;
+      }
+      reassignedClientBanner.classList.remove("hidden");
+    }
+  }
+
+  function openAssignFollowUpModal(target) {
+    activeAssignFollowUpTarget = target;
+    if (assignFollowUpTargetClient) assignFollowUpTargetClient.textContent = `目標客戶：${target.client_name}`;
+    if (assignFollowUpTargetMeta) assignFollowUpTargetMeta.textContent = `原負責業務：${target.client_owner || '未指派'}`;
+
+    const d = new Date();
+    d.setDate(d.getDate() + 7);
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, "0");
+    const dd = String(d.getDate()).padStart(2, "0");
+    if (assignFollowUpDeadlineInput) assignFollowUpDeadlineInput.value = `${yyyy}-${mm}-${dd}`;
+
+    const viewer = getSalesName();
+    let assignableList = ALL_SALES_MEMBERS;
+    if (viewer === "曾仁君") {
+      assignableList = DIRECT_SALES_MEMBERS;
+    } else if (viewer === "張何達") {
+      assignableList = DEALER_SALES_MEMBERS;
+    }
+
+    if (assignFollowUpNewOwnerSelect) {
+      assignFollowUpNewOwnerSelect.innerHTML = assignableList
+        .map(m => `<option value="${m}" ${m === target.client_owner ? 'selected' : ''}>${m}</option>`).join("");
+    }
+    if (assignFollowUpManagerNote) assignFollowUpManagerNote.value = "";
+
+    if (assignFollowUpModal) assignFollowUpModal.classList.remove("hidden");
+  }
+
+  if (btnConfirmAssignFollowUp) {
+    btnConfirmAssignFollowUp.addEventListener("click", async () => {
+      if (!activeAssignFollowUpTarget) return;
+      const target = activeAssignFollowUpTarget;
+      const assignee = assignFollowUpNewOwnerSelect ? assignFollowUpNewOwnerSelect.value : "";
+      if (!assignee) {
+        alert("請選擇受派業務");
+        return;
+      }
+      const rawDeadline = assignFollowUpDeadlineInput ? assignFollowUpDeadlineInput.value : "";
+      const deadline = rawDeadline ? rawDeadline.replace(/-/g, "/") : "";
+      const note = assignFollowUpManagerNote ? assignFollowUpManagerNote.value.trim() : "";
+      const viewer = getSalesName();
+
+      btnConfirmAssignFollowUp.disabled = true;
+      btnConfirmAssignFollowUp.textContent = "⏳ 指派中...";
+
+      try {
+        const params = new URLSearchParams({
+          action: "assign_supervisor_task",
+          viewer: viewer,
+          task_type: "久未聯繫跟催",
+          client_name: target.client_name,
+          old_owner: target.client_owner || assignee,
+          new_owner: assignee,
+          manager_note: note || "主管指示久未聯繫督導跟催",
+          deadline: deadline
+        });
+
+        const res = await fetch(`${GAS_URL}?${params.toString()}`);
+        const data = await res.json();
+
+        if (data.status === "ok") {
+          showToast(data.msg || "✅ 主管督導指令已成功發布！", "success");
+          if (assignFollowUpModal) assignFollowUpModal.classList.add("hidden");
+          await loadSupervisorTasks();
+          renderFollowUpList();
+        } else {
+          alert("指派失敗：" + (data.msg || "未知錯誤"));
+        }
+      } catch(err) {
+        console.error("發布主管指派異常:", err);
+        alert("發布指派失敗，請檢查網路連線。");
+      } finally {
+        btnConfirmAssignFollowUp.disabled = false;
+        btnConfirmAssignFollowUp.textContent = "📢 確認指派跟催";
+      }
+    });
+  }
+
 }); // end DOMContentLoaded
+

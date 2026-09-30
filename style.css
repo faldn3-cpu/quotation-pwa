@@ -2670,3 +2670,112 @@ input:focus {
   line-height: 1.4;
 }
 
+/* ====================================================
+   📋 主管督導管考表 (歷程、封存庫與跟催指派卡片樣式)
+   ==================================================== */
+.manager-history-card,
+.manager-archive-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+.manager-history-card:hover,
+.manager-archive-card:hover {
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+}
+
+.manager-history-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
+.manager-history-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #1e293b;
+}
+
+.badge-task-resolved {
+  background: #dcfce7;
+  color: #15803d;
+  border: 1px solid #86efac;
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.badge-task-pending {
+  background: #dbeafe;
+  color: #1d4ed8;
+  border: 1px solid #93c5fd;
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.badge-task-overdue {
+  background: #fee2e2;
+  color: #b91c1c;
+  border: 1px solid #fca5a5;
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.badge-task-archived {
+  background: #f1f5f9;
+  color: #475569;
+  border: 1px solid #cbd5e1;
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.manager-history-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  font-size: 0.8rem;
+  color: #475569;
+  background: #f8fafc;
+  padding: 6px 10px;
+  border-radius: 6px;
+}
+
+.manager-history-note {
+  font-size: 0.8rem;
+  color: #334155;
+  line-height: 1.4;
+  background: #faf5ff;
+  border-left: 3px solid #9333ea;
+  padding: 6px 10px;
+  border-radius: 4px;
+}
+
+.btn-card-action-assign {
+  background: #f5f3ff;
+  color: #6d28d9;
+  border-color: #ddd6fe;
+}
+
+.btn-card-action-assign:hover {
+  background: #ede9fe;
+  color: #5b21b6;
+}
+
+
