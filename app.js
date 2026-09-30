@@ -45,8 +45,8 @@ function isTokenValid() {
 }
 
 document.addEventListener("DOMContentLoaded", () => {
-  // 🚀 版本自動同步與舊快取清理防護 (v 1.79)
-  const CURRENT_APP_VERSION = "1.79";
+  // 🚀 版本自動同步與舊快取清理防護 (v 1.80)
+  const CURRENT_APP_VERSION = "1.80";
   const appVersionInfo = document.getElementById("appVersionInfo");
   if (appVersionInfo) {
     appVersionInfo.textContent = "v " + CURRENT_APP_VERSION;
@@ -57,7 +57,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if ('caches' in window) {
       caches.keys().then(keys => {
         keys.forEach(k => {
-          if (k !== 'quote-draft-v1.79') {
+          if (k !== 'quote-draft-v1.80') {
             caches.delete(k);
           }
         });
@@ -140,12 +140,37 @@ document.addEventListener("DOMContentLoaded", () => {
   const ORDERED_SALES_MEMBERS = [
     "曾維崧", "張何達", "曾仁君", "葉仁豪", "溫達仁", "邱文輝", "楊家豪", "莊富丞", "何宛茹", "張書偉", "黃柏翰"
   ];
-  let ALL_SALES_MEMBERS = [
-    "曾維崧", "張何達", "曾仁君", "葉仁豪", "溫達仁", "邱文輝", "楊家豪", "莊富丞", "何宛茹", "張書偉", "黃柏翰"
-  ];
+  // 👑 動態在職業務名單 (由權限設定管理，預設北區 11 人)
+  let ACTIVE_SALES_MEMBERS = (function() {
+    try {
+      const cached = localStorage.getItem("active_sales_members_cache");
+      if (cached) {
+        const arr = JSON.parse(cached);
+        if (Array.isArray(arr) && arr.length > 0) return arr;
+      }
+    } catch(e) {}
+    return [...ORDERED_SALES_MEMBERS];
+  })();
+  let ALL_CONFIGURED_MEMBERS = (function() {
+    try {
+      const cached = localStorage.getItem("all_configured_members_cache");
+      if (cached) {
+        const arr = JSON.parse(cached);
+        if (Array.isArray(arr) && arr.length > 0) return arr;
+      }
+    } catch(e) {}
+    return ORDERED_SALES_MEMBERS.map(m => ({ name: m, active: ACTIVE_SALES_MEMBERS.includes(m) }));
+  })();
+  let ALL_SALES_MEMBERS = [...ACTIVE_SALES_MEMBERS];
   const DIRECT_SALES_MEMBERS = ["何宛茹", "張書偉", "曾仁君", "楊家豪", "溫達仁", "莊富丞", "黃柏翰"];
   const DEALER_SALES_MEMBERS = ["張何達", "葉仁豪", "邱文輝"];
   const REMINDER_DEALERS = ["赫力", "贊翔", "台瓷", "黃柏翰", "漢銓"];
+
+  // 🏷️ 客戶分類去括號格式化 (去除 (A) 等前綴括號代碼，如「(A) 直賣A級」->「直賣A級」)
+  function formatClientTier(raw) {
+    if (!raw) return "-";
+    return String(raw).replace(/^\([A-Z0-9-]+\)\s*/i, "").trim() || raw;
+  }
 
   // 切換至登入卡片畫面
   function showLoginSection() {
@@ -160,9 +185,9 @@ document.addEventListener("DOMContentLoaded", () => {
   // Service Worker 註冊與自動更新偵測
   // ====================================================
   if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('./sw.js?v=1.77')
+    navigator.serviceWorker.register('./sw.js?v=1.80')
       .then(reg => {
-        console.log('[PWA] Service Worker 已註冊 (v 1.77)', reg);
+        console.log('[PWA] Service Worker 已註冊 (v 1.80)', reg);
         // 主動檢查伺服器端是否有新版 sw.js
         reg.update();
 
@@ -217,6 +242,29 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
+  const btnLocalTestLogin = document.getElementById("btnLocalTestLogin");
+  if (btnLocalTestLogin && isTestEnvironment()) {
+    btnLocalTestLogin.style.display = "block";
+    btnLocalTestLogin.addEventListener("click", () => {
+      loginAsLocalWeiSong();
+    });
+  }
+
+  function loginAsLocalWeiSong() {
+    console.log("[Auth] 測試模式：以【曾維崧】最高管理員身分直接就緒");
+    localStorage.setItem("has_logged_in", "true");
+    localStorage.setItem("saved_display_name", "曾維崧");
+    localStorage.setItem("is_admin_user", "true");
+    userProfile = { name: "曾維崧", email: "tsengweisung@gmail.com" };
+    localStorage.setItem("saved_user_profile", JSON.stringify(userProfile));
+    enterDraftMode("曾維崧");
+    setupAdminImpersonator();
+    triggerBackgroundAutoSync();
+    if (typeof showToast === "function") {
+      showToast("👑 已成功進入【曾維崧】管理員身分", "success");
+    }
+  }
+
   if (hasLoggedIn) {
     console.log("[Auth] 偵測到本機登入資訊，直接進入報價表單：", savedDisplayName);
     try {
@@ -228,6 +276,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // 🚀 選項 A 智慧自動更新：啟動時在背景非同步連線 GAS 更新最新庫存與雲端資料
     triggerBackgroundAutoSync();
+  } else if (isTestEnvironment()) {
+    // 🌟 在本地測試環境下，若無歷史登入資訊，預設自動以曾維崧身分就緒
+    loginAsLocalWeiSong();
   } else {
     // 若無登入紀錄，顯示登入畫面以完成資料拉取
     console.log("[Auth] 顯示登入畫面 (hasLoggedIn: false)");
@@ -2874,8 +2925,8 @@ document.addEventListener("DOMContentLoaded", () => {
   // ====================================================
   function isViewerWeiSong() {
     const curName = (typeof getSalesName === "function") ? getSalesName() : "";
-    const profEmail = (userProfile?.email || localStorage.getItem("saved_user_email") || "").toLowerCase();
-    return curName === "曾維崧" || curName.includes("維崧") || profEmail === "tsengweisung@gmail.com";
+    // 嚴格判定當前模擬/登入身分：只有當身分為「曾維崧」時才具備管理權限
+    return curName === "曾維崧" || curName.includes("維崧");
   }
 
   function updatePermModalButtonVisibility() {
@@ -2890,7 +2941,7 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   // ====================================================
-  // 👑 管理員身分模擬切換器設置 (tsengweisung@gmail.com 專屬)
+  // 👑 管理員身分模擬切換器設置 (tsengweisung@gmail.com 專屬或本地測試)
   // ====================================================
   function setupAdminImpersonator() {
     if (!adminImpersonateBar || !adminImpersonateSelect) return;
@@ -2901,9 +2952,11 @@ document.addEventListener("DOMContentLoaded", () => {
     } catch(e) {}
     const isAdmin = localStorage.getItem("is_admin_user") === "true" ||
       (userProfile && userProfile.email && userProfile.email.toLowerCase() === "tsengweisung@gmail.com") ||
-      profEmail === "tsengweisung@gmail.com";
+      profEmail === "tsengweisung@gmail.com" ||
+      isTestEnvironment();
 
     if (isAdmin) {
+      localStorage.setItem("is_admin_user", "true");
       adminImpersonateBar.classList.remove("hidden");
       const currentSales = getSalesName();
       // 依照指定順序排序，並移除「(主管)」字樣
@@ -2925,6 +2978,9 @@ document.addEventListener("DOMContentLoaded", () => {
     if (!targetSales) return;
     localStorage.setItem("saved_display_name", targetSales);
     if (userProfile) userProfile.name = targetSales;
+    if (isTestEnvironment()) {
+      localStorage.setItem("is_admin_user", "true");
+    }
     if (userInfoBadge) {
       userInfoBadge.textContent = "👤 " + targetSales;
     }
@@ -2944,6 +3000,9 @@ document.addEventListener("DOMContentLoaded", () => {
     renderCalendar(ogsmCurrentYear, ogsmCurrentMonth);
     loadOgsmMonthly(ogsmCurrentYear, ogsmCurrentMonth);
     refreshFollowUpEngine();
+
+    // 👑 即刻更新權限設定按鈕之顯示狀態 (非曾維崧強制隱藏)
+    updatePermModalButtonVisibility();
 
     showToast(`👑 已切換至「${targetSales}」視角進行測試`, "info");
   }
@@ -3710,24 +3769,177 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   // ====================================================
-  // 👑 業務檢視權限設定模組 (曾維崧專屬)
+  // 👑 業務權限與在職名單管理模組 (曾維崧專屬 - 雙 Tab 架構)
   // ====================================================
   const permModal = document.getElementById("permModal");
   const btnClosePermModal = document.getElementById("btnClosePermModal");
   const btnCancelPermModal = document.getElementById("btnCancelPermModal");
+  const btnTabPermMembers = document.getElementById("btnTabPermMembers");
+  const btnTabPermView = document.getElementById("btnTabPermView");
+  const permMembersTabBody = document.getElementById("permMembersTabBody");
+  const permViewTabBody = document.getElementById("permViewTabBody");
+  const inputNewMemberName = document.getElementById("inputNewMemberName");
+  const btnAddNewMember = document.getElementById("btnAddNewMember");
+  const activeMembersListContainer = document.getElementById("activeMembersListContainer");
   const permTargetUserSelect = document.getElementById("permTargetUserSelect");
   const permMembersCheckboxContainer = document.getElementById("permMembersCheckboxContainer");
   const btnPermSelectAll = document.getElementById("btnPermSelectAll");
   const btnPermClearAll = document.getElementById("btnPermClearAll");
   const btnSavePermissions = document.getElementById("btnSavePermissions");
 
+  let addedSalesMembers = [];
+  let deletedSalesMembers = [];
+
+  // 雙 Tab 切換
+  if (btnTabPermMembers && btnTabPermView) {
+    btnTabPermMembers.addEventListener("click", () => {
+      btnTabPermMembers.classList.add("active");
+      btnTabPermView.classList.remove("active");
+      if (permMembersTabBody) permMembersTabBody.classList.remove("hidden");
+      if (permViewTabBody) permViewTabBody.classList.add("hidden");
+    });
+    btnTabPermView.addEventListener("click", () => {
+      btnTabPermView.classList.add("active");
+      btnTabPermMembers.classList.remove("active");
+      if (permViewTabBody) permViewTabBody.classList.remove("hidden");
+      if (permMembersTabBody) permMembersTabBody.classList.add("hidden");
+    });
+  }
+
+  // 渲染 Tab 1 在職名單管理列表
+  function renderActiveMembersList() {
+    if (!activeMembersListContainer) return;
+    activeMembersListContainer.innerHTML = ALL_CONFIGURED_MEMBERS.map((m, idx) => {
+      const isChecked = ACTIVE_SALES_MEMBERS.includes(m.name);
+      return `
+        <div class="perm-member-row ${isChecked ? '' : 'disabled'}" data-index="${idx}">
+          <label style="display:flex; align-items:center; gap:8px; cursor:pointer; flex:1; font-weight:600; color:#1e293b; font-size:0.9rem;">
+            <input type="checkbox" class="perm-active-toggle" data-name="${escapeHtml(m.name)}" ${isChecked ? 'checked' : ''}>
+            <span>👤 ${escapeHtml(m.name)}</span>
+            ${isChecked ? '<span style="font-size:0.75rem; color:#16a34a; background:#dcfce7; padding:1px 6px; border-radius:4px; font-weight:500;">啟用中</span>' : '<span style="font-size:0.75rem; color:#94a3b8; background:#f1f5f9; padding:1px 6px; border-radius:4px; font-weight:500;">已停用</span>'}
+          </label>
+          <button type="button" class="btn-delete-member" data-name="${escapeHtml(m.name)}" title="自名冊中刪除此同仁">🗑️ 刪除</button>
+        </div>
+      `;
+    }).join("");
+
+    // 綁定啟用/停用開關
+    activeMembersListContainer.querySelectorAll(".perm-active-toggle").forEach(cb => {
+      cb.addEventListener("change", (e) => {
+        const name = e.target.dataset.name;
+        if (e.target.checked) {
+          if (!ACTIVE_SALES_MEMBERS.includes(name)) ACTIVE_SALES_MEMBERS.push(name);
+        } else {
+          ACTIVE_SALES_MEMBERS = ACTIVE_SALES_MEMBERS.filter(x => x !== name);
+        }
+        renderActiveMembersList();
+        populatePermModal(permTargetUserSelect ? permTargetUserSelect.value : null);
+      });
+    });
+
+    // 綁定刪除同仁按鈕
+    activeMembersListContainer.querySelectorAll(".btn-delete-member").forEach(btn => {
+      btn.addEventListener("click", (e) => {
+        const name = e.target.dataset.name;
+        if (confirm(`確定要將同仁「${name}」自人員名冊中刪除嗎？`)) {
+          ALL_CONFIGURED_MEMBERS = ALL_CONFIGURED_MEMBERS.filter(m => m.name !== name);
+          ACTIVE_SALES_MEMBERS = ACTIVE_SALES_MEMBERS.filter(x => x !== name);
+          if (deletedSalesMembers.indexOf(name) === -1) deletedSalesMembers.push(name);
+          renderActiveMembersList();
+          populatePermModal(permTargetUserSelect ? permTargetUserSelect.value : null);
+        }
+      });
+    });
+  }
+
+  // 新增同仁
+  if (btnAddNewMember && inputNewMemberName) {
+    btnAddNewMember.addEventListener("click", () => {
+      const newName = (inputNewMemberName.value || "").trim().replace(/^👤\s*/, "");
+      if (!newName) {
+        alert("請輸入同仁姓名");
+        return;
+      }
+      if (ALL_CONFIGURED_MEMBERS.some(m => m.name === newName)) {
+        alert(`同仁「${newName}」已在名冊中`);
+        return;
+      }
+      ALL_CONFIGURED_MEMBERS.push({ name: newName, active: true });
+      if (!ACTIVE_SALES_MEMBERS.includes(newName)) ACTIVE_SALES_MEMBERS.push(newName);
+      if (addedSalesMembers.indexOf(newName) === -1) addedSalesMembers.push(newName);
+      inputNewMemberName.value = "";
+      renderActiveMembersList();
+      populatePermModal(newName);
+      showToast(`已新增同仁「${newName}」（請點擊下方儲存完成雲端同步）`, "info");
+    });
+  }
+
+  // 刷新全系統所有業務人員下拉選單 (以 ACTIVE_SALES_MEMBERS 為唯一來源，移除非在職/非北區人員)
+  function refreshAllSalesDropdowns() {
+    ALL_SALES_MEMBERS = [...ACTIVE_SALES_MEMBERS];
+
+    // 1. 久未聯繫負責業務篩選選單
+    if (selectFollowUpSales) {
+      const cur = selectFollowUpSales.value || "";
+      selectFollowUpSales.innerHTML = `
+        <option value="">-- 全部業務員 --</option>
+        ${ACTIVE_SALES_MEMBERS.map(m => `<option value="${m}" ${m === cur ? 'selected' : ''}>${m}</option>`).join("")}
+      `;
+    }
+
+    // 2. 指派他人運作選單
+    if (reassignNewOwnerSelect) {
+      const cur = reassignNewOwnerSelect.value || "";
+      reassignNewOwnerSelect.innerHTML = ACTIVE_SALES_MEMBERS.map(m => `<option value="${m}" ${m === cur ? 'selected' : ''}>👤 ${m}</option>`).join("");
+    }
+
+    // 3. 任務交辦受派業務選單
+    if (assignFollowUpNewOwnerSelect) {
+      const cur = assignFollowUpNewOwnerSelect.value || "";
+      assignFollowUpNewOwnerSelect.innerHTML = ACTIVE_SALES_MEMBERS.map(m => `<option value="${m}" ${m === cur ? 'selected' : ''}>👤 ${m}</option>`).join("");
+    }
+
+    // 4. 日報方針交辦業務選單
+    if (ogsmSupervisorAssignee) {
+      const cur = ogsmSupervisorAssignee.value || "";
+      ogsmSupervisorAssignee.innerHTML = ACTIVE_SALES_MEMBERS.map(m => `<option value="${m}" ${m === cur ? 'selected' : ''}>👤 ${m}</option>`).join("");
+    }
+
+    // 5. CRM 商機月報人員選單
+    if (monthlyReportSalesSelect && isCurrentUserManager()) {
+      const cur = monthlyReportSalesSelect.value || "";
+      monthlyReportSalesSelect.innerHTML = `
+        <option value="">-- 全體業務總覽 --</option>
+        ${ACTIVE_SALES_MEMBERS.map(m => `<option value="${m}" ${m === cur ? 'selected' : ''}>${m}</option>`).join("")}
+      `;
+    }
+
+    // 6. OGSM 日報月報人員選單
+    if (ogsmReportSalesSelect && isCurrentUserManager()) {
+      const cur = ogsmReportSalesSelect.value || "";
+      ogsmReportSalesSelect.innerHTML = `
+        <option value="">-- 全體業務總覽 --</option>
+        ${ACTIVE_SALES_MEMBERS.map(m => `<option value="${m}" ${m === cur ? 'selected' : ''}>${m}</option>`).join("")}
+      `;
+    }
+  }
+
   async function fetchViewPermissions() {
     try {
       const res = await fetch(`${GAS_URL}?action=get_view_permissions&viewer=${encodeURIComponent(getSalesName())}`);
       if (!res.ok) return;
       const data = await res.json();
-      if (data && data.status === "ok" && data.permissions) {
-        cachedViewPermissions = data.permissions;
+      if (data && data.status === "ok") {
+        if (data.permissions) cachedViewPermissions = data.permissions;
+        if (Array.isArray(data.active_sales_members) && data.active_sales_members.length > 0) {
+          ACTIVE_SALES_MEMBERS = data.active_sales_members;
+          localStorage.setItem("active_sales_members_cache", JSON.stringify(ACTIVE_SALES_MEMBERS));
+        }
+        if (Array.isArray(data.all_members) && data.all_members.length > 0) {
+          ALL_CONFIGURED_MEMBERS = data.all_members;
+          localStorage.setItem("all_configured_members_cache", JSON.stringify(ALL_CONFIGURED_MEMBERS));
+        }
+        refreshAllSalesDropdowns();
       }
     } catch(e) {
       console.warn("載入檢視權限異常:", e);
@@ -3735,17 +3947,18 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function populatePermModal(targetUser) {
+    renderActiveMembersList();
     if (!permTargetUserSelect || !permMembersCheckboxContainer) return;
     
-    const user = targetUser || permTargetUserSelect.value || ORDERED_SALES_MEMBERS[0];
-    permTargetUserSelect.innerHTML = ORDERED_SALES_MEMBERS.map(m => {
+    const user = targetUser || permTargetUserSelect.value || ACTIVE_SALES_MEMBERS[0] || ORDERED_SALES_MEMBERS[0];
+    permTargetUserSelect.innerHTML = ACTIVE_SALES_MEMBERS.map(m => {
       return `<option value="${m}" ${m === user ? "selected" : ""}>👤 ${m}</option>`;
     }).join("");
     permTargetUserSelect.value = user;
 
     const allowed = (cachedViewPermissions && cachedViewPermissions[user]) ? cachedViewPermissions[user] : [user];
 
-    permMembersCheckboxContainer.innerHTML = ORDERED_SALES_MEMBERS.map(m => {
+    permMembersCheckboxContainer.innerHTML = ACTIVE_SALES_MEMBERS.map(m => {
       const isChecked = allowed.includes(m);
       return `
         <label style="display:flex; align-items:center; gap:6px; font-size:0.85rem; color:#1e293b; cursor:pointer; background:#ffffff; padding:6px 8px; border-radius:4px; border:1px solid #cbd5e1;">
@@ -3758,9 +3971,18 @@ document.addEventListener("DOMContentLoaded", () => {
 
   if (btnOpenPermModal) {
     btnOpenPermModal.addEventListener("click", async () => {
-      await fetchViewPermissions();
+      if (!isViewerWeiSong()) {
+        showToast("⚠️ 僅曾維崧主管具備權限管理功能", "warning");
+        return;
+      }
+      // 預設切至 Tab 1 在職名單管理
+      if (btnTabPermMembers) btnTabPermMembers.click();
       populatePermModal(permTargetUserSelect ? permTargetUserSelect.value : null);
       if (permModal) permModal.classList.remove("hidden");
+      // 背景靜默更新雲端最新名單
+      fetchViewPermissions().then(() => {
+        populatePermModal(permTargetUserSelect ? permTargetUserSelect.value : null);
+      });
     });
   }
 
@@ -3798,52 +4020,64 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
+  // 💾 儲存權限設定與在職名冊 (樂觀更新 Optimistic UI，秒開秒存)
   if (btnSavePermissions) {
-    btnSavePermissions.addEventListener("click", async () => {
+    btnSavePermissions.addEventListener("click", () => {
       const targetUser = permTargetUserSelect ? permTargetUserSelect.value : "";
-      if (!targetUser) return;
-
       const checkedMembers = [];
-      permMembersCheckboxContainer.querySelectorAll(".perm-member-checkbox:checked").forEach(cb => {
-        checkedMembers.push(cb.value);
-      });
-
-      if (!checkedMembers.includes(targetUser)) {
+      if (permMembersCheckboxContainer) {
+        permMembersCheckboxContainer.querySelectorAll(".perm-member-checkbox:checked").forEach(cb => {
+          checkedMembers.push(cb.value);
+        });
+      }
+      if (targetUser && !checkedMembers.includes(targetUser)) {
         checkedMembers.unshift(targetUser);
       }
 
-      btnSavePermissions.disabled = true;
-      btnSavePermissions.textContent = "⏳ 儲存中...";
+      // 1. 立即樂觀更新本機快取與所有選單
+      localStorage.setItem("active_sales_members_cache", JSON.stringify(ACTIVE_SALES_MEMBERS));
+      localStorage.setItem("all_configured_members_cache", JSON.stringify(ALL_CONFIGURED_MEMBERS));
+      if (targetUser) cachedViewPermissions[targetUser] = checkedMembers;
+      refreshAllSalesDropdowns();
 
-      try {
-        const params = new URLSearchParams({
+      // 2. 立即提示成功並關閉對話盒
+      showToast("✅ 已成功儲存在職名單與檢視權限設定", "success");
+      if (permModal) permModal.classList.add("hidden");
+
+      // 3. 背景非同步同步至 Google 試算表
+      const activeStr = ACTIVE_SALES_MEMBERS.join(",");
+      const deletedStr = deletedSalesMembers.join(",");
+      const addedStr = addedSalesMembers.join(",");
+
+      const paramsActive = new URLSearchParams({
+        action: "save_active_sales_members",
+        viewer: getSalesName(),
+        active_members: activeStr,
+        deleted_members: deletedStr,
+        added_members: addedStr
+      });
+
+      fetch(`${GAS_URL}?${paramsActive.toString()}`).then(res => res.json()).then(data => {
+        addedSalesMembers = [];
+        deletedSalesMembers = [];
+      }).catch(err => console.warn("背景同步在職名單異常:", err));
+
+      if (targetUser) {
+        const paramsPerm = new URLSearchParams({
           action: "save_view_permissions",
           viewer: getSalesName(),
           target_user: targetUser,
           allowed_members: checkedMembers.join(",")
         });
-        const res = await fetch(`${GAS_URL}?${params.toString()}`);
-        const data = await res.json();
-        if (data && data.status === "ok") {
-          showToast(`✅ 已成功儲存「${targetUser}」的檢視權限`, "success");
-          cachedViewPermissions[targetUser] = checkedMembers;
-          if (permModal) permModal.classList.add("hidden");
+        fetch(`${GAS_URL}?${paramsPerm.toString()}`).catch(err => console.warn("背景同步調閱權限異常:", err));
+      }
 
-          teamDailyCache.clear();
-          if (currentViewingDate) {
-            loadTeamDailyView(currentViewingDate, true);
-          }
-          if (typeof loadOgsmTeamDots === "function") {
-            loadOgsmTeamDots(ogsmCurrentYear, ogsmCurrentMonth, true);
-          }
-        } else {
-          alert("儲存失敗: " + (data && data.msg ? data.msg : "未知原因"));
-        }
-      } catch(err) {
-        alert("儲存異常: " + err.message);
-      } finally {
-        btnSavePermissions.disabled = false;
-        btnSavePermissions.textContent = "💾 儲存權限設定";
+      teamDailyCache.clear();
+      if (currentViewingDate) {
+        loadTeamDailyView(currentViewingDate, true);
+      }
+      if (typeof loadOgsmTeamDots === "function") {
+        loadOgsmTeamDots(ogsmCurrentYear, ogsmCurrentMonth, true);
       }
     });
   }
@@ -4413,14 +4647,14 @@ document.addEventListener("DOMContentLoaded", () => {
       monthlyReportDateDisplay.textContent = `${monthlyReportStartDate.value.replace(/-/g, "/")} ~ ${monthlyReportEndDate.value.replace(/-/g, "/")}`;
     }
 
-    // 初始化業務人員清單 (主管可選全部/個別，一般業務嚴格鎖定自己)
+    // 初始化業務人員清單 (移除非北區與未啟用人員，以 ACTIVE_SALES_MEMBERS 為唯一來源)
     if (monthlyReportSalesSelect) {
       if (isCurrentUserManager()) {
         const cur = monthlyReportSalesSelect.value || "";
         monthlyReportSalesSelect.disabled = false;
         monthlyReportSalesSelect.innerHTML = `
-          <option value="">-- 全體業務 (主管總覽) --</option>
-          ${ALL_SALES_MEMBERS.map(m => `<option value="${m}" ${m === cur ? "selected" : ""}>${m}</option>`).join("")}
+          <option value="">-- 全體業務總覽 --</option>
+          ${ACTIVE_SALES_MEMBERS.map(m => `<option value="${m}" ${m === cur ? "selected" : ""}>${m}</option>`).join("")}
         `;
       } else {
         const myName = getSalesName();
@@ -4479,16 +4713,13 @@ document.addEventListener("DOMContentLoaded", () => {
         // 寫入 SWR 快取
         crmReportCacheMap.set(cacheKey, { records: currentMonthlyReportRecords, all_sales: data.all_sales, timestamp: Date.now() });
 
-        // 主管模式下動態補完真實業務名單
-        if (Array.isArray(data.all_sales) && data.all_sales.length > 0 && isCurrentUserManager()) {
-          const currentSelected = monthlyReportSalesSelect ? monthlyReportSalesSelect.value : "";
-          ALL_SALES_MEMBERS = sortSalesMembers(data.all_sales.filter(Boolean));
-          if (monthlyReportSalesSelect) {
-            monthlyReportSalesSelect.innerHTML = `
-              <option value="">-- 全體業務 (主管總覽) --</option>
-              ${ALL_SALES_MEMBERS.map(m => `<option value="${m}" ${m === currentSelected ? "selected" : ""}>${m}</option>`).join("")}
-            `;
-          }
+        // 僅保留 ACTIVE_SALES_MEMBERS 在職同仁，嚴格移除非北區與未啟用人員
+        if (isCurrentUserManager() && monthlyReportSalesSelect) {
+          const currentSelected = monthlyReportSalesSelect.value;
+          monthlyReportSalesSelect.innerHTML = `
+            <option value="">-- 全體業務總覽 --</option>
+            ${ACTIVE_SALES_MEMBERS.map(m => `<option value="${m}" ${m === currentSelected ? "selected" : ""}>${m}</option>`).join("")}
+          `;
         }
 
         renderMonthlyReportTable(currentMonthlyReportRecords);
@@ -4548,7 +4779,7 @@ document.addEventListener("DOMContentLoaded", () => {
         <tr class="clickable-row" data-crm-row-idx="${rIdx}" title="點選直接修改此商機">
           <td class="sticky-col-client" title="${escapeHtml(r.client_name || '-')}">${escapeHtml(r.client_name || '-')}</td>
           <td style="white-space:nowrap; font-weight:600; color:#1e40af;">${escapeHtml(visitDateStr)}</td>
-          <td class="col-sales">${escapeHtml(r.sales_name || '-')}</td>
+          <td class="col-sales">${escapeHtml(r.client_owner || r.sales_name || '-')}</td>
           <td class="col-case">${escapeHtml(r.case_name || '-')}</td>
           <td class="col-month" style="text-align:center;">${escapeHtml(r.target_month || '-')}</td>
           <td class="col-amount" style="text-align:right;">${r.estimated_amount ? r.estimated_amount + ' 萬' : '-'}</td>
@@ -4627,8 +4858,8 @@ document.addEventListener("DOMContentLoaded", () => {
         const cur = ogsmReportSalesSelect.value || "";
         ogsmReportSalesSelect.disabled = false;
         ogsmReportSalesSelect.innerHTML = `
-          <option value="">-- 全體業務 (主管總覽) --</option>
-          ${ALL_SALES_MEMBERS.map(m => `<option value="${m}" ${m === cur ? "selected" : ""}>${m}</option>`).join("")}
+          <option value="">-- 全體業務總覽 --</option>
+          ${ACTIVE_SALES_MEMBERS.map(m => `<option value="${m}" ${m === cur ? "selected" : ""}>${m}</option>`).join("")}
         `;
       } else {
         const myName = getSalesName();
@@ -4681,16 +4912,13 @@ document.addEventListener("DOMContentLoaded", () => {
         currentOgsmReportRecords = data.records;
         ogsmReportCacheMap.set(cacheKey, { records: currentOgsmReportRecords, all_sales: data.all_sales, timestamp: Date.now() });
 
-        // 主管模式下動態補完真實業務名單
-        if (Array.isArray(data.all_sales) && data.all_sales.length > 0 && isCurrentUserManager()) {
-          const currentSelected = ogsmReportSalesSelect ? ogsmReportSalesSelect.value : "";
-          ALL_SALES_MEMBERS = sortSalesMembers(data.all_sales.filter(Boolean));
-          if (ogsmReportSalesSelect) {
-            ogsmReportSalesSelect.innerHTML = `
-              <option value="">-- 全體業務 (主管總覽) --</option>
-              ${ALL_SALES_MEMBERS.map(m => `<option value="${m}" ${m === currentSelected ? "selected" : ""}>${m}</option>`).join("")}
-            `;
-          }
+        // 僅保留 ACTIVE_SALES_MEMBERS 在職同仁，嚴格移除非北區與未啟用人員
+        if (isCurrentUserManager() && ogsmReportSalesSelect) {
+          const currentSelected = ogsmReportSalesSelect.value;
+          ogsmReportSalesSelect.innerHTML = `
+            <option value="">-- 全體業務總覽 --</option>
+            ${ACTIVE_SALES_MEMBERS.map(m => `<option value="${m}" ${m === currentSelected ? "selected" : ""}>${m}</option>`).join("")}
+          `;
         }
 
         renderOgsmReportTable(currentOgsmReportRecords);
@@ -4734,7 +4962,7 @@ document.addEventListener("DOMContentLoaded", () => {
           <td class="sticky-col-client" title="${escapeHtml(r.client_name || '-')}">${escapeHtml(r.client_name || '-')}</td>
           <td style="white-space:nowrap; font-weight:600; color:#1e40af;">${escapeHtml(r.date || '-')}</td>
           <td style="white-space:nowrap; font-weight:600; text-align:center;">${escapeHtml(r.sales_name || '-')}</td>
-          <td style="text-align:center;"><span class="rating-badge ${ratingClass}">${escapeHtml(ratingRaw)}</span></td>
+          <td style="text-align:center;"><span class="rating-badge ${ratingClass}">${escapeHtml(formatClientTier(ratingRaw))}</span></td>
           <td style="color:#2563eb; line-height:1.4;">${escapeHtml(r.plan_promotion || '-')}</td>
           <td style="color:#334155; line-height:1.4;">${escapeHtml(r.actual_progress || '-')}</td>
           <td style="font-size:0.75rem; color:#64748b; white-space:nowrap;">${escapeHtml(r.updated_at || '-')}</td>
@@ -4783,13 +5011,39 @@ document.addEventListener("DOMContentLoaded", () => {
       if (!found && rawRating) {
         const dynamicOpt = document.createElement("option");
         dynamicOpt.value = rawRating;
-        dynamicOpt.textContent = rawRating;
+        dynamicOpt.textContent = formatClientTier(rawRating);
         editOgsmClientRating.appendChild(dynamicOpt);
       }
-      editOgsmClientRating.value = rawRating || "A";
+      editOgsmClientRating.value = rawRating || "直賣A級";
     }
     if (editOgsmPlanPromotion) editOgsmPlanPromotion.value = record.plan_promotion || "";
     if (editOgsmActualProgress) editOgsmActualProgress.value = record.actual_progress || "";
+
+    // 🛡️ 方案 A 防篡改保護：非本人填報之日報，所有原始欄位強制灰底鎖死唯讀
+    const myName = getSalesName();
+    const isOwner = (record.sales_name === myName);
+    const isMgr = isCurrentUserManager();
+
+    if (editOgsmDate) {
+      editOgsmDate.disabled = !isOwner;
+      editOgsmDate.style.background = isOwner ? '#ffffff' : '#f1f5f9';
+    }
+    if (editOgsmClientRating) {
+      editOgsmClientRating.disabled = !isOwner;
+      editOgsmClientRating.style.background = isOwner ? '#ffffff' : '#f1f5f9';
+    }
+    if (editOgsmPlanPromotion) {
+      editOgsmPlanPromotion.readOnly = !isOwner;
+      editOgsmPlanPromotion.style.background = isOwner ? '#ffffff' : '#f1f5f9';
+    }
+    if (editOgsmActualProgress) {
+      editOgsmActualProgress.readOnly = !isOwner;
+      editOgsmActualProgress.style.background = isOwner ? '#ffffff' : '#f1f5f9';
+    }
+
+    if (btnSaveOgsmCaseEdit) {
+      btnSaveOgsmCaseEdit.style.display = isOwner ? '' : 'none';
+    }
 
     ogsmCaseEditModal.classList.remove("hidden");
   }
@@ -4811,14 +5065,12 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   if (btnSaveOgsmCaseEdit) {
-    btnSaveOgsmCaseEdit.addEventListener("click", async () => {
-      if (btnSaveOgsmCaseEdit.disabled) return;
-
+    btnSaveOgsmCaseEdit.addEventListener("click", () => {
       const rowIndex = editOgsmRowIndex?.value || "";
       const salesName = editOgsmSalesName?.value || getSalesName();
       const dateStr = editOgsmDate?.value || "";
       const clientName = editOgsmClientName?.value || "";
-      const clientRating = editOgsmClientRating?.value || "A";
+      const clientRating = editOgsmClientRating?.value || "直賣A級";
       const planPromotion = editOgsmPlanPromotion?.value?.trim() || "";
       const actualProgress = editOgsmActualProgress?.value?.trim() || "";
 
@@ -4827,40 +5079,40 @@ document.addEventListener("DOMContentLoaded", () => {
         return;
       }
 
-      btnSaveOgsmCaseEdit.disabled = true;
-      btnSaveOgsmCaseEdit.textContent = "⏳ 儲存中...";
-
-      try {
-        const params = new URLSearchParams({
-          action: "save_ogsm",
-          user_name: salesName,
-          row_index: rowIndex,
-          date: dateStr,
-          client_name: clientName,
-          client_type: clientRating,
-          content: planPromotion,
-          result: actualProgress
-        });
-
-        const res = await fetch(`${GAS_URL}?${params.toString()}`);
-        const data = await res.json();
-
-        if (data.status === "ok") {
-          showToast("✅ OGSM 拜訪紀錄已更新", "success");
-          closeOgsmCaseEditModal();
-          invalidateMonthlyReportCaches();
-          // 自動局部重載 OGSM 月報表格
-          loadOgsmMonthlyReportData(true);
-        } else {
-          alert("更新失敗：" + (data.msg || "未知錯誤"));
+      // 1. 立即樂觀更新 Optimistic UI (秒開秒關)
+      if (currentOgsmReportRecords) {
+        const target = currentOgsmReportRecords.find(r => String(r.row_index) === String(rowIndex));
+        if (target) {
+          target.date = dateStr;
+          target.client_rating = clientRating;
+          target.plan_promotion = planPromotion;
+          target.actual_progress = actualProgress;
+          target.updated_at = "剛剛";
+          renderOgsmReportTable(currentOgsmReportRecords);
         }
-      } catch (err) {
-        console.warn("更新 OGSM 失敗:", err);
-        alert("連線失敗：" + err.message);
-      } finally {
-        btnSaveOgsmCaseEdit.disabled = false;
-        btnSaveOgsmCaseEdit.textContent = "💾 儲存修改";
       }
+
+      showToast("✅ OGSM 拜訪紀錄已更新", "success");
+      closeOgsmCaseEditModal();
+      invalidateMonthlyReportCaches();
+
+      // 2. 背景非同步同步至 Google 試算表
+      const params = new URLSearchParams({
+        action: "save_ogsm",
+        user_name: salesName,
+        row_index: rowIndex,
+        date: dateStr,
+        client_name: clientName,
+        client_type: clientRating,
+        content: planPromotion,
+        result: actualProgress
+      });
+
+      fetch(`${GAS_URL}?${params.toString()}`).then(res => res.json()).then(data => {
+        if (data.status !== "ok") {
+          console.warn("後端儲存 OGSM 未完全成功:", data.msg);
+        }
+      }).catch(err => console.warn("背景同步 OGSM 失敗:", err));
     });
   }
 
@@ -4994,7 +5246,7 @@ document.addEventListener("DOMContentLoaded", () => {
         return [
           `"${(r.client_name || '').replace(/"/g, '""')}"`,
           `"${(visitDateStr || '').replace(/"/g, '""')}"`,
-          `"${(r.sales_name || '').replace(/"/g, '""')}"`,
+          `"${((r.client_owner || r.sales_name) || '').replace(/"/g, '""')}"`,
           `"${(r.case_name || '').replace(/"/g, '""')}"`,
           `"${(r.target_month || '').replace(/"/g, '""')}"`,
           r.estimated_amount || 0,
@@ -5048,7 +5300,7 @@ document.addEventListener("DOMContentLoaded", () => {
         <tr>
           <td style="padding:6px; border:1px solid #cbd5e1; font-weight:bold;">${escapeHtml(r.client_name)}</td>
           <td style="padding:6px; border:1px solid #cbd5e1; white-space:nowrap; font-weight:600; color:#1e40af;">${escapeHtml(visitDateStr)}</td>
-          <td style="padding:6px; border:1px solid #cbd5e1; text-align:center;">${escapeHtml(r.sales_name)}</td>
+          <td style="padding:6px; border:1px solid #cbd5e1; text-align:center;">${escapeHtml(r.client_owner || r.sales_name || '-')}</td>
           <td style="padding:6px; border:1px solid #cbd5e1;">${escapeHtml(r.case_name || '-')}</td>
           <td style="padding:6px; border:1px solid #cbd5e1; text-align:center;">${escapeHtml(r.target_month || '-')}</td>
           <td style="padding:6px; border:1px solid #cbd5e1; text-align:right;">${r.estimated_amount ? r.estimated_amount + ' 萬' : '-'}</td>
@@ -5354,26 +5606,39 @@ document.addEventListener("DOMContentLoaded", () => {
         return;
       }
 
-      const matches = MOCK_CUSTOMERS.filter(c => {
-        const name = (c.name || "").toLowerCase();
+      // 🚀 圖五：客戶名稱快選去重與前 4 字截取 (如「贊翔實業」)
+      const seenShortNames = new Set();
+      const uniqueMatches = [];
+      for (let i = 0; i < MOCK_CUSTOMERS.length; i++) {
+        const c = MOCK_CUSTOMERS[i];
+        const rawName = (c.name || c.company_name || "").trim();
+        if (!rawName) continue;
+        const name = rawName.toLowerCase();
         const comp = (c.company_name || "").toLowerCase();
         const code = (c.customer_code || "").toLowerCase();
-        return name.includes(val) || comp.includes(val) || code.includes(val);
-      }).slice(0, 6);
+        if (name.includes(val) || comp.includes(val) || code.includes(val)) {
+          // 截取前 4 個字作為公司簡稱
+          const shortName = rawName.length > 4 ? rawName.slice(0, 4) : rawName;
+          if (!seenShortNames.has(shortName)) {
+            seenShortNames.add(shortName);
+            uniqueMatches.push(shortName);
+            if (uniqueMatches.length >= 6) break;
+          }
+        }
+      }
 
-      if (matches.length === 0) {
+      if (uniqueMatches.length === 0) {
         ogsmClientAutocomplete.classList.add("hidden");
         return;
       }
 
-      ogsmClientAutocomplete.innerHTML = matches.map(m => {
-        const displayName = m.company_name ? `${m.name} <span style="font-size:0.8rem; color:#64748b;">(${m.company_name})</span>` : m.name;
-        return `<div class="autocomplete-item" data-name="${encodeURIComponent(m.name)}">${displayName}</div>`;
+      ogsmClientAutocomplete.innerHTML = uniqueMatches.map(shortName => {
+        return `<div class="autocomplete-item" data-name="${encodeURIComponent(shortName)}">${escapeHtml(shortName)}</div>`;
       }).join("");
 
       ogsmClientAutocomplete.classList.remove("hidden");
 
-      // 綁定選項點擊帶入
+      // 綁定選項點擊帶入前 4 字簡稱
       ogsmClientAutocomplete.querySelectorAll(".autocomplete-item").forEach(item => {
         item.addEventListener("click", () => {
           const selectedName = decodeURIComponent(item.dataset.name);
@@ -6478,6 +6743,9 @@ document.addEventListener("DOMContentLoaded", () => {
   let activeReassignTarget = null;
   let activePendingReviews = [];
 
+  const selectFollowUpFilter = document.getElementById("selectFollowUpFilter");
+  const selectFollowUpSales = document.getElementById("selectFollowUpSales");
+
   // 📋 主管督導交辦管考表狀態與 DOM 元素
   let supervisorPendingTasks = [];
   let supervisorHistoryTasks = [];
@@ -6573,9 +6841,22 @@ document.addEventListener("DOMContentLoaded", () => {
     if (assignFollowUpModal) assignFollowUpModal.classList.add("hidden");
   });
 
-  // 跟催清單即時關鍵字搜尋
+  // 跟催清單即時關鍵字搜尋與下拉選單監聽
   if (followUpSearchInput) {
     followUpSearchInput.addEventListener("input", () => {
+      renderFollowUpList();
+    });
+  }
+
+  if (selectFollowUpFilter) {
+    selectFollowUpFilter.addEventListener("change", () => {
+      currentFollowUpFilter = selectFollowUpFilter.value;
+      renderFollowUpList();
+    });
+  }
+
+  if (selectFollowUpSales) {
+    selectFollowUpSales.addEventListener("change", () => {
       renderFollowUpList();
     });
   }
@@ -6583,6 +6864,7 @@ document.addEventListener("DOMContentLoaded", () => {
   // 篩選標籤點擊切換
   function setFollowUpFilter(filter) {
     currentFollowUpFilter = filter;
+    if (selectFollowUpFilter) selectFollowUpFilter.value = filter;
     if (btnFilterFollowUpAll) btnFilterFollowUpAll.classList.toggle("active", filter === "all");
     if (btnFilterFollowUpReassigned) btnFilterFollowUpReassigned.classList.toggle("active", filter === "reassigned");
     if (btnFilterFollowUpRed) btnFilterFollowUpRed.classList.toggle("active", filter === "red");
@@ -6889,37 +7171,37 @@ document.addEventListener("DOMContentLoaded", () => {
         threshold = settings.days_distributor;
         if (diffDays > threshold) {
           c.alert_level = "red";
-          c.alert_label = "久未聯繫";
+          c.alert_label = "A級客戶久未聯繫";
         } else {
           c.alert_level = "green";
           c.alert_label = "正常跟催中";
         }
       } else if (nature.indexOf("A") !== -1 || nature.indexOf("既有") !== -1) {
-        tierType = nature.indexOf("D-A") !== -1 ? "D-A 級" : "A 級";
+        tierType = (nature.indexOf("D-A") !== -1 || nature.indexOf("經銷") !== -1) ? "經銷A級" : "直賣A級";
         threshold = settings.days_a;
         if (diffDays > threshold) {
           c.alert_level = "red";
-          c.alert_label = "久未聯繫";
+          c.alert_label = "A級客戶久未聯繫";
         } else {
           c.alert_level = "green";
           c.alert_label = "正常跟催中";
         }
       } else if (nature.indexOf("B") !== -1) {
-        tierType = nature.indexOf("D-B") !== -1 ? "D-B 級" : "B 級";
+        tierType = (nature.indexOf("D-B") !== -1 || nature.indexOf("經銷") !== -1) ? "經銷B級" : "直賣B級";
         threshold = settings.days_b;
         if (diffDays > threshold) {
           c.alert_level = "yellow";
-          c.alert_label = "提醒關注";
+          c.alert_label = "B/C級拜訪提醒";
         } else {
           c.alert_level = "green";
           c.alert_label = "正常跟催中";
         }
       } else {
-        tierType = nature.indexOf("D-C") !== -1 ? "D-C 級" : "C 級";
+        tierType = (nature.indexOf("D-C") !== -1 || nature.indexOf("經銷") !== -1) ? "經銷C級" : "直賣C級";
         threshold = settings.days_c;
         if (diffDays > threshold) {
           c.alert_level = "yellow";
-          c.alert_label = "提醒關注";
+          c.alert_label = "B/C級拜訪提醒";
         } else {
           c.alert_level = "green";
           c.alert_label = "正常跟催中";
@@ -6977,7 +7259,7 @@ document.addEventListener("DOMContentLoaded", () => {
     renderFollowUpList();
   }
 
-  // 🔔 渲染頂部主管轉派新客戶提醒橫幅
+  // 🔔 渲染頂部新轉派客戶提醒橫幅
   function renderReassignedBanner(reassignedList) {
     if (!reassignedClientBanner || !reassignedBannerTitle) return;
 
@@ -6997,11 +7279,11 @@ document.addEventListener("DOMContentLoaded", () => {
     const count = reassignedList.length;
     const firstClient = reassignedList[0];
     const mgrName = firstClient.reassign_manager ? `【${firstClient.reassign_manager}】` : "";
-    reassignedBannerTitle.textContent = `🔔 主管${mgrName}轉派 ${count} 筆新客戶待聯繫：${firstClient.client_name}`;
+    reassignedBannerTitle.textContent = `🔔 ${mgrName}已指派他人運作 ${count} 筆新客戶待聯繫：${firstClient.client_name}`;
     if (reassignedBannerSub) {
       reassignedBannerSub.textContent = firstClient.reassign_note
-        ? `主管指示：${firstClient.reassign_note}（轉派日：${firstClient.reassign_date}）`
-        : `轉派日期：${firstClient.reassign_date}，請盡速安排首次拜訪或排程建檔。`;
+        ? `交辦事項：${firstClient.reassign_note}（指派日：${firstClient.reassign_date}）`
+        : `指派日期：${firstClient.reassign_date}，請盡速安排首次拜訪或排程建檔。`;
     }
 
     reassignedClientBanner.classList.remove("hidden");
@@ -7026,6 +7308,7 @@ document.addEventListener("DOMContentLoaded", () => {
   function renderFollowUpList() {
     if (!followUpListContainer) return;
     const keyword = (followUpSearchInput ? followUpSearchInput.value : "").trim().toLowerCase();
+    const selectedSales = (selectFollowUpSales ? selectFollowUpSales.value : "").trim();
 
     let filtered = activeFollowUpList;
     if (currentFollowUpFilter === "reassigned") {
@@ -7036,17 +7319,26 @@ document.addEventListener("DOMContentLoaded", () => {
       filtered = filtered.filter(i => i.alert_level === "yellow");
     }
 
+    // 業務人員分類篩選
+    if (selectedSales) {
+      filtered = filtered.filter(i => (i.client_owner || "").trim() === selectedSales);
+    }
+
+    // 關鍵字比對 (客戶名稱、分級、業務、案件名稱、推廣內容或備註)
     if (keyword) {
       filtered = filtered.filter(i =>
-        i.client_name.toLowerCase().indexOf(keyword) !== -1 ||
+        (i.client_name && i.client_name.toLowerCase().indexOf(keyword) !== -1) ||
         (i.tier_display && i.tier_display.toLowerCase().indexOf(keyword) !== -1) ||
-        (i.latest_case_name && i.latest_case_name.toLowerCase().indexOf(keyword) !== -1)
+        (i.client_owner && i.client_owner.toLowerCase().indexOf(keyword) !== -1) ||
+        (i.latest_case_name && i.latest_case_name.toLowerCase().indexOf(keyword) !== -1) ||
+        (i.reassign_note && i.reassign_note.toLowerCase().indexOf(keyword) !== -1) ||
+        (i.reassigned_info && i.reassigned_info.toLowerCase().indexOf(keyword) !== -1)
       );
     }
 
     if (filtered.length === 0) {
       if (currentFollowUpFilter === "reassigned") {
-        followUpListContainer.innerHTML = '<div style="text-align:center; padding:30px; color:#64748b; font-size:0.88rem;">🎉 目前無任何主管轉派之待聯繫客戶</div>';
+        followUpListContainer.innerHTML = '<div style="text-align:center; padding:30px; color:#64748b; font-size:0.88rem;">🎉 目前無任何指派他人運作之待聯繫客戶</div>';
       } else {
         followUpListContainer.innerHTML = '<div style="text-align:center; padding:30px; color:#64748b; font-size:0.88rem;">🎉 目前無任何久未聯繫提醒客戶</div>';
       }
@@ -7059,27 +7351,27 @@ document.addEventListener("DOMContentLoaded", () => {
       let taskDirectiveHtml = "";
       if (pendingTask) {
         if (pendingTask.task_type === "覆核退回") {
-          taskBadge = `<span class="badge-status-yellow">⚠️ 主管退回</span>`;
+          taskBadge = `<span class="badge-status-yellow">⚠️ 退回繼續運作</span>`;
           taskDirectiveHtml = `
             <div style="background:#fffbeb; border:1px solid #fef08a; border-radius:6px; padding:6px 10px; margin-top:6px; font-size:0.8rem; color:#b45309; line-height:1.4;">
-              <b>⚠️ 主管退回指示：</b>${escapeHtml(pendingTask.manager_note || '請再次聯絡客戶了解現況')}
-              <div style="font-size:0.75rem; color:#92400e; margin-top:2px;">期限：${pendingTask.deadline} | 督導主管：${pendingTask.manager}</div>
+              <b>⚠️ 退回交辦事項：</b>${escapeHtml(pendingTask.manager_note || '請再次聯絡客戶了解現況')}
+              <div style="font-size:0.75rem; color:#92400e; margin-top:2px;">期限：${pendingTask.deadline} | 指派人：${pendingTask.manager}</div>
             </div>
           `;
         } else if (pendingTask.task_type === "久未聯繫跟催") {
-          taskBadge = `<span class="badge-reassigned">📢 督導跟催中</span>`;
+          taskBadge = `<span class="badge-reassigned">📢 任務跟催</span>`;
           taskDirectiveHtml = `
             <div style="background:#f5f3ff; border:1px solid #ddd6fe; border-radius:6px; padding:6px 10px; margin-top:6px; font-size:0.8rem; color:#6d28d9; line-height:1.4;">
-              <b>📢 主管跟催方針：</b>${escapeHtml(pendingTask.manager_note || '請於期限內排訪以完成銷案')}
-              <div style="font-size:0.75rem; color:#5b21b6; margin-top:2px;">要求期限：${pendingTask.deadline} | 指派主管：${pendingTask.manager}</div>
+              <b>📢 運作方向：</b>${escapeHtml(pendingTask.manager_note || '請於期限內排訪以完成銷案')}
+              <div style="font-size:0.75rem; color:#5b21b6; margin-top:2px;">要求期限：${pendingTask.deadline} | 指派人：${pendingTask.manager}</div>
             </div>
           `;
         } else if (pendingTask.task_type === "商機指派方針") {
-          taskBadge = `<span class="badge-reassigned">💡 商機方針交辦</span>`;
+          taskBadge = `<span class="badge-reassigned">💡 建議行動方案</span>`;
           taskDirectiveHtml = `
             <div style="background:#eff6ff; border:1px solid #bfdbfe; border-radius:6px; padding:6px 10px; margin-top:6px; font-size:0.8rem; color:#1d4ed8; line-height:1.4;">
-              <b>💡 主管推進策略：</b>${escapeHtml(pendingTask.manager_note || '')}
-              <div style="font-size:0.75rem; color:#1e40af; margin-top:2px;">期限：${pendingTask.deadline} | 督導：${pendingTask.manager}</div>
+              <b>💡 建議行動方案：</b>${escapeHtml(pendingTask.manager_note || '')}
+              <div style="font-size:0.75rem; color:#1e40af; margin-top:2px;">期限：${pendingTask.deadline} | 交辦人：${pendingTask.manager}</div>
             </div>
           `;
         }
@@ -7089,12 +7381,12 @@ document.addEventListener("DOMContentLoaded", () => {
         ? "card-border-purple"
         : (c.alert_level === "red" ? "card-border-red" : (c.alert_level === "yellow" ? "card-border-yellow" : "card-border-green"));
       const badgeClass = c.alert_level === "red" ? "badge-status-red" : (c.alert_level === "yellow" ? "badge-status-yellow" : "badge-status-green");
-      const reassignedBadge = c.is_pending_reassignment ? `<span class="badge-reassigned">👑 主管轉派</span>` : "";
+      const reassignedBadge = c.is_pending_reassignment ? `<span class="badge-reassigned">👑 指派他人運作</span>` : "";
       const daysText = c.diff_days >= 999 ? "無更新紀錄" : `${c.diff_days} 天前更新`;
       const dateInfo = c.reassign_date ? `📅 轉派日: ${c.reassign_date} (緩衝期)` : (c.visit_date ? `📅 最後拜訪: ${c.visit_date}` : "尚未拜訪");
       const reassignedDetailHtml = (c.is_pending_reassignment && c.reassigned_info) ? `
         <div class="reassigned-detail-box">
-          <b>👑 主管轉派說明：</b>${escapeHtml(c.reassigned_info)}
+          <b>👑 交辦事項：</b>${escapeHtml(c.reassigned_info)}
         </div>
       ` : "";
 
@@ -7103,7 +7395,7 @@ document.addEventListener("DOMContentLoaded", () => {
           <div class="follow-up-card-header">
             <div class="follow-up-client-title">
               <span class="follow-up-client-name">${escapeHtml(c.client_name)}</span>
-              <span class="badge-tier">${escapeHtml(c.tier_display)}</span>
+              <span class="badge-tier">${escapeHtml(formatClientTier(c.tier_display))}</span>
               ${taskBadge}
               ${reassignedBadge}
               <span class="${badgeClass}">${escapeHtml(c.alert_label)}</span>
@@ -7126,7 +7418,7 @@ document.addEventListener("DOMContentLoaded", () => {
           <div class="follow-up-card-actions">
             ${isCurrentUserManager() ? `
               <button type="button" class="btn-card-action btn-card-action-assign" data-client="${c.client_name}" data-owner="${c.client_owner}">
-                📢 指派跟催
+                📢 任務交辦
               </button>
             ` : ''}
             <button type="button" class="btn-card-action btn-card-action-nocontact" data-client="${c.client_name}" data-owner="${c.client_owner}" data-tier="${c.tier_display}" data-row="${c.row_index || ''}">
@@ -7184,48 +7476,51 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   if (btnConfirmSubmitNoContact) {
-    btnConfirmSubmitNoContact.addEventListener("click", async () => {
+    btnConfirmSubmitNoContact.addEventListener("click", () => {
       if (!activeNoContactTarget) return;
       const clientName = activeNoContactTarget.client_name;
       const rowIndex = activeNoContactTarget.row_index || "";
       const reasonType = noContactReasonType ? noContactReasonType.value : "價格無競爭優勢";
       const reasonDesc = noContactReasonDesc ? noContactReasonDesc.value.trim() : "";
 
-      btnConfirmSubmitNoContact.disabled = true;
-      btnConfirmSubmitNoContact.textContent = "⏳ 呈報中...";
+      // 1. 🚀 樂觀更新：立即關閉對話盒
+      if (noContactModal) noContactModal.classList.add("hidden");
 
-      try {
-        const params = new URLSearchParams({
-          action: "submit_client_no_contact",
-          client_name: clientName,
-          row_index: rowIndex,
-          user_name: getSalesName(),
-          reason_type: reasonType,
-          reason_desc: reasonDesc
-        });
+      // 2. 立即從前端清單中剔除並重算數量
+      activeFollowUpList = activeFollowUpList.filter(item => item.client_name !== clientName);
+      renderFollowUpList();
+      const urgentCount = activeFollowUpList.filter(item => item.alert_level === "red" || item.alert_level === "yellow").length;
+      const reassignedCount = activeFollowUpList.filter(item => item.is_pending_reassignment).length;
+      if (followUpBadge) {
+        const totalBadge = urgentCount + reassignedCount;
+        followUpBadge.textContent = totalBadge;
+        if (totalBadge > 0) followUpBadge.classList.remove("hidden");
+        else followUpBadge.classList.add("hidden");
+      }
+      if (followUpCount) followUpCount.textContent = urgentCount + reassignedCount;
 
-        const res = await fetch(`${GAS_URL}?${params.toString()}`);
-        const data = await res.json();
+      // 3. 立即顯示成功通知
+      showToast(`✅ 客戶「${clientName}」已轉送不聯繫客戶審查專區`, "success");
 
-        if (data.status === "ok") {
-          showToast(`✅ 客戶「${clientName}」已呈報至三大主管進行轉派覆核`, "success");
-          if (noContactModal) noContactModal.classList.add("hidden");
-          activeFollowUpList = activeFollowUpList.filter(item => item.client_name !== clientName);
-          renderFollowUpList();
-          const urgentCount = activeFollowUpList.filter(item => item.alert_level === "red" || item.alert_level === "yellow").length;
-          if (followUpBadge) followUpBadge.textContent = urgentCount;
-          if (followUpCount) followUpCount.textContent = urgentCount;
+      // 4. 背景非同步送出網路連線
+      const params = new URLSearchParams({
+        action: "submit_client_no_contact",
+        client_name: clientName,
+        row_index: rowIndex,
+        user_name: getSalesName(),
+        reason_type: reasonType,
+        reason_desc: reasonDesc
+      });
+
+      fetch(`${GAS_URL}?${params.toString()}`).then(res => res.json()).then(data => {
+        if (data && data.status === "ok") {
           if (isCurrentUserManager()) loadPendingReviews();
         } else {
-          alert("提報失敗：" + (data.msg || "未知錯誤"));
+          console.warn("轉送審查專區背景提示:", data && data.msg);
         }
-      } catch(err) {
-        console.error("提報不聯繫網路異常:", err);
-        alert("提報失敗，請檢查網路連線。");
-      } finally {
-        btnConfirmSubmitNoContact.disabled = false;
-        btnConfirmSubmitNoContact.textContent = "📤 確認呈報主管";
-      }
+      }).catch(err => {
+        console.error("轉送審查專區背景網路異常:", err);
+      });
     });
   }
 
@@ -7277,34 +7572,34 @@ document.addEventListener("DOMContentLoaded", () => {
         <div class="manager-review-card">
           <div class="manager-review-card-header">
             <div class="manager-review-title">
-              <span>🏢 ${item.client_name}</span>
-              <span class="badge-tier">${item.client_nature || '未分級'}</span>
-              <span class="badge-status-red">待主管覆核</span>
+              <span>🏢 ${escapeHtml(item.client_name)}</span>
+              <span class="badge-tier">${escapeHtml(formatClientTier(item.client_nature || '未分級'))}</span>
+              <span class="badge-status-red">待審查</span>
             </div>
-            <span style="font-size:0.78rem; color:#64748b;">${item.latest_update || ''}</span>
+            <span style="font-size:0.78rem; color:#64748b;">${escapeHtml(item.latest_update || '')}</span>
           </div>
 
           <div class="manager-review-meta">
-            <span>👤 原提報業務：<b>${item.client_owner || item.sales_name}</b></span>
-            <span>📅 最後拜訪：${item.visit_date || '無紀錄'}</span>
-            ${item.case_name ? `<span>💼 案件：${item.case_name}</span>` : ''}
+            <span>👤 提報業務：<b>${escapeHtml(item.client_owner || item.sales_name)}</b></span>
+            <span>📅 最後拜訪：${escapeHtml(item.visit_date || '無紀錄')}</span>
+            ${item.case_name ? `<span>💼 案件：${escapeHtml(item.case_name)}</span>` : ''}
             ${item.estimated_amount > 0 ? `<span>💰 金額：${item.estimated_amount}萬</span>` : ''}
           </div>
 
           <div class="manager-review-reason-box">
             <b>📝 提報不聯繫原因：</b><br>
-            ${item.no_contact_reason || '未提供具體原因說明'}
+            ${escapeHtml(item.no_contact_reason || '未提供具體原因說明')}
           </div>
 
           <div class="manager-review-actions">
             <button type="button" class="btn-mgr-reassign" data-client="${item.client_name}" data-row="${item.row_index}" data-owner="${item.client_owner}">
-              🔄 指派新業務接手
+              🔄 指派他人運作
             </button>
             <button type="button" class="btn-mgr-archive" data-client="${item.client_name}" data-row="${item.row_index}">
               📁 同意結案封存
             </button>
             <button type="button" class="btn-mgr-reject" data-client="${item.client_name}" data-row="${item.row_index}" data-owner="${item.client_owner}">
-              ↩️ 退回原業務
+              ↩️ 退回繼續運作
             </button>
           </div>
         </div>
@@ -7321,12 +7616,12 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
     managerReviewListContainer.querySelectorAll(".btn-mgr-archive").forEach(btn => {
-      btn.addEventListener("click", async () => {
+      btn.addEventListener("click", () => {
         const client = btn.getAttribute("data-client");
         const rowIndex = btn.getAttribute("data-row");
         if (!confirm(`確定同意將客戶「${client}」結案封存？\n\n封存後此客戶將不再發送任何拜訪提醒。`)) return;
 
-        await processReviewDecision({
+        processReviewDecision({
           row_index: rowIndex,
           client_name: client,
           review_action: "archive",
@@ -7336,14 +7631,14 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
     managerReviewListContainer.querySelectorAll(".btn-mgr-reject").forEach(btn => {
-      btn.addEventListener("click", async () => {
+      btn.addEventListener("click", () => {
         const client = btn.getAttribute("data-client");
         const rowIndex = btn.getAttribute("data-row");
         const oldOwner = btn.getAttribute("data-owner");
-        const note = prompt(`請輸入退回原業務【${oldOwner}】的督導指示：`, "請再次聯絡客戶了解現況");
+        const note = prompt(`請輸入退回【${oldOwner}】的交辦事項：`, "請再次聯絡客戶了解現況");
         if (note === null) return;
 
-        await processReviewDecision({
+        processReviewDecision({
           row_index: rowIndex,
           client_name: client,
           review_action: "reject",
@@ -7358,77 +7653,84 @@ document.addEventListener("DOMContentLoaded", () => {
     if (reassignTargetClientName) reassignTargetClientName.textContent = `客戶：${target.client_name} (原負責人: ${target.old_owner})`;
     if (reassignManagerNote) reassignManagerNote.value = "";
 
-    const viewer = getSalesName();
-    let assignableList = ALL_SALES_MEMBERS;
-    if (viewer === "曾仁君") {
-      assignableList = DIRECT_SALES_MEMBERS;
-    } else if (viewer === "張何達") {
-      assignableList = DEALER_SALES_MEMBERS;
-    }
+    // 依身分模擬順序，加入經銷組三人 (張何達、葉仁豪、邱文輝)
+    let assignableList = ACTIVE_SALES_MEMBERS;
 
     if (reassignNewOwnerSelect) {
       reassignNewOwnerSelect.innerHTML = assignableList
         .filter(m => m !== target.old_owner)
-        .map(m => `<option value="${m}">${m}</option>`).join("");
+        .map(m => `<option value="${m}">👤 ${m}</option>`).join("");
     }
 
     if (reassignSubModal) reassignSubModal.classList.remove("hidden");
   }
 
-  async function processReviewDecision(payload) {
+  function processReviewDecision(payload) {
     const viewer = getSalesName();
-    try {
-      const params = new URLSearchParams({
-        action: "process_client_review",
-        viewer: viewer,
-        row_index: payload.row_index,
-        client_name: payload.client_name,
-        review_action: payload.review_action,
-        new_owner: payload.new_owner || "",
-        manager_note: payload.manager_note || ""
-      });
+    const clientName = payload.client_name;
 
-      const res = await fetch(`${GAS_URL}?${params.toString()}`);
-      const data = await res.json();
+    // 1. 🚀 樂觀更新：立即關閉彈窗
+    if (reassignSubModal) reassignSubModal.classList.add("hidden");
 
-      if (data.status === "ok") {
-        showToast(data.msg || "✅ 覆核處理完成", "success");
-        if (reassignSubModal) reassignSubModal.classList.add("hidden");
-        loadPendingReviews();
+    // 2. 立即從待審名單移除並更新筆數
+    activePendingReviews = activePendingReviews.filter(item => item.client_name !== clientName);
+    const count = activePendingReviews.length;
+    if (reviewBadge) {
+      reviewBadge.textContent = count;
+      if (count > 0) reviewBadge.classList.remove("hidden");
+      else reviewBadge.classList.add("hidden");
+    }
+    if (managerReviewCount) managerReviewCount.textContent = count;
+    if (managerReviewPendingCount) managerReviewPendingCount.textContent = count;
+    renderManagerReviewList();
+
+    // 3. 立即顯示成功通知
+    let actionTip = "處置完成";
+    if (payload.review_action === "reassign") actionTip = `已指派【${payload.new_owner}】接手運作`;
+    else if (payload.review_action === "archive") actionTip = `已同意結案封存`;
+    else if (payload.review_action === "reject") actionTip = `已退回繼續運作`;
+    showToast(`✅ 客戶「${clientName}」${actionTip}`, "success");
+
+    // 4. 背景非同步發送至 GAS
+    const params = new URLSearchParams({
+      action: "process_client_review",
+      viewer: viewer,
+      row_index: payload.row_index,
+      client_name: payload.client_name,
+      review_action: payload.review_action,
+      new_owner: payload.new_owner || "",
+      manager_note: payload.manager_note || ""
+    });
+
+    fetch(`${GAS_URL}?${params.toString()}`).then(res => res.json()).then(data => {
+      if (data && data.status === "ok") {
         invalidateMonthlyReportCaches();
         refreshFollowUpEngine();
       } else {
-        alert("覆核操作失敗：" + (data.msg || "未知錯誤"));
+        console.warn("審查處置背景提示:", data && data.msg);
       }
-    } catch(err) {
-      console.error("覆核操作異常:", err);
-      alert("覆核操作失敗，請檢查網路連線。");
-    }
+    }).catch(err => {
+      console.error("審查處置背景網路異常:", err);
+    });
   }
 
   if (btnConfirmReassignSub) {
-    btnConfirmReassignSub.addEventListener("click", async () => {
+    btnConfirmReassignSub.addEventListener("click", () => {
       if (!activeReassignTarget) return;
       const newOwner = reassignNewOwnerSelect ? reassignNewOwnerSelect.value : "";
       if (!newOwner) {
-        alert("請選擇指派接手的新業務");
+        alert("請選擇指派接手的同仁");
         return;
       }
       const note = reassignManagerNote ? reassignManagerNote.value.trim() : "";
 
-      btnConfirmReassignSub.disabled = true;
-      btnConfirmReassignSub.textContent = "⏳ 轉派中...";
-
-      await processReviewDecision({
+      processReviewDecision({
         row_index: activeReassignTarget.row_index,
         client_name: activeReassignTarget.client_name,
         review_action: "reassign",
         new_owner: newOwner,
         manager_note: note
       });
-
-      btnConfirmReassignSub.disabled = false;
-      btnConfirmReassignSub.textContent = "✅ 確認轉派";
     });
   }
 
@@ -7470,7 +7772,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (!managerReviewHistoryContainer) return;
 
     if (supervisorHistoryTasks.length === 0) {
-      managerReviewHistoryContainer.innerHTML = '<div style="text-align:center; padding:30px; color:#64748b; font-size:0.88rem;">📜 尚無任何主管覆核與督導歷程紀錄</div>';
+      managerReviewHistoryContainer.innerHTML = '<div style="text-align:center; padding:30px; color:#64748b; font-size:0.88rem;">📜 尚無任何審查與交辦歷程紀錄</div>';
       return;
     }
 
@@ -7491,23 +7793,23 @@ document.addEventListener("DOMContentLoaded", () => {
           <div class="manager-history-header">
             <div class="manager-history-title">
               <span>🏢 ${escapeHtml(t.client_name)}</span>
-              <span class="badge-tier">${escapeHtml(t.task_type)}</span>
+              <span class="badge-tier">${escapeHtml(formatClientTier(t.task_type))}</span>
               ${statusBadge}
             </div>
             <span style="font-size:0.75rem; color:#64748b;">${escapeHtml(t.created_at)}</span>
           </div>
 
           <div class="manager-history-meta">
-            <span>👑 督導主管：<b>${escapeHtml(t.manager)}</b></span>
+            <span>👑 指派人：<b>${escapeHtml(t.manager)}</b></span>
             <span>👤 原業務：${escapeHtml(t.old_owner)}</span>
-            <span>👉 受派業務：<b>${escapeHtml(t.assignee)}</b></span>
+            <span>👉 受派同仁：<b>${escapeHtml(t.assignee)}</b></span>
             <span>⏳ 要求期限：<b>${escapeHtml(t.deadline)}</b></span>
             ${resolveInfo}
           </div>
 
           ${t.manager_note ? `
             <div class="manager-history-note">
-              <b>📝 主管指導方針與指示：</b><br>
+              <b>📝 建議行動方案與交辦事項：</b><br>
               ${escapeHtml(t.manager_note)}
             </div>
           ` : ''}
@@ -7520,7 +7822,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (!managerReviewArchiveContainer) return;
 
     if (supervisorArchivedClients.length === 0) {
-      managerReviewArchiveContainer.innerHTML = '<div style="text-align:center; padding:30px; color:#64748b; font-size:0.88rem;">🗄️ 尚無任何被主管同意結案封存之客戶</div>';
+      managerReviewArchiveContainer.innerHTML = '<div style="text-align:center; padding:30px; color:#64748b; font-size:0.88rem;">🗄️ 尚無任何同意結案封存之客戶</div>';
       return;
     }
 
@@ -7536,7 +7838,7 @@ document.addEventListener("DOMContentLoaded", () => {
           </div>
 
           <div class="manager-history-meta">
-            <span>👑 核准主管：<b>${escapeHtml(t.manager)}</b></span>
+            <span>👑 核准人：<b>${escapeHtml(t.manager)}</b></span>
             <span>👤 原提報業務：${escapeHtml(t.old_owner)}</span>
             ${t.case_name && t.case_name !== '-' ? `<span>💼 關聯案件：${escapeHtml(t.case_name)}</span>` : ''}
           </div>
@@ -7561,9 +7863,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const rejectedTask = myTasks.find(t => t.task_type === "覆核退回");
     if (rejectedTask) {
-      reassignedBannerTitle.textContent = `⚠️ 主管【${rejectedTask.manager}】駁回退回不聯繫申請：${rejectedTask.client_name}`;
+      reassignedBannerTitle.textContent = `⚠️ 【${rejectedTask.manager}】退回不聯繫：${rejectedTask.client_name}`;
       if (reassignedBannerSub) {
-        reassignedBannerSub.textContent = `退回指示：${rejectedTask.manager_note || '請再次聯絡客戶了解現況'}（完成期限：${rejectedTask.deadline}），請點擊立即排訪建檔。`;
+        reassignedBannerSub.textContent = `退回交辦事項：${rejectedTask.manager_note || '請再次聯絡客戶了解現況'}（完成期限：${rejectedTask.deadline}），請點擊立即排訪建檔。`;
       }
       reassignedClientBanner.classList.remove("hidden");
       return;
@@ -7571,9 +7873,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const directiveTask = myTasks.find(t => t.task_type === "久未聯繫跟催" || t.task_type === "商機指派方針");
     if (directiveTask) {
-      reassignedBannerTitle.textContent = `📢 主管【${directiveTask.manager}】指派督導跟催：${directiveTask.client_name}`;
+      reassignedBannerTitle.textContent = `📢 【${directiveTask.manager}】任務交辦：${directiveTask.client_name}`;
       if (reassignedBannerSub) {
-        reassignedBannerSub.textContent = `方針指示：${directiveTask.manager_note || '請排程拜訪'}（要求期限：${directiveTask.deadline}），請盡速排訪以完成銷案。`;
+        reassignedBannerSub.textContent = `運作方向：${directiveTask.manager_note || '請排程拜訪'}（要求期限：${directiveTask.deadline}），請盡速排訪以完成銷案。`;
       }
       reassignedClientBanner.classList.remove("hidden");
       return;
@@ -7581,9 +7883,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const reassignTask = myTasks.find(t => t.task_type === "覆核轉派");
     if (reassignTask) {
-      reassignedBannerTitle.textContent = `🔔 主管【${reassignTask.manager}】轉派新客戶接手：${reassignTask.client_name}`;
+      reassignedBannerTitle.textContent = `🔔 【${reassignTask.manager}】指派他人運作接手：${reassignTask.client_name}`;
       if (reassignedBannerSub) {
-        reassignedBannerSub.textContent = `轉派指示：${reassignTask.manager_note || '請安排首次拜訪或排程建檔'}（要求期限：${reassignTask.deadline}）。`;
+        reassignedBannerSub.textContent = `交辦事項：${reassignTask.manager_note || '請安排首次拜訪或排程建檔'}（要求期限：${reassignTask.deadline}）。`;
       }
       reassignedClientBanner.classList.remove("hidden");
     }
@@ -7601,17 +7903,12 @@ document.addEventListener("DOMContentLoaded", () => {
     const dd = String(d.getDate()).padStart(2, "0");
     if (assignFollowUpDeadlineInput) assignFollowUpDeadlineInput.value = `${yyyy}-${mm}-${dd}`;
 
-    const viewer = getSalesName();
-    let assignableList = ALL_SALES_MEMBERS;
-    if (viewer === "曾仁君") {
-      assignableList = DIRECT_SALES_MEMBERS;
-    } else if (viewer === "張何達") {
-      assignableList = DEALER_SALES_MEMBERS;
-    }
+    // 依身分模擬順序，加入經銷組三人 (張何達、葉仁豪、邱文輝)
+    let assignableList = ACTIVE_SALES_MEMBERS;
 
     if (assignFollowUpNewOwnerSelect) {
       assignFollowUpNewOwnerSelect.innerHTML = assignableList
-        .map(m => `<option value="${m}" ${m === target.client_owner ? 'selected' : ''}>${m}</option>`).join("");
+        .map(m => `<option value="${m}" ${m === target.client_owner ? 'selected' : ''}>👤 ${m}</option>`).join("");
     }
     if (assignFollowUpManagerNote) assignFollowUpManagerNote.value = "";
 
@@ -7619,7 +7916,7 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   if (btnConfirmAssignFollowUp) {
-    btnConfirmAssignFollowUp.addEventListener("click", async () => {
+    btnConfirmAssignFollowUp.addEventListener("click", () => {
       if (!activeAssignFollowUpTarget) return;
       const target = activeAssignFollowUpTarget;
       const assignee = assignFollowUpNewOwnerSelect ? assignFollowUpNewOwnerSelect.value : "";
@@ -7632,40 +7929,66 @@ document.addEventListener("DOMContentLoaded", () => {
       const note = assignFollowUpManagerNote ? assignFollowUpManagerNote.value.trim() : "";
       const viewer = getSalesName();
 
-      btnConfirmAssignFollowUp.disabled = true;
-      btnConfirmAssignFollowUp.textContent = "⏳ 指派中...";
+      // 1. 🚀 樂觀更新：立即關閉對話盒
+      if (assignFollowUpModal) assignFollowUpModal.classList.add("hidden");
 
-      try {
-        const params = new URLSearchParams({
-          action: "assign_supervisor_task",
-          viewer: viewer,
-          task_type: "久未聯繫跟催",
-          client_name: target.client_name,
-          old_owner: target.client_owner || assignee,
-          new_owner: assignee,
-          manager_note: note || "主管指示久未聯繫督導跟催",
-          deadline: deadline
-        });
+      // 2. 本地立即記錄新任務並更新 UI
+      const newTask = {
+        task_id: "TASK-" + Date.now(),
+        created_at: Utilities_formatDate(new Date()),
+        task_type: "久未聯繫跟催",
+        manager: viewer,
+        client_name: target.client_name,
+        case_name: target.latest_case_name || "-",
+        old_owner: target.client_owner || assignee,
+        assignee: assignee,
+        manager_note: note || "任務交辦跟催",
+        deadline: deadline,
+        status: "待處置",
+        report_date: "",
+        resolved_time: ""
+      };
+      supervisorPendingTasks.unshift(newTask);
+      supervisorHistoryTasks.unshift(newTask);
 
-        const res = await fetch(`${GAS_URL}?${params.toString()}`);
-        const data = await res.json();
+      renderSalesSupervisorBanner();
+      renderFollowUpList();
+      if (currentReviewTab === "history") renderSupervisorHistoryList();
 
-        if (data.status === "ok") {
-          showToast(data.msg || "✅ 主管督導指令已成功發布！", "success");
-          if (assignFollowUpModal) assignFollowUpModal.classList.add("hidden");
-          await loadSupervisorTasks();
-          renderFollowUpList();
+      // 3. 立即顯示成功提示
+      showToast("✅ 任務交辦指令已成功發布！", "success");
+
+      // 4. 背景非同步發送至 GAS
+      const params = new URLSearchParams({
+        action: "assign_supervisor_task",
+        viewer: viewer,
+        task_type: "久未聯繫跟催",
+        client_name: target.client_name,
+        old_owner: target.client_owner || assignee,
+        new_owner: assignee,
+        manager_note: note || "任務交辦跟催",
+        deadline: deadline
+      });
+
+      fetch(`${GAS_URL}?${params.toString()}`).then(res => res.json()).then(data => {
+        if (data && data.status === "ok") {
+          loadSupervisorTasks();
         } else {
-          alert("指派失敗：" + (data.msg || "未知錯誤"));
+          console.warn("任務交辦背景提示:", data && data.msg);
         }
-      } catch(err) {
-        console.error("發布主管指派異常:", err);
-        alert("發布指派失敗，請檢查網路連線。");
-      } finally {
-        btnConfirmAssignFollowUp.disabled = false;
-        btnConfirmAssignFollowUp.textContent = "📢 確認指派跟催";
-      }
+      }).catch(err => {
+        console.error("發布任務交辦背景網路異常:", err);
+      });
     });
+  }
+
+  function Utilities_formatDate(d) {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    const h = String(d.getHours()).padStart(2, "0");
+    const min = String(d.getMinutes()).padStart(2, "0");
+    return `${y}/${m}/${day} ${h}:${min}`;
   }
 
 }); // end DOMContentLoaded

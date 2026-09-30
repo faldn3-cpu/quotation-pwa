@@ -2778,4 +2778,78 @@ input:focus {
   color: #5b21b6;
 }
 
+/* 👑 權限設定雙分頁樣式 */
+.perm-tabs-container {
+  display: flex;
+  gap: 4px;
+  border-bottom: 2px solid #e2e8f0;
+  margin-bottom: 12px;
+}
+
+.perm-tab-btn {
+  flex: 1;
+  padding: 8px 12px;
+  background: #f8fafc;
+  border: none;
+  border-top-left-radius: 8px;
+  border-top-right-radius: 8px;
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: #64748b;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.perm-tab-btn.active {
+  background: #4f46e5;
+  color: #ffffff;
+  border-bottom: 2px solid #4338ca;
+}
+
+.perm-member-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  margin-bottom: 6px;
+  transition: background 0.15s ease;
+}
+
+.perm-member-row:hover {
+  background: #f8fafc;
+}
+
+.perm-member-row.disabled {
+  opacity: 0.6;
+  background: #f1f5f9;
+}
+
+.btn-delete-member {
+  background: transparent;
+  border: 1px solid #fca5a5;
+  color: #ef4444;
+  border-radius: 4px;
+  padding: 2px 8px;
+  font-size: 0.75rem;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.btn-delete-member:hover {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+/* 全域隱藏類別 (確保所有狀態切換無殘留) */
+.hidden {
+  display: none !important;
+}
+
 

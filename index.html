@@ -15,7 +15,7 @@
   
   <!-- Google Fonts: Inter -->
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=1.79">
+  <link rel="stylesheet" href="style.css?v=1.80">
   <style>
     .custom-delivery-box { display: flex !important; gap: 8px !important; align-items: center !important; }
     .custom-delivery-box .search-input { flex: 1 !important; margin-bottom: 0 !important; }
@@ -110,7 +110,7 @@
       </select>
     </div>
     <div style="display:flex; align-items:center; gap:6px;">
-      <button type="button" id="btnOpenPermModal" class="btn btn-sm" style="font-size:0.78rem; font-weight:600; padding:4px 9px; background:#4f46e5; color:#ffffff; border:none; border-radius:4px; cursor:pointer;" title="設定人員檢視權限 (曾維崧專屬)">
+      <button type="button" id="btnOpenPermModal" class="btn btn-sm hidden" style="font-size:0.78rem; font-weight:600; padding:4px 9px; background:#4f46e5; color:#ffffff; border:none; border-radius:4px; cursor:pointer;" title="設定人員檢視權限 (曾維崧專屬)">
         👑 權限設定
       </button>
       <div class="admin-impersonate-tag">測試權限已啟用</div>
@@ -124,14 +124,17 @@
       <h2>登入</h2>
       <p>請使用您的 Google 帳號登入系統</p>
       <button id="btnLogin" class="btn btn-primary btn-block">Google 登入</button>
+      <button id="btnLocalTestLogin" class="btn btn-block" style="margin-top:12px; background:#4f46e5; color:#ffffff; font-weight:600; display:none;">
+        👑 本地測試免登入：以【曾維崧】身分直接進入
+      </button>
     </section>
 
-    <!-- 🔔 主管轉派新客戶待聯繫橫幅提醒 -->
+    <!-- 🔔 指派他人運作待聯繫橫幅提醒 -->
     <div id="reassignedClientBanner" class="reassigned-banner hidden">
       <div class="reassigned-banner-content">
         <span class="reassigned-banner-icon">🔔</span>
         <div class="reassigned-banner-text">
-          <span id="reassignedBannerTitle" class="reassigned-banner-title">主管轉派新客戶待聯繫</span>
+          <span id="reassignedBannerTitle" class="reassigned-banner-title">指派他人運作待聯繫</span>
           <span id="reassignedBannerSub" class="reassigned-banner-sub">請盡速安排首次拜訪或建檔。</span>
         </div>
       </div>
@@ -263,13 +266,13 @@
         <button type="button" id="btnNextMonth" class="btn-cal-nav" title="下個月">▶</button>
       </div>
 
-      <!-- 日報與商機跟催工具列 (含直賣/經銷雙月報、跟催紅綠燈、主管轉派覆核) -->
+      <!-- 日報與商機跟催工具列 (含直賣/經銷雙月報、跟催紅綠燈、不聯繫客戶審查專區) -->
       <div class="ogsm-tools-bar" style="display:flex; justify-content:flex-end; align-items:center; flex-wrap:wrap; margin-bottom:10px; gap:6px;">
         <button type="button" id="btnOpenFollowUpModal" class="btn btn-secondary btn-sm" style="font-size:0.82rem; font-weight:600; padding:5px 9px; display:flex; align-items:center; gap:4px; border-radius:6px; background:#fff1f2; color:#be123c; border:1px solid #fecdd3; position:relative;" title="久未聯繫客戶清單與逾期紅燈">
           🚨 久未聯繫 <span id="followUpBadge" class="badge-count hidden">0</span>
         </button>
-        <button type="button" id="btnOpenReviewModal" class="btn btn-secondary btn-sm hidden" style="font-size:0.82rem; font-weight:600; padding:5px 9px; display:flex; align-items:center; gap:4px; border-radius:6px; background:#f5f3ff; color:#6d28d9; border:1px solid #ddd6fe; position:relative;" title="三大主管轉派覆核專區">
-          🔄 轉派覆核 <span id="reviewBadge" class="badge-count hidden">0</span>
+        <button type="button" id="btnOpenReviewModal" class="btn btn-secondary btn-sm hidden" style="font-size:0.82rem; font-weight:600; padding:5px 9px; display:flex; align-items:center; gap:4px; border-radius:6px; background:#f5f3ff; color:#6d28d9; border:1px solid #ddd6fe; position:relative;" title="不聯繫客戶審查專區">
+          🔄 不聯繫客戶審查專區 <span id="reviewBadge" class="badge-count hidden">0</span>
         </button>
         <button type="button" id="btnOpenOgsmMonthlyReportModal" class="btn btn-secondary btn-sm" style="font-size:0.82rem; font-weight:600; padding:5px 9px; display:flex; align-items:center; gap:4px; border-radius:6px; background:#eff6ff; color:#1d4ed8; border:1px solid #bfdbfe;">
           📋 OGSM 日報
@@ -452,13 +455,13 @@
               <option value="D-A客戶 - 經銷商 大手客戶 & 既有客戶">D-A客戶 - 經銷商 大手客戶 &amp; 既有客戶</option>
               <option value="D-B客戶 - 經銷商 前一年新成交">D-B客戶 - 經銷商 前一年新成交</option>
               <option value="D-C客戶 - 經銷商 預計開發及今年新成交">D-C客戶 - 經銷商 預計開發及今年新成交</option>
-              <option value="(A) 直賣A級">(A) 直賣A級</option>
-              <option value="(B) 直賣B級">(B) 直賣B級</option>
-              <option value="(C) 直賣C級">(C) 直賣C級</option>
-              <option value="(D-A) 經銷A級">(D-A) 經銷A級</option>
-              <option value="(D-B) 經銷B級">(D-B) 經銷B級</option>
-              <option value="(D-C) 經銷C級">(D-C) 經銷C級</option>
-              <option value="(O) 其它">(O) 其它</option>
+              <option value="直賣A級">直賣A級</option>
+              <option value="直賣B級">直賣B級</option>
+              <option value="直賣C級">直賣C級</option>
+              <option value="經銷A級">經銷A級</option>
+              <option value="經銷B級">經銷B級</option>
+              <option value="經銷C級">經銷C級</option>
+              <option value="其它">其它</option>
             </select>
           </div>
 
@@ -472,10 +475,10 @@
             <textarea id="ogsmInputResult" class="search-input" rows="3" placeholder="請輸入案件當前進度、客戶反饋與後續行動..." style="resize:vertical;"></textarea>
           </div>
 
-          <!-- 👑 [主管專屬] 商機建議方針與交辦管考區塊 -->
+          <!-- 👑 建議行動方案與交辦事項區塊 -->
           <div id="ogsmSupervisorSection" class="hidden" style="margin-bottom:0.85rem; border:1px solid #ddd6fe; border-radius:8px; background:#fbfbfe; padding:10px 12px;">
             <div style="font-size:0.88rem; font-weight:bold; color:#5b21b6; display:flex; align-items:center; gap:6px; margin-bottom:8px;">
-              👑 主管商機建議方針與交辦管考
+              👑 建議行動方案與交辦事項
             </div>
             <div style="display:flex; gap:8px; margin-bottom:8px;">
               <div class="form-group" style="flex:1; margin-bottom:0;">
@@ -490,8 +493,8 @@
               </div>
             </div>
             <div class="form-group" style="margin-bottom:0;">
-              <label for="ogsmSupervisorDirective" style="font-size:0.8rem; font-weight:600; color:#4c1d95; display:block; margin-bottom:3px;">主管指導方針或推進策略 (填寫後自動立案管考)</label>
-              <textarea id="ogsmSupervisorDirective" class="search-input" rows="2" placeholder="輸入主管指導方針（例如：建議協同主管與客戶高層餐敘、主推指定品項...）" style="font-size:0.85rem; padding:6px 8px; margin-bottom:0; resize:vertical;"></textarea>
+              <label for="ogsmSupervisorDirective" style="font-size:0.8rem; font-weight:600; color:#4c1d95; display:block; margin-bottom:3px;">建議行動方案或運作方向</label>
+              <textarea id="ogsmSupervisorDirective" class="search-input" rows="2" placeholder="輸入建議行動方案與具體運作策略（例如：協同高層餐敘、主推指定品項...）" style="font-size:0.85rem; padding:6px 8px; margin-bottom:0; resize:vertical;"></textarea>
             </div>
           </div>
 
@@ -1211,11 +1214,11 @@
           <div style="flex:1;">
             <label style="font-size:0.8rem; font-weight:bold; color:#475569;">客戶分類</label>
             <select id="editOgsmClientRating" class="search-input" style="width:100%; margin-top:2px; font-size:0.88rem;">
-              <option value="(S) 查興S級">(S) 查興S級 / 重點客戶</option>
-              <option value="(A) 查興A級">(A) 查興A級 / 常規主力</option>
-              <option value="(B) 查興B級">(B) 查興B級 / 潛力開發</option>
-              <option value="(C) 查興C級">(C) 查興C級 / 一般客情</option>
-              <option value="(O) 其它">(O) 其它 / 展覽或特殊行程</option>
+              <option value="直賣S級">直賣S級 / 重點客戶</option>
+              <option value="直賣A級">直賣A級 / 常規主力</option>
+              <option value="直賣B級">直賣B級 / 潛力開發</option>
+              <option value="直賣C級">直賣C級 / 一般客情</option>
+              <option value="其它">其它 / 展覽或特殊行程</option>
             </select>
           </div>
         </div>
@@ -1250,16 +1253,36 @@
         <button id="btnCloseFollowUpModal" class="btn-close">&times;</button>
       </div>
 
-      <!-- 快速篩選標籤 -->
-      <div style="display:flex; gap:6px; margin-bottom:10px; flex-shrink:0; flex-wrap:wrap;">
-        <button type="button" class="btn-filter-tag active" data-filter="all" id="btnFilterFollowUpAll">全部 (<span id="filterAllCount">0</span>)</button>
-        <button type="button" class="btn-filter-tag" data-filter="reassigned" id="btnFilterFollowUpReassigned" style="color:#6d28d9; background:#f5f3ff; border-color:#ddd6fe;">👑 主管轉派 (<span id="filterReassignedCount">0</span>)</button>
-        <button type="button" class="btn-filter-tag" data-filter="red" id="btnFilterFollowUpRed" style="color:#be123c; background:#fff1f2; border-color:#fecdd3;">🔴 逾期紅燈 (<span id="filterRedCount">0</span>)</button>
-        <button type="button" class="btn-filter-tag" data-filter="yellow" id="btnFilterFollowUpYellow" style="color:#b45309; background:#fef3c7; border-color:#fde68a;">🟡 提醒關注 (<span id="filterYellowCount">0</span>)</button>
+      <!-- 快速篩選下拉列 (警示分級 + 負責業務) -->
+      <div style="display:flex; gap:8px; margin-bottom:8px; flex-shrink:0; flex-wrap:wrap;">
+        <div style="flex:1; min-width:160px;">
+          <select id="selectFollowUpFilter" class="search-input" style="font-size:0.85rem; font-weight:600; padding:6px 10px; margin-bottom:0; background:#ffffff; border-color:#cbd5e1; cursor:pointer;">
+            <option value="all">全部客戶 (<span id="filterAllCount">0</span>)</option>
+            <option value="reassigned">👑 指派他人運作 (<span id="filterReassignedCount">0</span>)</option>
+            <option value="red">🔴 A級客戶久未聯繫 (<span id="filterRedCount">0</span>)</option>
+            <option value="yellow">🟡 B/C級拜訪提醒 (<span id="filterYellowCount">0</span>)</option>
+          </select>
+        </div>
+        <div style="flex:1; min-width:140px;">
+          <select id="selectFollowUpSales" class="search-input" style="font-size:0.85rem; font-weight:600; padding:6px 10px; margin-bottom:0; background:#ffffff; border-color:#cbd5e1; cursor:pointer;">
+            <option value="">-- 全部業務員 --</option>
+            <option value="曾維崧">曾維崧</option>
+            <option value="張何達">張何達</option>
+            <option value="曾仁君">曾仁君</option>
+            <option value="葉仁豪">葉仁豪</option>
+            <option value="溫達仁">溫達仁</option>
+            <option value="邱文輝">邱文輝</option>
+            <option value="楊家豪">楊家豪</option>
+            <option value="莊富丞">莊富丞</option>
+            <option value="何宛茹">何宛茹</option>
+            <option value="張書偉">張書偉</option>
+            <option value="黃柏翰">黃柏翰</option>
+          </select>
+        </div>
       </div>
 
       <div style="margin-bottom:10px; flex-shrink:0;">
-        <input type="text" id="followUpSearchInput" class="search-input" placeholder="快速搜尋客戶名稱或分級..." style="margin-bottom:0; font-size:0.85rem; padding:6px 10px;">
+        <input type="text" id="followUpSearchInput" class="search-input" placeholder="🔍 關鍵字搜尋客戶、分級、案件名稱、推廣內容或備註..." style="margin-bottom:0; font-size:0.85rem; padding:6px 10px;">
       </div>
 
       <div id="followUpListContainer" class="follow-up-list-container" style="overflow-y:auto; flex:1; min-height:180px; display:flex; flex-direction:column; gap:8px; padding-right:2px;">
@@ -1267,7 +1290,7 @@
       </div>
 
       <div class="modal-footer" style="padding-top:0.75rem; border-top:1px solid #e2e8f0; display:flex; justify-content:space-between; align-items:center; margin-top:0.5rem; flex-shrink:0;">
-        <span style="font-size:0.78rem; color:#64748b;">提示：點擊「立即排訪」可跳轉日報；點擊「不聯繫」可呈報主管轉派</span>
+        <span style="font-size:0.78rem; color:#64748b;">提示：點擊「立即排訪」可跳轉日報；點擊「不聯繫」可轉送不聯繫客戶審查專區</span>
         <button type="button" id="btnCloseFollowUpFooter" class="btn btn-secondary" style="font-size:0.85rem; padding:6px 16px;">關閉</button>
       </div>
     </div>
@@ -1373,49 +1396,49 @@
           <label style="font-size:0.85rem; font-weight:600; color:#334155; display:block; margin-bottom:4px;">
             補充詳細說明 (選填)
           </label>
-          <textarea id="noContactReasonDesc" class="search-input" rows="3" placeholder="請簡述與客戶互動現況，供直賣主管或經銷主管了解..." style="font-size:0.85rem; line-height:1.4; resize:vertical;"></textarea>
+          <textarea id="noContactReasonDesc" class="search-input" rows="3" placeholder="請簡述與客戶互動現況，供管理審查了解..." style="font-size:0.85rem; line-height:1.4; resize:vertical;"></textarea>
         </div>
 
         <div style="background:#f1f5f9; border-radius:6px; padding:8px 10px; font-size:0.75rem; color:#475569; line-height:1.4;">
-          ℹ️ <b>轉派機制說明</b>：送出後此客戶將從您的久未聯繫清單移出，並即刻呈報至三大主管（曾維崧、曾仁君、張何達）專區。若主管評估仍有商機，可重新指派其他人接手攻略。
+          ℹ️ <b>送審機制說明</b>：送出後此客戶將從您的久未聯繫清單移出，並即刻轉送至「不聯繫客戶審查專區」。若評估仍有商機，可重新指派他人接手攻略。
         </div>
       </div>
 
       <div class="modal-footer" style="padding-top:0.75rem; border-top:1px solid #e2e8f0; display:flex; justify-content:flex-end; gap:8px; margin-top:0.75rem; flex-shrink:0;">
         <button type="button" id="btnCancelNoContact" class="btn btn-secondary" style="font-size:0.85rem; padding:6px 14px;">取消</button>
-        <button type="button" id="btnConfirmSubmitNoContact" class="btn btn-primary" style="background:#be123c; border-color:#9f1239; font-size:0.85rem; padding:6px 18px; font-weight:bold;">📤 確認呈報主管</button>
+        <button type="button" id="btnConfirmSubmitNoContact" class="btn btn-primary" style="background:#be123c; border-color:#9f1239; font-size:0.85rem; padding:6px 18px; font-weight:bold;">確認</button>
       </div>
     </div>
   </div>
 
-  <!-- 🔄 [新增 4] 三大主管轉派覆核專區對話框 (Modal) -->
+  <!-- 🔄 [新增 4] 不聯繫客戶審查專區對話框 (Modal) -->
   <div id="managerReviewModal" class="modal hidden">
     <div class="modal-content" style="max-height:90vh; max-height:90dvh; display:flex; flex-direction:column; padding:1.25rem; max-width:780px;">
       <div class="modal-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.75rem; flex-shrink:0;">
         <div>
           <h3 style="margin:0; font-size:1.15rem; color:#4c1d95; display:flex; align-items:center; gap:6px;">
-            🔄 三大主管轉派覆核專區 (<span id="managerReviewCount">0</span>)
+            🔄 不聯繫客戶審查專區 (<span id="managerReviewCount">0</span>)
           </h3>
           <p style="margin:2px 0 0 0; font-size:0.75rem; color:#64748b;">
-            審查組員提報之不聯繫客戶，可了解原因並執行【轉派新業務】、【同意結案封存】或【退回原業務】
+            審查組員提報之不聯繫客戶，可了解原因並執行【指派他人運作】、【結案封存】或【退回原業務繼續運作】
           </p>
         </div>
         <button id="btnCloseManagerReviewModal" class="btn-close">&times;</button>
       </div>
 
-      <!-- 分頁標籤組：待覆核 / 覆核歷程紀錄 / 封存客戶庫 -->
+      <!-- 分頁標籤組：待審查 / 審查與交辦紀錄 / 結案封存庫 -->
       <div class="manager-review-tabs" style="display:flex; gap:8px; margin-bottom:10px; border-bottom:1px solid #e2e8f0; padding-bottom:8px; flex-shrink:0;">
-        <button type="button" id="btnTabReviewPending" class="btn-filter-tag active" style="font-weight:bold; font-size:0.85rem; padding:6px 14px;">待覆核 (<span id="managerReviewPendingCount">0</span>)</button>
-        <button type="button" id="btnTabReviewHistory" class="btn-filter-tag" style="font-size:0.85rem; padding:6px 14px; color:#1e40af; background:#eff6ff; border-color:#bfdbfe;">📜 覆核歷程紀錄 (<span id="managerReviewHistoryCount">0</span>)</button>
-        <button type="button" id="btnTabReviewArchive" class="btn-filter-tag" style="font-size:0.85rem; padding:6px 14px; color:#475569; background:#f1f5f9; border-color:#cbd5e1;">🗄️ 封存客戶庫 (<span id="managerReviewArchiveCount">0</span>)</button>
+        <button type="button" id="btnTabReviewPending" class="btn-filter-tag active" style="font-weight:bold; font-size:0.85rem; padding:6px 14px;">待審查 (<span id="managerReviewPendingCount">0</span>)</button>
+        <button type="button" id="btnTabReviewHistory" class="btn-filter-tag" style="font-size:0.85rem; padding:6px 14px; color:#1e40af; background:#eff6ff; border-color:#bfdbfe;">📜 審查與交辦紀錄 (<span id="managerReviewHistoryCount">0</span>)</button>
+        <button type="button" id="btnTabReviewArchive" class="btn-filter-tag" style="font-size:0.85rem; padding:6px 14px; color:#475569; background:#f1f5f9; border-color:#cbd5e1;">🗄️ 結案封存庫 (<span id="managerReviewArchiveCount">0</span>)</button>
       </div>
 
-      <!-- 容器 1: 待覆核列表 -->
+      <!-- 容器 1: 待審查列表 -->
       <div id="managerReviewListContainer" class="manager-review-list-container" style="overflow-y:auto; flex:1; min-height:220px; display:flex; flex-direction:column; gap:10px; padding-right:2px;">
-        <!-- 由 JavaScript 動態生成主管待審卡片 -->
+        <!-- 由 JavaScript 動態生成待審卡片 -->
       </div>
 
-      <!-- 容器 2: 覆核歷程紀錄 -->
+      <!-- 容器 2: 審查歷程紀錄 -->
       <div id="managerReviewHistoryContainer" class="manager-review-list-container hidden" style="overflow-y:auto; flex:1; min-height:220px; display:flex; flex-direction:column; gap:10px; padding-right:2px;">
         <!-- 由 JavaScript 動態生成歷程卡片 -->
       </div>
@@ -1432,11 +1455,11 @@
     </div>
   </div>
 
-  <!-- 轉派新業務指派子對話框 (Sub-Modal) -->
+  <!-- 改派新業務指派子對話框 (Sub-Modal) -->
   <div id="reassignSubModal" class="modal hidden" style="z-index:10050;">
     <div class="modal-content" style="max-height:80vh; max-height:80dvh; display:flex; flex-direction:column; padding:1.25rem; max-width:440px;">
       <div class="modal-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.75rem; flex-shrink:0;">
-        <h3 style="margin:0; font-size:1.05rem; color:#1e40af;">👤 指派新業務接手攻略</h3>
+        <h3 style="margin:0; font-size:1.05rem; color:#1e40af;">👤 指派他人運作</h3>
         <button id="btnCloseReassignSubModal" class="btn-close">&times;</button>
       </div>
       <div class="modal-body" style="overflow-y:auto; flex:1;">
@@ -1447,34 +1470,34 @@
             指派新業務員 (必選)
           </label>
           <select id="reassignNewOwnerSelect" class="search-input" style="font-size:0.9rem; padding:8px 10px; margin-bottom:0; font-weight:600; background:#ffffff;">
-            <!-- 由 JS 動態注入主管管轄組員 -->
+            <!-- 由 JS 動態注入組員 -->
           </select>
         </div>
 
         <div class="form-group" style="margin-bottom:10px;">
           <label style="font-size:0.85rem; font-weight:600; color:#334155; display:block; margin-bottom:4px;">
-            主管轉派批示 / 指導策略 (選填)
+            交辦事項與運作方向 (選填)
           </label>
           <textarea id="reassignManagerNote" class="search-input" rows="2" placeholder="例如：由資深業務重新切入、主推高階機能品項..." style="font-size:0.85rem; resize:vertical;"></textarea>
         </div>
 
         <div style="background:#eff6ff; border:1px solid #bfdbfe; border-radius:6px; padding:8px 10px; font-size:0.75rem; color:#1e40af; line-height:1.4;">
-          💡 <b>緩衝期起算</b>：確認轉派後，新業務的聯繫起算日將設為今天，給予全新拜訪寬限期（A 級 14 天 / B 級 30 天 / C 級 30 天），不會首日亮紅燈。
+          💡 <b>緩衝期起算</b>：確認改派後，新業務的聯繫起算日將設為今天，給予全新拜訪寬限期（A 級 14 天 / B 級 30 天 / C 級 30 天），不會首日亮紅燈。
         </div>
       </div>
       <div class="modal-footer" style="padding-top:0.75rem; border-top:1px solid #e2e8f0; display:flex; justify-content:flex-end; gap:8px; margin-top:0.75rem; flex-shrink:0;">
         <button type="button" id="btnCancelReassignSub" class="btn btn-secondary" style="font-size:0.85rem; padding:6px 14px;">取消</button>
-        <button type="button" id="btnConfirmReassignSub" class="btn btn-primary" style="font-size:0.85rem; padding:6px 18px; font-weight:bold;">✅ 確認轉派</button>
+        <button type="button" id="btnConfirmReassignSub" class="btn btn-primary" style="font-size:0.85rem; padding:6px 18px; font-weight:bold;">✅ 確認指派</button>
       </div>
     </div>
   </div>
 
-  <!-- 📢 [新增 5] 主管督導指派跟催對話框 (Modal) -->
+  <!-- 📢 [新增 5] 任務交辦對話框 (Modal) -->
   <div id="assignFollowUpModal" class="modal hidden" style="z-index:10050;">
     <div class="modal-content" style="max-height:85vh; max-height:85dvh; display:flex; flex-direction:column; padding:1.25rem; max-width:460px;">
       <div class="modal-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.75rem; flex-shrink:0;">
         <h3 style="margin:0; font-size:1.1rem; color:#6d28d9; display:flex; align-items:center; gap:6px;">
-          📢 主管指派督導跟催
+          📢 任務交辦
         </h3>
         <button id="btnCloseAssignFollowUpModal" class="btn-close">&times;</button>
       </div>
@@ -1500,14 +1523,14 @@
 
         <div class="form-group" style="margin-bottom:6px;">
           <label style="font-size:0.85rem; font-weight:600; color:#334155; display:block; margin-bottom:4px;">
-            主管督導指示方針與行動策略
+            建議行動方案
           </label>
-          <textarea id="assignFollowUpManagerNote" class="search-input" rows="3" placeholder="例如：此客戶為關鍵客戶，請業務於期限內排訪並協同主管拜訪..." style="font-size:0.85rem; padding:8px; resize:vertical;"></textarea>
+          <textarea id="assignFollowUpManagerNote" class="search-input" rows="3" placeholder="例如：此客戶為關鍵客戶，請業務於期限內排訪並協同拜訪..." style="font-size:0.85rem; padding:8px; resize:vertical;"></textarea>
         </div>
       </div>
       <div class="modal-footer" style="padding-top:0.75rem; border-top:1px solid #e2e8f0; display:flex; justify-content:flex-end; gap:8px; margin-top:0.75rem; flex-shrink:0;">
         <button type="button" id="btnCancelAssignFollowUp" class="btn btn-secondary" style="font-size:0.85rem; padding:6px 14px;">取消</button>
-        <button type="button" id="btnConfirmAssignFollowUp" class="btn btn-primary" style="background:#6d28d9; border-color:#5b21b6; font-size:0.85rem; padding:6px 18px; font-weight:bold;">📢 確認指派跟催</button>
+        <button type="button" id="btnConfirmAssignFollowUp" class="btn btn-primary" style="background:#6d28d9; border-color:#5b21b6; font-size:0.85rem; padding:6px 18px; font-weight:bold;">📢 確認交辦</button>
       </div>
     </div>
   </div>
@@ -1547,18 +1570,42 @@
     </div>
   </div>
 
-  <!-- 👑 [新增 5] 曾維崧專屬業務檢視權限設定對話框 (Modal) -->
+  <!-- 👑 [新增 5] 曾維崧專屬業務權限與在職名單管理對話框 (Modal) -->
   <div id="permModal" class="modal hidden">
-    <div class="modal-content" style="max-height:85vh; max-height:85dvh; display:flex; flex-direction:column; padding:1.25rem; max-width:480px;">
+    <div class="modal-content" style="max-height:85vh; max-height:85dvh; display:flex; flex-direction:column; padding:1.25rem; max-width:500px;">
       <div class="modal-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.75rem; flex-shrink:0;">
         <h3 style="margin:0; font-size:1.1rem; color:#1e1b4b; display:flex; align-items:center; gap:6px;">
-          👑 業務檢視權限設定 (曾維崧專屬)
+          👑 業務權限與在職名單管理 (曾維崧專屬)
         </h3>
         <button id="btnClosePermModal" class="btn-close">&times;</button>
       </div>
 
-      <div class="modal-body" style="overflow-y:auto; flex:1;">
-        <p style="font-size:0.82rem; color:#64748b; margin-bottom:12px; line-height:1.4;">
+      <!-- 👑 雙分頁標籤組：在職名單管理 / 組員調閱權限 -->
+      <div class="perm-tabs-container">
+        <button type="button" id="btnTabPermMembers" class="perm-tab-btn active">👥 在職名單管理</button>
+        <button type="button" id="btnTabPermView" class="perm-tab-btn">🔐 組員調閱權限</button>
+      </div>
+
+      <!-- 分頁 1: 在職名單管理 (啟用/停用/新增/刪除) -->
+      <div id="permMembersTabBody" class="modal-body" style="overflow-y:auto; flex:1;">
+        <p style="font-size:0.8rem; color:#64748b; margin-bottom:10px; line-height:1.4;">
+          勾選【啟用】之同仁將顯示於全系統 OGSM、CRM、跟催及任務交辦下拉選單中；未勾選者自動隱藏。
+        </p>
+
+        <!-- 新增同仁輸入列 -->
+        <div style="display:flex; gap:6px; margin-bottom:10px;">
+          <input type="text" id="inputNewMemberName" class="search-input" placeholder="輸入新同仁姓名 (如：林大明)..." style="flex:1; margin-bottom:0; font-size:0.85rem; padding:6px 10px;">
+          <button type="button" id="btnAddNewMember" class="btn btn-primary" style="font-size:0.82rem; padding:6px 14px; white-space:nowrap; background:#4f46e5; border-color:#4338ca;">➕ 新增同仁</button>
+        </div>
+
+        <div id="activeMembersListContainer" style="max-height:260px; overflow-y:auto; display:flex; flex-direction:column; gap:6px; padding-right:2px;">
+          <!-- 由 JavaScript 動態生成在職同仁列 (含啟用開關與刪除按鈕) -->
+        </div>
+      </div>
+
+      <!-- 分頁 2: 組員調閱權限 (原本檢視權限設定) -->
+      <div id="permViewTabBody" class="modal-body hidden" style="overflow-y:auto; flex:1;">
+        <p style="font-size:0.8rem; color:#64748b; margin-bottom:10px; line-height:1.4;">
           設定指定同仁登入時可調閱的成員日報與月曆圓點指標。設定後即刻儲存至雲端「檢視權限」試算表。
         </p>
 
@@ -1567,7 +1614,7 @@
             1. 選擇要設定權限的業務人員：
           </label>
           <select id="permTargetUserSelect" class="form-control" style="width:100%; font-size:0.92rem; padding:6px 10px; border:1px solid #cbd5e1; border-radius:6px; background:#ffffff;">
-            <!-- 動態填入 11 位成員 -->
+            <!-- 動態填入成員 -->
           </select>
         </div>
 
@@ -1595,8 +1642,8 @@
   </div>
 
   <!-- 🚀 畫面右下角簡潔版本訊息 (字體小、不佔用頂部空間) -->
-  <div class="app-version-bottom-right" id="appVersionInfo">v 1.79</div>
+  <div class="app-version-bottom-right" id="appVersionInfo">v 1.80</div>
 
-  <script src="app.js?v=1.79"></script>
+  <script src="app.js?v=1.80"></script>
 </body>
 </html>
