@@ -58,8 +58,8 @@ document.addEventListener("DOMContentLoaded", () => {
     }, 2800);
   }
 
-  // 🚀 版本自動同步與舊快取清理防護 (v 1.88)
-  const CURRENT_APP_VERSION = "1.88";
+  // 🚀 版本自動同步與舊快取清理防護 (v 1.89)
+  const CURRENT_APP_VERSION = "1.89";
   const appVersionInfo = document.getElementById("appVersionInfo");
   if (appVersionInfo) {
     appVersionInfo.textContent = "v " + CURRENT_APP_VERSION;
@@ -70,7 +70,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if ('caches' in window) {
       caches.keys().then(keys => {
         keys.forEach(k => {
-          if (k !== 'quote-draft-v1.88') {
+          if (k !== 'quote-draft-v1.89') {
             caches.delete(k);
           }
         });
@@ -274,9 +274,9 @@ document.addEventListener("DOMContentLoaded", () => {
   // Service Worker 註冊與自動更新偵測
   // ====================================================
   if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('./sw.js?v=1.88')
+    navigator.serviceWorker.register('./sw.js?v=1.89')
       .then(reg => {
-        console.log('[PWA] Service Worker 已註冊 (v 1.88)', reg);
+        console.log('[PWA] Service Worker 已註冊 (v 1.89)', reg);
         // 主動檢查伺服器端是否有新版 sw.js
         reg.update();
 
@@ -8583,49 +8583,6 @@ document.addEventListener("DOMContentLoaded", () => {
   var kpiCurrentFilter = "all"; // all, new, existing, closed, ongoing, shipped
   var kpiSearchKeyword = "";
   var activeEditingKpiCase = null;
-
-  // 🎯 案件追蹤 (KPI) DOM 元素明確獲取
-  const caseTrackingModal = document.getElementById("caseTrackingModal");
-  const btnOpenCaseTrackingModal = document.getElementById("btnOpenCaseTrackingModal");
-  const btnOpenNewClientDevModal = document.getElementById("btnOpenNewClientDevModal");
-  const btnCloseCaseTrackingModal = document.getElementById("btnCloseCaseTrackingModal");
-  const btnCloseCaseTrackingBottom = document.getElementById("btnCloseCaseTrackingBottom");
-  const kpiSalesFilter = document.getElementById("kpiSalesFilter");
-  const kpiFilterTabs = document.getElementById("kpiFilterTabs");
-  const kpiSearchInput = document.getElementById("kpiSearchInput");
-  const btnRefreshKpiCases = document.getElementById("btnRefreshKpiCases");
-  const btnAddNewKpiCase = document.getElementById("btnAddNewKpiCase");
-  const kpiCaseListContainer = document.getElementById("kpiCaseListContainer");
-  const kpiSummaryText = document.getElementById("kpiSummaryText");
-
-  const kpiCountAll = document.getElementById("kpiCountAll");
-  const kpiCountNew = document.getElementById("kpiCountNew");
-  const kpiCountExisting = document.getElementById("kpiCountExisting");
-  const kpiCountClosed = document.getElementById("kpiCountClosed");
-  const kpiCountOngoing = document.getElementById("kpiCountOngoing");
-  const kpiCountShipped = document.getElementById("kpiCountShipped");
-
-  const kpiCaseEditModal = document.getElementById("kpiCaseEditModal");
-  const kpiCaseEditModalTitle = document.getElementById("kpiCaseEditModalTitle");
-  const btnCloseKpiCaseEditModal = document.getElementById("btnCloseKpiCaseEditModal");
-  const btnCancelKpiCaseEdit = document.getElementById("btnCancelKpiCaseEdit");
-  const btnSaveKpiCaseEdit = document.getElementById("btnSaveKpiCaseEdit");
-  const btnDeleteKpiCaseModal = document.getElementById("btnDeleteKpiCaseModal");
-
-  const kpiEditRowIndex = document.getElementById("kpiEditRowIndex");
-  const kpiEditOrigStatusDesc = document.getElementById("kpiEditOrigStatusDesc");
-  const kpiEditClientName = document.getElementById("kpiEditClientName");
-  const kpiEditClientBadge = document.getElementById("kpiEditClientBadge");
-  const kpiEditIsNewClient = document.getElementById("kpiEditIsNewClient");
-  const kpiEditDate = document.getElementById("kpiEditDate");
-  const kpiEditExpectedMonth = document.getElementById("kpiEditExpectedMonth");
-  const kpiEditSubcategory = document.getElementById("kpiEditSubcategory");
-  const kpiEditStatusDesc = document.getElementById("kpiEditStatusDesc");
-  const kpiEditAmount = document.getElementById("kpiEditAmount");
-  const kpiEditIsClosed = document.getElementById("kpiEditIsClosed");
-  const kpiEditShippedWrap = document.getElementById("kpiEditShippedWrap");
-  const kpiEditIsShipped = document.getElementById("kpiEditIsShipped");
-  const kpiEditDependencies = document.getElementById("kpiEditDependencies");
 
   // 🎯 產品中分類分組矩陣控制器字典 (支援日報與案件編輯雙實例)
   var subcategoryMatrixControllers = {};
