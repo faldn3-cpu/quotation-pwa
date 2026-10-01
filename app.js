@@ -58,8 +58,8 @@ document.addEventListener("DOMContentLoaded", () => {
     }, 2800);
   }
 
-  // 🚀 版本自動同步與舊快取清理防護 (v 1.86)
-  const CURRENT_APP_VERSION = "1.86";
+  // 🚀 版本自動同步與舊快取清理防護 (v 1.88)
+  const CURRENT_APP_VERSION = "1.88";
   const appVersionInfo = document.getElementById("appVersionInfo");
   if (appVersionInfo) {
     appVersionInfo.textContent = "v " + CURRENT_APP_VERSION;
@@ -70,7 +70,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if ('caches' in window) {
       caches.keys().then(keys => {
         keys.forEach(k => {
-          if (k !== 'quote-draft-v1.86') {
+          if (k !== 'quote-draft-v1.88') {
             caches.delete(k);
           }
         });
@@ -274,9 +274,9 @@ document.addEventListener("DOMContentLoaded", () => {
   // Service Worker 註冊與自動更新偵測
   // ====================================================
   if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('./sw.js?v=1.87')
+    navigator.serviceWorker.register('./sw.js?v=1.88')
       .then(reg => {
-        console.log('[PWA] Service Worker 已註冊 (v 1.87)', reg);
+        console.log('[PWA] Service Worker 已註冊 (v 1.88)', reg);
         // 主動檢查伺服器端是否有新版 sw.js
         reg.update();
 
@@ -2803,11 +2803,13 @@ document.addEventListener("DOMContentLoaded", () => {
   const kpiCountExisting               = document.getElementById("kpiCountExisting");
   const kpiCountClosed                 = document.getElementById("kpiCountClosed");
   const kpiCountOngoing                = document.getElementById("kpiCountOngoing");
+  const kpiCountShipped                = document.getElementById("kpiCountShipped");
 
   const kpiCaseEditModal               = document.getElementById("kpiCaseEditModal");
   const btnCloseKpiCaseEditModal       = document.getElementById("btnCloseKpiCaseEditModal");
   const btnCancelKpiCaseEdit           = document.getElementById("btnCancelKpiCaseEdit");
   const btnSaveKpiCaseEdit             = document.getElementById("btnSaveKpiCaseEdit");
+  const btnDeleteKpiCaseModal          = document.getElementById("btnDeleteKpiCaseModal");
   const kpiCaseEditModalTitle          = document.getElementById("kpiCaseEditModalTitle");
   const kpiEditRowIndex                = document.getElementById("kpiEditRowIndex");
   const kpiEditOrigStatusDesc          = document.getElementById("kpiEditOrigStatusDesc");
@@ -2821,6 +2823,8 @@ document.addEventListener("DOMContentLoaded", () => {
   const kpiEditStatusDesc              = document.getElementById("kpiEditStatusDesc");
   const kpiEditAmount                  = document.getElementById("kpiEditAmount");
   const kpiEditIsClosed                = document.getElementById("kpiEditIsClosed");
+  const kpiEditShippedWrap             = document.getElementById("kpiEditShippedWrap");
+  const kpiEditIsShipped               = document.getElementById("kpiEditIsShipped");
   const kpiEditDependencies            = document.getElementById("kpiEditDependencies");
 
   // 日報對話框中的 KPI 與新客擴充 DOM
@@ -8576,8 +8580,52 @@ document.addEventListener("DOMContentLoaded", () => {
   var salesRepKnownClients = new Set();
   var kpiAllCases = [];
   var kpiCasesCache = {}; // 快取: { [salesName]: { cases: Array, timestamp: number } }
-  var kpiCurrentFilter = "all"; // all, new, existing, closed, ongoing
+  var kpiCurrentFilter = "all"; // all, new, existing, closed, ongoing, shipped
   var kpiSearchKeyword = "";
+  var activeEditingKpiCase = null;
+
+  // 🎯 案件追蹤 (KPI) DOM 元素明確獲取
+  const caseTrackingModal = document.getElementById("caseTrackingModal");
+  const btnOpenCaseTrackingModal = document.getElementById("btnOpenCaseTrackingModal");
+  const btnOpenNewClientDevModal = document.getElementById("btnOpenNewClientDevModal");
+  const btnCloseCaseTrackingModal = document.getElementById("btnCloseCaseTrackingModal");
+  const btnCloseCaseTrackingBottom = document.getElementById("btnCloseCaseTrackingBottom");
+  const kpiSalesFilter = document.getElementById("kpiSalesFilter");
+  const kpiFilterTabs = document.getElementById("kpiFilterTabs");
+  const kpiSearchInput = document.getElementById("kpiSearchInput");
+  const btnRefreshKpiCases = document.getElementById("btnRefreshKpiCases");
+  const btnAddNewKpiCase = document.getElementById("btnAddNewKpiCase");
+  const kpiCaseListContainer = document.getElementById("kpiCaseListContainer");
+  const kpiSummaryText = document.getElementById("kpiSummaryText");
+
+  const kpiCountAll = document.getElementById("kpiCountAll");
+  const kpiCountNew = document.getElementById("kpiCountNew");
+  const kpiCountExisting = document.getElementById("kpiCountExisting");
+  const kpiCountClosed = document.getElementById("kpiCountClosed");
+  const kpiCountOngoing = document.getElementById("kpiCountOngoing");
+  const kpiCountShipped = document.getElementById("kpiCountShipped");
+
+  const kpiCaseEditModal = document.getElementById("kpiCaseEditModal");
+  const kpiCaseEditModalTitle = document.getElementById("kpiCaseEditModalTitle");
+  const btnCloseKpiCaseEditModal = document.getElementById("btnCloseKpiCaseEditModal");
+  const btnCancelKpiCaseEdit = document.getElementById("btnCancelKpiCaseEdit");
+  const btnSaveKpiCaseEdit = document.getElementById("btnSaveKpiCaseEdit");
+  const btnDeleteKpiCaseModal = document.getElementById("btnDeleteKpiCaseModal");
+
+  const kpiEditRowIndex = document.getElementById("kpiEditRowIndex");
+  const kpiEditOrigStatusDesc = document.getElementById("kpiEditOrigStatusDesc");
+  const kpiEditClientName = document.getElementById("kpiEditClientName");
+  const kpiEditClientBadge = document.getElementById("kpiEditClientBadge");
+  const kpiEditIsNewClient = document.getElementById("kpiEditIsNewClient");
+  const kpiEditDate = document.getElementById("kpiEditDate");
+  const kpiEditExpectedMonth = document.getElementById("kpiEditExpectedMonth");
+  const kpiEditSubcategory = document.getElementById("kpiEditSubcategory");
+  const kpiEditStatusDesc = document.getElementById("kpiEditStatusDesc");
+  const kpiEditAmount = document.getElementById("kpiEditAmount");
+  const kpiEditIsClosed = document.getElementById("kpiEditIsClosed");
+  const kpiEditShippedWrap = document.getElementById("kpiEditShippedWrap");
+  const kpiEditIsShipped = document.getElementById("kpiEditIsShipped");
+  const kpiEditDependencies = document.getElementById("kpiEditDependencies");
 
   // 🎯 產品中分類分組矩陣控制器字典 (支援日報與案件編輯雙實例)
   var subcategoryMatrixControllers = {};
@@ -8800,24 +8848,27 @@ document.addEventListener("DOMContentLoaded", () => {
       });
     }
 
-    // 設定責任業務選單
+    // 設定責任業務選單 (嚴格遵守設定條件；曾維崧預設為全體業務，溫達仁等僅能看授權名冊)
     if (kpiSalesFilter) {
       const viewer = getSalesName();
-      const isManager = (typeof isCurrentUserManager === "function" && isCurrentUserManager()) || viewer === "曾維崧";
-      if (isManager) {
-        let members = ALL_SALES_MEMBERS;
-        let prefixOpt = "";
-        if (viewer === "曾維崧") {
-          prefixOpt = `<option value="全體業務">全體業務</option>`;
-        } else if (viewer === "曾仁君") {
-          members = DIRECT_SALES_MEMBERS;
-        } else if (viewer === "張何達") {
-          members = DEALER_SALES_MEMBERS;
-        }
-        kpiSalesFilter.innerHTML = prefixOpt + members.map(m => `<option value="${m}" ${m === viewer ? "selected" : ""}>${m}</option>`).join("");
+      const allowed = (cachedViewPermissions && cachedViewPermissions[viewer]) ? cachedViewPermissions[viewer] : [viewer];
+
+      if (viewer === "曾維崧" || viewer.includes("維崧")) {
+        const allList = ACTIVE_SALES_MEMBERS.length ? ACTIVE_SALES_MEMBERS : (allowed.length ? allowed : ALL_SALES_MEMBERS);
+        let opts = `<option value="全體業務" selected>全體業務</option>`;
+        opts += allList.map(m => `<option value="${m}">${m}</option>`).join("");
+        kpiSalesFilter.innerHTML = opts;
+        kpiSalesFilter.value = "全體業務";
+        kpiSalesFilter.disabled = false;
+      } else if (allowed.length > 1) {
+        // 主管僅能檢視所屬權限之業務名單 (例如溫達仁僅能檢視溫達仁、楊家豪、莊富丞、何宛茹、張書偉、黃柏翰，不列出曾仁君)
+        let opts = allowed.map(m => `<option value="${m}" ${m === viewer ? "selected" : ""}>${m}</option>`).join("");
+        kpiSalesFilter.innerHTML = opts;
+        kpiSalesFilter.value = viewer;
         kpiSalesFilter.disabled = false;
       } else {
-        kpiSalesFilter.innerHTML = `<option value="${viewer}">${viewer}</option>`;
+        kpiSalesFilter.innerHTML = `<option value="${viewer}" selected>${viewer}</option>`;
+        kpiSalesFilter.value = viewer;
         kpiSalesFilter.disabled = true;
       }
     }
@@ -8889,19 +8940,22 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
-  // 6. 更新計數標籤
+  // 6. 更新計數標籤 (已出貨者移出常態看板，歸入歷史封存)
   function updateKpiTabCounters() {
-    const total = kpiAllCases.length;
-    const newCount = kpiAllCases.filter(c => c.is_new_client === "新").length;
-    const existingCount = kpiAllCases.filter(c => c.is_new_client !== "新").length;
-    const closedCount = kpiAllCases.filter(c => c.is_closed_order === "V").length;
-    const ongoingCount = kpiAllCases.filter(c => c.is_closed_order !== "V").length;
+    const activeCases = kpiAllCases.filter(c => c.is_shipped !== "V");
+    const total = activeCases.length;
+    const newCount = activeCases.filter(c => c.is_new_client === "新").length;
+    const existingCount = activeCases.filter(c => c.is_new_client !== "新").length;
+    const closedCount = activeCases.filter(c => c.is_closed_order === "V").length;
+    const ongoingCount = activeCases.filter(c => c.is_closed_order !== "V").length;
+    const shippedCount = kpiAllCases.filter(c => c.is_shipped === "V").length;
 
     if (kpiCountAll) kpiCountAll.textContent = total;
     if (kpiCountNew) kpiCountNew.textContent = newCount;
     if (kpiCountExisting) kpiCountExisting.textContent = existingCount;
     if (kpiCountClosed) kpiCountClosed.textContent = closedCount;
     if (kpiCountOngoing) kpiCountOngoing.textContent = ongoingCount;
+    if (kpiCountShipped) kpiCountShipped.textContent = shippedCount;
   }
 
   // 7. 渲染案件卡片清單
@@ -8912,13 +8966,18 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // 分類篩選
     if (kpiCurrentFilter === "new") {
-      filtered = filtered.filter(c => c.is_new_client === "新");
+      filtered = filtered.filter(c => c.is_new_client === "新" && c.is_shipped !== "V");
     } else if (kpiCurrentFilter === "existing") {
-      filtered = filtered.filter(c => c.is_new_client !== "新");
+      filtered = filtered.filter(c => c.is_new_client !== "新" && c.is_shipped !== "V");
     } else if (kpiCurrentFilter === "closed") {
-      filtered = filtered.filter(c => c.is_closed_order === "V");
+      filtered = filtered.filter(c => c.is_closed_order === "V" && c.is_shipped !== "V");
     } else if (kpiCurrentFilter === "ongoing") {
-      filtered = filtered.filter(c => c.is_closed_order !== "V");
+      filtered = filtered.filter(c => c.is_closed_order !== "V" && c.is_shipped !== "V");
+    } else if (kpiCurrentFilter === "shipped") {
+      filtered = filtered.filter(c => c.is_shipped === "V");
+    } else {
+      // "all": 顯示所有未出貨封存之常規案件
+      filtered = filtered.filter(c => c.is_shipped !== "V");
     }
 
     // 關鍵字搜尋
@@ -8949,11 +9008,15 @@ document.addEventListener("DOMContentLoaded", () => {
       return;
     }
 
+    const viewer = getSalesName();
+
     kpiCaseListContainer.innerHTML = filtered.map(c => {
       const isNew = (c.is_new_client === "新");
       const isClosed = (c.is_closed_order === "V");
+      const isShipped = (c.is_shipped === "V");
       const numAmt = parseFloat(c.estimated_amount);
       const amtStr = (!isNaN(numAmt) && numAmt > 0) ? `${formatAmountDisplay(numAmt)} 萬` : "-";
+      const canDelete = (c.sales_name === viewer || c.client_owner === viewer || viewer === "曾維崧" || viewer.includes("維崧"));
 
       // 支援多選中分類以多個膠囊標籤清晰排列
       const subcatItems = (c.product_subcategory || "").split(/[,，]/).map(s => s.trim()).filter(Boolean);
@@ -8962,19 +9025,30 @@ document.addEventListener("DOMContentLoaded", () => {
         : '<span class="kpi-subcat-tag" style="font-size:0.75rem; background:#f1f5f9; color:#94a3b8; padding:2px 8px; border-radius:12px; border:1px solid #cbd5e1; font-weight:600;">未分類</span>';
 
       return `
-        <div class="kpi-card ${isNew ? 'is-new-client' : ''} ${isClosed ? 'is-closed' : ''}" data-row="${c.row_index}" style="cursor:pointer;">
+        <div class="kpi-card ${isNew ? 'is-new-client' : ''} ${isClosed ? 'is-closed' : ''} ${isShipped ? 'is-shipped' : ''}" data-row="${c.row_index}" style="cursor:pointer; background:${isShipped ? '#f8fafc' : '#ffffff'}; border-left:${isShipped ? '4px solid #0284c7' : ''};">
           <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:6px;">
             <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
               <span class="kpi-client-title" style="font-size:1.05rem; font-weight:700; color:#1e293b;">${escapeHtml(c.client_name)}</span>
               ${isNew ? '<span class="kpi-badge-new" style="font-size:0.75rem; background:#2563eb; color:#ffffff; padding:1px 6px; border-radius:4px; font-weight:700;">🌟 新客</span>' : ''}
+              ${isShipped ? '<span class="kpi-badge-shipped" style="font-size:0.75rem; background:#0284c7; color:#ffffff; padding:1px 6px; border-radius:4px; font-weight:700;">📦 已出貨</span>' : ''}
               ${subcatTagsHtml}
               <span style="font-size:0.75rem; color:#64748b;">(${escapeHtml(c.sales_name || c.client_owner || '負責業務')})</span>
             </div>
-            <div style="display:flex; align-items:center; gap:8px;">
+            <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
               <span style="font-weight:700; color:#b45309; font-size:0.95rem;">${amtStr}</span>
               <button type="button" class="btn-toggle-closed ${isClosed ? 'active' : ''}" data-row="${c.row_index}" style="padding:3px 8px; font-size:0.75rem; font-weight:700; border-radius:6px; border:1px solid ${isClosed ? '#16a34a' : '#cbd5e1'}; background:${isClosed ? '#f0fdf4' : '#ffffff'}; color:${isClosed ? '#15803d' : '#64748b'}; cursor:pointer;">
                 ${isClosed ? '✅ 已取單 (V)' : '⬜ 未取單'}
               </button>
+              ${isClosed ? `
+                <button type="button" class="btn-toggle-shipped ${isShipped ? 'active' : ''}" data-row="${c.row_index}" style="padding:3px 7px; font-size:0.75rem; font-weight:600; border-radius:6px; border:1px solid ${isShipped ? '#0284c7' : '#bae6fd'}; background:${isShipped ? '#0284c7' : '#f0f9ff'}; color:${isShipped ? '#ffffff' : '#0369a1'}; cursor:pointer;" title="出貨封存（移出進行中，移入歷史案件區）">
+                  📦 ${isShipped ? '已出貨(封存)' : '出貨封存'}
+                </button>
+              ` : ''}
+              ${canDelete ? `
+                <button type="button" class="btn-delete-kpi-card" data-row="${c.row_index}" style="padding:2px 6px; font-size:0.85rem; border:none; background:transparent; cursor:pointer; color:#ef4444; border-radius:4px;" title="刪除此案件 (當事人權限)">
+                  🗑️
+                </button>
+              ` : ''}
             </div>
           </div>
           <div style="font-size:0.85rem; color:#334155; line-height:1.45; margin-bottom:6px; word-break:break-all;">
@@ -8988,7 +9062,7 @@ document.addEventListener("DOMContentLoaded", () => {
       `;
     }).join("");
 
-    // 綁定卡片點擊與取單否切換
+    // 綁定卡片點擊與按鈕操作
     kpiCaseListContainer.querySelectorAll(".kpi-card").forEach(card => {
       const rowIndex = parseInt(card.dataset.row, 10);
       const caseItem = kpiAllCases.find(c => c.row_index === rowIndex);
@@ -9004,6 +9078,24 @@ document.addEventListener("DOMContentLoaded", () => {
         btnToggle.addEventListener("click", (e) => {
           e.stopPropagation();
           toggleKpiCaseClosedOrder(caseItem);
+        });
+      }
+
+      // 點擊出貨封存按鈕
+      const btnShipped = card.querySelector(".btn-toggle-shipped");
+      if (btnShipped) {
+        btnShipped.addEventListener("click", (e) => {
+          e.stopPropagation();
+          toggleKpiCaseShipped(caseItem);
+        });
+      }
+
+      // 點擊刪除按鈕
+      const btnDelete = card.querySelector(".btn-delete-kpi-card");
+      if (btnDelete) {
+        btnDelete.addEventListener("click", (e) => {
+          e.stopPropagation();
+          deleteKpiCase(caseItem);
         });
       }
     });
@@ -9045,14 +9137,109 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
+  // 8-B. 快速切換已出貨封存 (打 V)
+  async function toggleKpiCaseShipped(caseItem) {
+    if (!caseItem) return;
+    const newShipped = (caseItem.is_shipped === "V") ? "" : "V";
+    caseItem.is_shipped = newShipped;
+
+    // 即時樂觀更新本地 UI
+    updateKpiTabCounters();
+    renderKpiCasesList();
+
+    // 同步更新快取
+    const viewer = getSalesName();
+    const targetSales = kpiSalesFilter ? kpiSalesFilter.value : viewer;
+    const cacheKey = targetSales || "all";
+    if (kpiCasesCache[cacheKey]) {
+      kpiCasesCache[cacheKey].cases = kpiAllCases.slice();
+      kpiCasesCache[cacheKey].timestamp = Date.now();
+    }
+
+    const toastMsg = (newShipped === "V")
+      ? `📦「${caseItem.client_name}」案件已出貨並封存至「歷史案件」區！`
+      : `ℹ️「${caseItem.client_name}」已取消出貨標記，還原至進行中`;
+    showToast(toastMsg, "success");
+
+    // 背景非同步送出至後端 GAS
+    try {
+      const params = new URLSearchParams({
+        action: "update_kpi_case",
+        row_index: caseItem.row_index,
+        sheet_name: caseItem.sheet_name || caseItem.sales_name || "",
+        is_shipped: newShipped
+      });
+      await fetch(`${GAS_URL}?${params.toString()}`);
+    } catch(err) {
+      console.warn("[KPI] 背景更新已出貨狀態異常:", err);
+    }
+  }
+
+  // 8-C. 刪除案件追蹤資料 (當事人與曾維崧權限)
+  async function deleteKpiCase(caseItem) {
+    if (!caseItem) return;
+    const viewer = getSalesName();
+    const canDelete = (caseItem.sales_name === viewer || caseItem.client_owner === viewer || viewer === "曾維崧" || viewer.includes("維崧"));
+    if (!canDelete) {
+      alert("權限不足：僅負責業務本人（當事人）或曾維崧主管可刪除案件");
+      return;
+    }
+
+    if (!confirm(`確定要刪除「${caseItem.client_name}」這筆案件嗎？\n（此操作將自試算表永久移除該列）`)) {
+      return;
+    }
+
+    // 關閉編輯對話框（若開啟中）
+    if (kpiCaseEditModal) kpiCaseEditModal.classList.add("hidden");
+
+    // 1. 本地樂觀移除
+    const origIndex = kpiAllCases.findIndex(c => c.row_index === caseItem.row_index && (c.sheet_name === caseItem.sheet_name || c.sales_name === caseItem.sales_name));
+    if (origIndex >= 0) {
+      kpiAllCases.splice(origIndex, 1);
+    }
+
+    // 即時更新 UI 與計數
+    updateKpiTabCounters();
+    renderKpiCasesList();
+
+    // 更新快取
+    const targetSales = kpiSalesFilter ? kpiSalesFilter.value : viewer;
+    const cacheKey = targetSales || "all";
+    if (kpiCasesCache[cacheKey]) {
+      kpiCasesCache[cacheKey].cases = kpiAllCases.slice();
+      kpiCasesCache[cacheKey].timestamp = Date.now();
+    }
+
+    showToast(`🗑️「${caseItem.client_name}」案件已成功自清單中刪除`, "info");
+
+    // 2. 背景非同步通知 GAS 刪除列
+    try {
+      const params = new URLSearchParams({
+        action: "delete_kpi_case",
+        row_index: caseItem.row_index,
+        sheet_name: caseItem.sheet_name || caseItem.sales_name || "",
+        viewer: viewer
+      });
+      const res = await fetch(`${GAS_URL}?${params.toString()}`);
+      const data = await res.json();
+      if (data && data.status !== "ok") {
+        console.warn("[KPI] 雲端刪除案件警告:", data.msg);
+      }
+    } catch(err) {
+      console.warn("[KPI] 背景刪除案件異常:", err);
+    }
+  }
+
   // 9. 複製為 Synology BD~BL 欄格式 (TSV)
   function copySynologyTsvFormat() {
     let filtered = kpiAllCases.slice();
 
-    if (kpiCurrentFilter === "new") filtered = filtered.filter(c => c.is_new_client === "新");
-    else if (kpiCurrentFilter === "existing") filtered = filtered.filter(c => c.is_new_client !== "新");
-    else if (kpiCurrentFilter === "closed") filtered = filtered.filter(c => c.is_closed_order === "V");
-    else if (kpiCurrentFilter === "ongoing") filtered = filtered.filter(c => c.is_closed_order !== "V");
+    if (kpiCurrentFilter === "new") filtered = filtered.filter(c => c.is_new_client === "新" && c.is_shipped !== "V");
+    else if (kpiCurrentFilter === "existing") filtered = filtered.filter(c => c.is_new_client !== "新" && c.is_shipped !== "V");
+    else if (kpiCurrentFilter === "closed") filtered = filtered.filter(c => c.is_closed_order === "V" && c.is_shipped !== "V");
+    else if (kpiCurrentFilter === "ongoing") filtered = filtered.filter(c => c.is_closed_order !== "V" && c.is_shipped !== "V");
+    else if (kpiCurrentFilter === "shipped") filtered = filtered.filter(c => c.is_shipped === "V");
+    else filtered = filtered.filter(c => c.is_shipped !== "V");
 
     if (kpiSearchKeyword) {
       filtered = filtered.filter(c => {
@@ -9116,6 +9303,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // 10. 開啟獨立新增案件對話框
   function openNewKpiCaseModal() {
+    activeEditingKpiCase = null;
     if (!kpiCaseEditModal) return;
     if (kpiCaseEditModalTitle) kpiCaseEditModalTitle.innerHTML = "➕ 新增追蹤案件";
     if (kpiEditRowIndex) kpiEditRowIndex.value = "";
@@ -9143,7 +9331,10 @@ document.addEventListener("DOMContentLoaded", () => {
     if (kpiEditStatusDesc) kpiEditStatusDesc.value = "";
     if (kpiEditAmount) kpiEditAmount.value = "0.0";
     if (kpiEditIsClosed) kpiEditIsClosed.checked = false;
+    if (kpiEditShippedWrap) kpiEditShippedWrap.style.display = "none";
+    if (kpiEditIsShipped) kpiEditIsShipped.checked = false;
     if (kpiEditDependencies) kpiEditDependencies.value = "";
+    if (btnDeleteKpiCaseModal) btnDeleteKpiCaseModal.classList.add("hidden");
 
     kpiCaseEditModal.classList.remove("hidden");
     setTimeout(() => {
@@ -9154,6 +9345,7 @@ document.addEventListener("DOMContentLoaded", () => {
   // 11. 開啟既有案件編輯對話框 (鎖定客戶名稱唯讀，移除多餘標籤)
   function openEditKpiCaseModal(c) {
     if (!kpiCaseEditModal || !c) return;
+    activeEditingKpiCase = c;
     if (kpiCaseEditModalTitle) kpiCaseEditModalTitle.innerHTML = "📝 編輯追蹤案件";
     if (kpiEditRowIndex) kpiEditRowIndex.value = c.row_index || "";
     if (kpiEditOrigStatusDesc) kpiEditOrigStatusDesc.value = c.status_desc || c.case_name || "";
@@ -9182,7 +9374,20 @@ document.addEventListener("DOMContentLoaded", () => {
     if (kpiEditStatusDesc) kpiEditStatusDesc.value = c.status_desc || c.case_name || "";
     if (kpiEditAmount) kpiEditAmount.value = (c.estimated_amount !== undefined && c.estimated_amount !== null) ? c.estimated_amount : "0.0";
     if (kpiEditIsClosed) kpiEditIsClosed.checked = (c.is_closed_order === "V");
+    if (kpiEditShippedWrap) kpiEditShippedWrap.style.display = "flex";
+    if (kpiEditIsShipped) kpiEditIsShipped.checked = (c.is_shipped === "V");
     if (kpiEditDependencies) kpiEditDependencies.value = c.dependencies || "";
+
+    // 刪除按鈕權限判斷：當事人或曾維崧最高主管
+    const viewer = getSalesName();
+    const canDelete = (c.sales_name === viewer || c.client_owner === viewer || c.sheet_name === viewer || viewer === "曾維崧" || viewer.includes("維崧"));
+    if (btnDeleteKpiCaseModal) {
+      if (canDelete) {
+        btnDeleteKpiCaseModal.classList.remove("hidden");
+      } else {
+        btnDeleteKpiCaseModal.classList.add("hidden");
+      }
+    }
 
     kpiCaseEditModal.classList.remove("hidden");
   }
@@ -9199,6 +9404,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const statusDesc = (kpiEditStatusDesc ? kpiEditStatusDesc.value : "").trim();
     const amount = parseFloat(kpiEditAmount ? kpiEditAmount.value : "0") || 0;
     const isClosed = (kpiEditIsClosed && kpiEditIsClosed.checked) ? "V" : "";
+    const isShipped = (kpiEditIsShipped && kpiEditIsShipped.checked) ? "V" : "";
     const dependencies = (kpiEditDependencies ? kpiEditDependencies.value : "").trim();
 
     // 1. 嚴格欄位驗證
@@ -9245,6 +9451,7 @@ document.addEventListener("DOMContentLoaded", () => {
         existing.estimated_amount = amount;
         existing.expected_month = expectedMonth;
         existing.is_closed_order = isClosed;
+        existing.is_shipped = isShipped;
         existing.dependencies = dependencies;
         existing.is_new_client = isNewClient;
       }
@@ -9264,6 +9471,7 @@ document.addEventListener("DOMContentLoaded", () => {
         estimated_amount: amount,
         expected_month: expectedMonth,
         is_closed_order: isClosed,
+        is_shipped: isShipped,
         dependencies: dependencies
       };
       kpiAllCases.unshift(tempCaseObj);
@@ -9298,6 +9506,7 @@ document.addEventListener("DOMContentLoaded", () => {
             estimated_amount: amount,
             expected_month: expectedMonth,
             is_closed_order: isClosed,
+            is_shipped: isShipped,
             dependencies: dependencies,
             is_new_client: isNewClient
           };
@@ -9320,6 +9529,7 @@ document.addEventListener("DOMContentLoaded", () => {
             estimated_amount: amount,
             expected_month: expectedMonth,
             is_closed_order: isClosed,
+            is_shipped: isShipped,
             dependencies: dependencies,
             is_new_client: isNewClient
           };
@@ -9419,6 +9629,15 @@ document.addEventListener("DOMContentLoaded", () => {
       btnSaveKpiCaseEdit.addEventListener("click", saveKpiCaseEdit);
     }
 
+    // 🗑️ 刪除案件追蹤按鈕 (編輯彈窗內，當事人或曾維崧權限)
+    if (btnDeleteKpiCaseModal) {
+      btnDeleteKpiCaseModal.addEventListener("click", () => {
+        if (activeEditingKpiCase) {
+          deleteKpiCase(activeEditingKpiCase);
+        }
+      });
+    }
+
     // 新增案件時輸入客戶名稱之 4 字校驗 (既有案件鎖定時不觸發)
     if (kpiEditClientName) {
       kpiEditClientName.addEventListener("input", () => {
@@ -9463,4 +9682,5 @@ document.addEventListener("DOMContentLoaded", () => {
   loadSalesRepKnownClients(getSalesName());
 
 }); // end DOMContentLoaded
+
 

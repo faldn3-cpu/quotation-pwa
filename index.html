@@ -15,7 +15,7 @@
   
   <!-- Google Fonts: Inter -->
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=1.87">
+  <link rel="stylesheet" href="style.css?v=1.88">
   <style>
     .custom-delivery-box { display: flex !important; gap: 8px !important; align-items: center !important; }
     .custom-delivery-box .search-input { flex: 1 !important; margin-bottom: 0 !important; }
@@ -1463,6 +1463,7 @@
             <button type="button" class="btn-filter-tab" data-filter="existing">既有客戶新案 (<span id="kpiCountExisting">0</span>)</button>
             <button type="button" class="btn-filter-tab" data-filter="closed" style="background:#f0fdf4; color:#15803d; border-color:#bbf7d0;">✅ 已取單 (V) (<span id="kpiCountClosed">0</span>)</button>
             <button type="button" class="btn-filter-tab" data-filter="ongoing">⏳ 進行中 (<span id="kpiCountOngoing">0</span>)</button>
+            <button type="button" class="btn-filter-tab" data-filter="shipped" style="background:#f0f9ff; color:#0369a1; border-color:#bae6fd;">📦 歷史封存 (<span id="kpiCountShipped">0</span>)</button>
           </div>
         </div>
 
@@ -1582,6 +1583,14 @@
             </div>
           </div>
 
+          <!-- 已出貨封存開關 (勾選後封存至歷史案件區) -->
+          <div id="kpiEditShippedWrap" style="display:flex; align-items:center; justify-content:space-between; margin-bottom:0.85rem; background:#f0f9ff; border:1px solid #bae6fd; padding:8px 12px; border-radius:8px;">
+            <label style="display:flex; align-items:center; gap:8px; cursor:pointer; margin-bottom:0; font-weight:600; font-size:0.85rem; color:#0369a1;">
+              <input type="checkbox" id="kpiEditIsShipped" style="width:18px; height:18px; accent-color:#0284c7; cursor:pointer;">
+              <span>📦 已出貨（勾選後移出進行中，封存至「歷史案件」區）</span>
+            </label>
+          </div>
+
           <!-- 依賴事項 -->
           <div class="form-group" style="margin-bottom:0;">
             <label for="kpiEditDependencies" style="font-weight:600; font-size:0.82rem; color:#334155; display:block; margin-bottom:3px;">依賴事項 (交期、技術支援等)</label>
@@ -1590,9 +1599,12 @@
         </form>
       </div>
 
-      <div class="modal-footer" style="padding-top:0.75rem; border-top:1px solid #e2e8f0; display:flex; gap:0.5rem; flex-shrink:0; margin-top:0.5rem;">
-        <button type="button" id="btnCancelKpiCaseEdit" class="btn btn-secondary" style="flex:1; font-size:0.85rem;">取消</button>
-        <button type="button" id="btnSaveKpiCaseEdit" class="btn btn-primary" style="flex:2; font-weight:600; font-size:0.85rem;">💾 儲存追蹤資料</button>
+      <div class="modal-footer" style="padding-top:0.75rem; border-top:1px solid #e2e8f0; display:flex; gap:0.5rem; flex-shrink:0; margin-top:0.5rem; justify-content:space-between;">
+        <button type="button" id="btnDeleteKpiCaseModal" class="btn btn-danger hidden" style="font-size:0.85rem; background:#fee2e2; color:#dc2626; border:1px solid #fca5a5; padding:6px 14px; font-weight:600;">🗑️ 刪除案件</button>
+        <div style="display:flex; gap:0.5rem; flex:1; justify-content:flex-end;">
+          <button type="button" id="btnCancelKpiCaseEdit" class="btn btn-secondary" style="font-size:0.85rem; padding:6px 16px;">取消</button>
+          <button type="button" id="btnSaveKpiCaseEdit" class="btn btn-primary" style="flex:2; font-weight:600; font-size:0.85rem; padding:6px 20px;">💾 儲存追蹤資料</button>
+        </div>
       </div>
     </div>
   </div>
@@ -1882,8 +1894,8 @@
   </div>
 
   <!-- 🚀 畫面右下角簡潔版本訊息 (字體小、不佔用頂部空間) -->
-  <div class="app-version-bottom-right" id="appVersionInfo">v 1.87</div>
+  <div class="app-version-bottom-right" id="appVersionInfo">v 1.88</div>
 
-  <script src="app.js?v=1.87"></script>
+  <script src="app.js?v=1.88"></script>
 </body>
 </html>
