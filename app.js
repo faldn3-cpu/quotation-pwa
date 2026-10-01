@@ -45,8 +45,21 @@ function isTokenValid() {
 }
 
 document.addEventListener("DOMContentLoaded", () => {
-  // 🚀 版本自動同步與舊快取清理防護 (v 1.83)
-  const CURRENT_APP_VERSION = "1.83";
+  // 🔔 全域浮動提示訊息 (Toast) 控制器 (置頂定義避免 TDZ 暫時死區錯誤)
+  var toastTimer = null;
+  function showToast(message, type = "info") {
+    const toast = document.getElementById("ogsmToast");
+    if (!toast) return;
+    toast.textContent = message;
+    toast.className = `ogsm-toast show ${type}`;
+    if (toastTimer) clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => {
+      toast.classList.remove("show");
+    }, 2800);
+  }
+
+  // 🚀 版本自動同步與舊快取清理防護 (v 1.86)
+  const CURRENT_APP_VERSION = "1.86";
   const appVersionInfo = document.getElementById("appVersionInfo");
   if (appVersionInfo) {
     appVersionInfo.textContent = "v " + CURRENT_APP_VERSION;
@@ -57,7 +70,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if ('caches' in window) {
       caches.keys().then(keys => {
         keys.forEach(k => {
-          if (k !== 'quote-draft-v1.83') {
+          if (k !== 'quote-draft-v1.86') {
             caches.delete(k);
           }
         });
@@ -261,9 +274,9 @@ document.addEventListener("DOMContentLoaded", () => {
   // Service Worker 註冊與自動更新偵測
   // ====================================================
   if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('./sw.js?v=1.83')
+    navigator.serviceWorker.register('./sw.js?v=1.86')
       .then(reg => {
-        console.log('[PWA] Service Worker 已註冊 (v 1.83)', reg);
+        console.log('[PWA] Service Worker 已註冊 (v 1.86)', reg);
         // 主動檢查伺服器端是否有新版 sw.js
         reg.update();
 
@@ -2585,17 +2598,7 @@ document.addEventListener("DOMContentLoaded", () => {
   let ogsmSyncingReports = []; // 正在背景同步中的日報 (樂觀更新佇列)
   let isOgsmSyncing = false;   // 離線自動補傳互斥鎖
 
-  let toastTimer = null;
-  function showToast(message, type = "info") {
-    const toast = document.getElementById("ogsmToast");
-    if (!toast) return;
-    toast.textContent = message;
-    toast.className = `ogsm-toast show ${type}`;
-    if (toastTimer) clearTimeout(toastTimer);
-    toastTimer = setTimeout(() => {
-      toast.classList.remove("show");
-    }, 2800);
-  }
+  // (showToast 與 toastTimer 已置頂宣告於 DOMContentLoaded 頂端)
 
   // DOM 元素引用 (通用導航與日報日曆)
   const ogsmSection            = document.getElementById("ogsmSection");
@@ -3216,7 +3219,7 @@ document.addEventListener("DOMContentLoaded", () => {
         showLoginSection();
       }
     } else if (mode === "ogsm") {
-      if (appTitleText) appTitleText.textContent = "OGSM 業務日報";
+      if (appTitleText) appTitleText.textContent = "智能案件追蹤";
       if (draftSection) draftSection.classList.add("hidden");
       if (successSection) successSection.classList.add("hidden");
 
@@ -3233,7 +3236,7 @@ document.addEventListener("DOMContentLoaded", () => {
       } else {
         if (ogsmSection) ogsmSection.classList.add("hidden");
         showLoginSection();
-        alert("請先完成登入或點擊快速測試，即可使用 OGSM 業務日報功能。");
+        alert("請先完成登入或點擊快速測試，即可使用智能案件追蹤功能。");
       }
     }
     closeAppSwitcher();
