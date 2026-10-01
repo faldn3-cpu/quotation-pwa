@@ -274,9 +274,9 @@ document.addEventListener("DOMContentLoaded", () => {
   // Service Worker 註冊與自動更新偵測
   // ====================================================
   if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('./sw.js?v=1.86')
+    navigator.serviceWorker.register('./sw.js?v=1.87')
       .then(reg => {
-        console.log('[PWA] Service Worker 已註冊 (v 1.86)', reg);
+        console.log('[PWA] Service Worker 已註冊 (v 1.87)', reg);
         // 主動檢查伺服器端是否有新版 sw.js
         reg.update();
 
@@ -3151,10 +3151,8 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  // 初始載入時評估管理員工具列狀態與啟動案件追蹤模組
+  // 初始載入時評估管理員工具列狀態
   setupAdminImpersonator();
-  initCaseTrackingModule();
-  loadSalesRepKnownClients(getSalesName());
 
   // ====================================================
   // App Switcher 切換選單控制
@@ -8575,14 +8573,14 @@ document.addEventListener("DOMContentLoaded", () => {
   // 🎯 模組十：案件追蹤 (KPI) 管理看板與成案管考系統 (Phase 2 前端實作)
   // ====================================================
 
-  let salesRepKnownClients = new Set();
-  let kpiAllCases = [];
-  let kpiCasesCache = {}; // 快取: { [salesName]: { cases: Array, timestamp: number } }
-  let kpiCurrentFilter = "all"; // all, new, existing, closed, ongoing
-  let kpiSearchKeyword = "";
+  var salesRepKnownClients = new Set();
+  var kpiAllCases = [];
+  var kpiCasesCache = {}; // 快取: { [salesName]: { cases: Array, timestamp: number } }
+  var kpiCurrentFilter = "all"; // all, new, existing, closed, ongoing
+  var kpiSearchKeyword = "";
 
   // 🎯 產品中分類分組矩陣控制器字典 (支援日報與案件編輯雙實例)
-  const subcategoryMatrixControllers = {};
+  var subcategoryMatrixControllers = {};
 
   function setupSubcategoryMatrix(containerId, hiddenInputId) {
     const container = document.getElementById(containerId);
@@ -9462,6 +9460,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // 🚀 執行案件追蹤 (KPI) 模組與中分類矩陣初始化
   initCaseTrackingModule();
+  loadSalesRepKnownClients(getSalesName());
 
 }); // end DOMContentLoaded
 
