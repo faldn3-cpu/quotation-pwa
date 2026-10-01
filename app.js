@@ -45,8 +45,8 @@ function isTokenValid() {
 }
 
 document.addEventListener("DOMContentLoaded", () => {
-  // 🚀 版本自動同步與舊快取清理防護 (v 1.80)
-  const CURRENT_APP_VERSION = "1.80";
+  // 🚀 版本自動同步與舊快取清理防護 (v 1.81)
+  const CURRENT_APP_VERSION = "1.81";
   const appVersionInfo = document.getElementById("appVersionInfo");
   if (appVersionInfo) {
     appVersionInfo.textContent = "v " + CURRENT_APP_VERSION;
@@ -57,7 +57,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if ('caches' in window) {
       caches.keys().then(keys => {
         keys.forEach(k => {
-          if (k !== 'quote-draft-v1.80') {
+          if (k !== 'quote-draft-v1.81') {
             caches.delete(k);
           }
         });
@@ -4099,15 +4099,30 @@ document.addEventListener("DOMContentLoaded", () => {
     if (crmInputClientName) crmInputClientName.value = item.client_name || "";
     if (crmInputPurpose) crmInputPurpose.value = item.content || "";
     if (crmInputStatusDesc) crmInputStatusDesc.value = item.result || "";
-    if (crmInputCompChannel) crmInputCompChannel.value = "";
-    if (crmSelectClientNature) populateClientNatureOptions(crmSelectClientNature, "A 級（持續大手）");
-    if (crmSelectLostRetrieved) crmSelectLostRetrieved.value = "";
-    if (crmInputActionPlan) crmInputActionPlan.value = "";
+    if (crmSelectChannel && item.channel) crmSelectChannel.value = item.channel;
+    if (crmSelectIndustry && item.industry) crmSelectIndustry.value = item.industry;
+    if (crmInputCompChannel) crmInputCompChannel.value = item.comp_channel || "";
+    if (crmSelectClientNature) populateClientNatureOptions(crmSelectClientNature, item.client_type || item.client_nature || "A 級（持續大手）");
+    if (crmSelectLostRetrieved) crmSelectLostRetrieved.value = item.is_lost_retrieved || "";
+    if (crmInputActionPlan) crmInputActionPlan.value = item.action_plan || "";
+    if (crmSelectExpectedMonth && item.expected_month) crmSelectExpectedMonth.value = item.expected_month;
+    if (crmInputAmount && item.estimated_amount) crmInputAmount.value = item.estimated_amount;
+    if (crmSelectBrand && item.competing_brand) crmSelectBrand.value = item.competing_brand;
+    if (crmInputDependencies && item.dependencies) crmInputDependencies.value = item.dependencies;
+
+    // 自動勾選推廣產品
+    if (item.promoted_products) {
+      const prods = item.promoted_products.split(/[、,，]/).map(s => s.trim());
+      document.querySelectorAll("#crmPromotedProductsWrap input[name='crmProduct']").forEach(cb => {
+        cb.checked = prods.some(p => p && (cb.value.includes(p) || p.includes(cb.value)));
+      });
+    }
     
-    // 初始化客戶所屬下拉選單 (預設為自己，但可切換真正歸屬人)
+    // 初始化客戶所屬下拉選單 (預設為日報客戶所屬或自己)
     if (crmSelectClientOwner) {
+      const ownerVal = item.client_owner || getSalesName();
       crmSelectClientOwner.innerHTML = ALL_SALES_MEMBERS.map(m => {
-        const selected = (m === getSalesName() || getSalesName().includes(m)) ? "selected" : "";
+        const selected = (m === ownerVal || ownerVal.includes(m)) ? "selected" : "";
         return `<option value="${m}" ${selected}>${m}</option>`;
       }).join("");
     }
@@ -5909,7 +5924,7 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  // 🚀 「儲存並轉入 CRM」按鈕：先儲存日報，成功後自動彈出 CRM 直式編輯表單
+  // 🚀 「儲存並轉入 CRM」按鈕：一鍵儲存日報並自動同步轉入 CRM 商機
   if (btnSaveOgsmAndCrm) {
     btnSaveOgsmAndCrm.addEventListener("click", async () => {
       if (btnSaveOgsmAndCrm.disabled) return;
@@ -5933,6 +5948,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
       const salesName = getSalesName();
       const editingRowIndex = ogsmEditRowIndex ? ogsmEditRowIndex.value : "";
+      const editingOfflineId = ogsmEditOfflineId ? ogsmEditOfflineId.value : "";
 
       // 採集 11 個商機詳細欄位
       const clientOwner = ogsmInputClientOwner ? ogsmInputClientOwner.value : "";
@@ -5949,7 +5965,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
       // 防重複點擊
       btnSaveOgsmAndCrm.disabled = true;
-      btnSaveOgsmAndCrm.textContent = "⏳ 儲存中...";
+      btnSaveOgsmAndCrm.textContent = "⏳ 正在儲存日報並轉入 CRM...";
 
       const payload = {
         user_name: salesName,
@@ -5974,35 +5990,32 @@ document.addEventListener("DOMContentLoaded", () => {
       if (editingRowIndex) payload.row_index = editingRowIndex;
 
       try {
+        // 1. 儲存 OGSM 日報
         const params = new URLSearchParams(payload);
         params.append("action", "save_ogsm");
         const res = await fetch(`${GAS_URL}?${params.toString()}`);
         const data = await res.json();
 
-        if (data.status === "ok") {
-          showToast(`✅「${clientName}」日報已儲存`, "success");
-          closeOgsmEditModal();
+        if (data.status !== "ok") {
+          throw new Error(data.msg || "儲存日報失敗");
+        }
 
-          // 重新整理月曆
-          ogsmDatesWithReports.add(dateStr);
-          renderCalendar(ogsmCurrentYear, ogsmCurrentMonth);
-          refreshCurrentDayModal();
-          loadSupervisorTasks();
-          refreshFollowUpEngine();
-
-          // 🚀 自動帶出 CRM 直式編輯表單（完整預填日報與商機選單資料）
-          const crmRecord = {
-            row_index: null,   // 新建 CRM，稍後由 sync_ogsm_to_crm 建立
+        // 2. 自動直接同步轉入 CRM 商機試算表 (無需二次點擊確認)
+        let crmSyncSuccess = false;
+        try {
+          const crmPayload = {
+            action: "sync_ogsm_to_crm",
+            user_name: salesName,
+            visit_date: dateStr,
             client_name: clientName,
             client_owner: clientOwner || salesName,
-            case_name: content,
+            purpose_or_project: content,
+            status_description: result,
             promoted_products: promotedProducts,
-            target_month: expectedMonth,
-            estimated_amount: parseFloat(estimatedAmount) || 0,
-            status_desc: result,
-            competing_brand: competingBrand,
+            expected_month: expectedMonth,
+            estimated_amount: estimatedAmount,
             dependencies: dependencies,
-            visit_date: dateStr,
+            competing_brand: competingBrand,
             industry: industry,
             channel: channel,
             comp_channel: compChannel,
@@ -6010,13 +6023,98 @@ document.addEventListener("DOMContentLoaded", () => {
             is_lost_retrieved: isLostRetrieved,
             action_plan: actionPlan
           };
-          openCrmEditModal(crmRecord, "ogsm_save");
+          const crmParams = new URLSearchParams(crmPayload);
+          const crmRes = await fetch(`${GAS_URL}?${crmParams.toString()}`);
+          const crmData = await crmRes.json();
+          crmSyncSuccess = (crmData && crmData.status === "ok");
+        } catch (crmErr) {
+          console.warn("轉入 CRM 雲端同步異常:", crmErr);
+        }
+
+        // 3. 組合即時日報實體物件並更新前端快取與記憶體狀態 (0 秒立即可見)
+        const twWeekday = ["日", "一", "二", "三", "四", "五", "六"][new Date(dateStr.replace(/-/g, "/")).getDay()] || "";
+        const savedEntry = (data && data.entry) ? { ...data.entry, crm_synced: crmSyncSuccess } : {
+          row_index: data.row_index || editingRowIndex,
+          date: dateStr,
+          weekday: twWeekday ? `星期${twWeekday}` : "",
+          client_name: clientName,
+          client_type: clientType,
+          content: content,
+          result: result,
+          updated_at: formatTwDateTime(new Date()),
+          client_owner: clientOwner || salesName,
+          industry: industry,
+          channel: channel,
+          comp_channel: compChannel,
+          action_plan: actionPlan,
+          is_lost_retrieved: isLostRetrieved,
+          promoted_products: promotedProducts,
+          expected_month: expectedMonth,
+          competing_brand: competingBrand,
+          estimated_amount: estimatedAmount,
+          dependencies: dependencies,
+          crm_synced: crmSyncSuccess
+        };
+
+        const existingIdx = ogsmMonthReports.findIndex(r => r.date === dateStr && r.client_name === clientName);
+        if (existingIdx !== -1) {
+          ogsmMonthReports[existingIdx] = { ...ogsmMonthReports[existingIdx], ...savedEntry };
         } else {
-          alert("儲存日報失敗：" + (data.msg || "未知錯誤"));
+          ogsmMonthReports.push(savedEntry);
+        }
+
+        // 清理離線暫存
+        if (editingOfflineId) {
+          removeOfflineOgsmDraft(editingOfflineId);
+        }
+        cleanDuplicateOfflineDrafts(dateStr, clientName);
+
+        // 重新整理月曆與當日清單 (即刻有感更新，不再呈現 0 筆)
+        ogsmDatesWithReports.add(dateStr);
+        saveOgsmLocalCache(ogsmCurrentYear, ogsmCurrentMonth, ogsmMonthReports, ogsmDatesWithReports);
+        currentViewingDate = dateStr;
+        renderCalendar(ogsmCurrentYear, ogsmCurrentMonth);
+        refreshCurrentDayModal();
+        loadSupervisorTasks();
+        refreshFollowUpEngine();
+        invalidateMonthlyReportCaches();
+
+        closeOgsmEditModal();
+
+        const crmMsg = crmSyncSuccess ? "，並已成功同步轉入 CRM 商機！" : "（日報已儲存，CRM 正在背景排隊同步）";
+        showToast(`✅「${clientName}」日報已儲存${crmMsg}`, "success");
+
+        // 背景非同步確保雲端最新資料拉回
+        loadOgsmMonthly(ogsmCurrentYear, ogsmCurrentMonth).catch(e => console.warn("背景重新載入月日報異常:", e));
+
+        // 👑 若主管填寫了商機方針，自動非同步發布督導交辦任務至管考表
+        if (isCurrentUserManager() && ogsmSupervisorDirective) {
+          const directiveText = ogsmSupervisorDirective.value.trim();
+          if (directiveText) {
+            const supAssignee = ogsmSupervisorAssignee ? ogsmSupervisorAssignee.value : salesName;
+            const supDeadline = ogsmSupervisorDeadline ? ogsmSupervisorDeadline.value.replace(/-/g, "/") : "";
+            const supParams = new URLSearchParams({
+              action: "assign_supervisor_task",
+              viewer: salesName,
+              task_type: "商機指派方針",
+              client_name: clientName,
+              case_name: content || "商機日報",
+              old_owner: clientOwner || supAssignee,
+              new_owner: supAssignee,
+              manager_note: directiveText,
+              deadline: supDeadline
+            });
+            fetch(`${GAS_URL}?${supParams.toString()}`).then(r => r.json()).then(data => {
+              if (data.status === "ok") {
+                showToast(`👑 主管方針已發布交辦給【${supAssignee}】`, "success");
+                loadSupervisorTasks();
+              }
+            }).catch(e => console.warn("主管方針發布非同步異常:", e));
+          }
         }
       } catch (err) {
         console.error("儲存日報並轉 CRM 失敗:", err);
-        alert("儲存日報失敗，請檢查網路連線。");
+        alert("儲存日報並轉入 CRM 失敗：" + (err.message || "請檢查網路連線"));
       } finally {
         btnSaveOgsmAndCrm.disabled = false;
         btnSaveOgsmAndCrm.textContent = "💾 儲存並轉入 CRM";
