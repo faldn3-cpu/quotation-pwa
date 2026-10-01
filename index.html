@@ -15,7 +15,7 @@
   
   <!-- Google Fonts: Inter -->
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=1.82">
+  <link rel="stylesheet" href="style.css?v=1.85">
   <style>
     .custom-delivery-box { display: flex !important; gap: 8px !important; align-items: center !important; }
     .custom-delivery-box .search-input { flex: 1 !important; margin-bottom: 0 !important; }
@@ -311,7 +311,7 @@
         <div class="ogsm-day-panel-header">
           <h3 id="ogsmDayViewTitle" class="ogsm-day-panel-title">📅 業務日報清單</h3>
           <button type="button" id="btnAddDayReport" class="btn btn-primary btn-sm-add">
-            ➕ 新增此日日報
+            ➕ 新增日報
           </button>
         </div>
 
@@ -477,13 +477,11 @@
             </div>
             <div id="ogsmKpiFieldsWrap" class="hidden" style="margin-top:8px; display:flex; flex-direction:column; gap:8px;">
               <div>
-                <label for="ogsmSelectSubcategory" style="font-weight:600; font-size:0.82rem; color:#581c87; display:block; margin-bottom:3px;">
-                  產品類別 (中分類規格) <span style="color:#ef4444;">*</span>
+                <label style="font-weight:600; font-size:0.82rem; color:#581c87; display:block; margin-bottom:4px;">
+                  產品類別 (中分類規格，點擊可複選) <span style="color:#ef4444;">*</span>
                 </label>
-                <select id="ogsmSelectSubcategory" class="search-input" style="background:#ffffff; font-size:0.85rem; padding:6px 8px; margin-bottom:0;">
-                  <option value="">-- 請選擇 23 項標準中分類 --</option>
-                  <!-- 由 JS 動態注入 23 項標準中分類 -->
-                </select>
+                <input type="hidden" id="ogsmSelectSubcategory" value="">
+                <div id="ogsmSubcategoryMatrix" class="subcat-matrix-container"></div>
               </div>
             </div>
           </div>
@@ -500,12 +498,6 @@
               <option value="D-A客戶 - 經銷商 大手客戶 & 既有客戶">D-A客戶 - 經銷商 大手客戶 &amp; 既有客戶</option>
               <option value="D-B客戶 - 經銷商 前一年新成交">D-B客戶 - 經銷商 前一年新成交</option>
               <option value="D-C客戶 - 經銷商 預計開發及今年新成交">D-C客戶 - 經銷商 預計開發及今年新成交</option>
-              <option value="直賣A級">直賣A級</option>
-              <option value="直賣B級">直賣B級</option>
-              <option value="直賣C級">直賣C級</option>
-              <option value="經銷A級">經銷A級</option>
-              <option value="經銷B級">經銷B級</option>
-              <option value="經銷C級">經銷C級</option>
               <option value="其它">其它</option>
             </select>
           </div>
@@ -1132,6 +1124,11 @@
           <span id="crmReportStatusHint" style="font-size:0.75rem; color:#64748b; margin-left:4px; white-space:nowrap;"></span>
         </div>
 
+        <!-- CRM 商機關鍵字搜尋列 (對齊久未聯繫客戶規格) -->
+        <div style="margin-bottom:10px; flex-shrink:0;">
+          <input type="text" id="monthlyReportSearchInput" class="search-input" placeholder="🔍 關鍵字搜尋客戶、業務、拜訪目的、案件名稱或報價單號..." style="margin-bottom:0; font-size:0.85rem; padding:6px 10px;">
+        </div>
+
         <!-- 月報預覽表格 -->
         <div id="monthlyReportPreviewWrap" style="overflow-x:auto;">
           <table id="monthlyReportTable" class="monthly-report-table" style="width:100%; border-collapse:collapse; font-size:0.82rem;">
@@ -1194,6 +1191,11 @@
           </select>
           <button type="button" id="btnRefreshOgsmReport" class="btn btn-secondary" style="font-size:0.8rem; padding:5px 10px; margin-left:auto;">🔄 重新載入</button>
           <span id="ogsmReportStatusHint" style="font-size:0.75rem; color:#64748b; margin-left:4px; white-space:nowrap;"></span>
+        </div>
+
+        <!-- OGSM 日報關鍵字搜尋列 (對齊久未聯繫客戶規格) -->
+        <div style="margin-bottom:10px; flex-shrink:0;">
+          <input type="text" id="ogsmReportSearchInput" class="search-input" placeholder="🔍 關鍵字搜尋客戶、推廣內容、實際拜訪紀錄或行動方案..." style="margin-bottom:0; font-size:0.85rem; padding:6px 10px;">
         </div>
 
         <!-- OGSM 月報預覽表格 -->
@@ -1260,11 +1262,13 @@
           <div style="flex:1;">
             <label style="font-size:0.8rem; font-weight:bold; color:#475569;">客戶分類</label>
             <select id="editOgsmClientRating" class="search-input" style="width:100%; margin-top:2px; font-size:0.88rem;">
-              <option value="直賣S級">直賣S級 / 重點客戶</option>
-              <option value="直賣A級">直賣A級 / 常規主力</option>
-              <option value="直賣B級">直賣B級 / 潛力開發</option>
-              <option value="直賣C級">直賣C級 / 一般客情</option>
-              <option value="其它">其它 / 展覽或特殊行程</option>
+              <option value="A客戶 - 大手客戶 & 既有客戶">A客戶 - 大手客戶 &amp; 既有客戶</option>
+              <option value="B客戶 - 前一年新成交">B客戶 - 前一年新成交</option>
+              <option value="C客戶 - 預計開發及今年新成交">C客戶 - 預計開發及今年新成交</option>
+              <option value="D-A客戶 - 經銷商 大手客戶 & 既有客戶">D-A客戶 - 經銷商 大手客戶 &amp; 既有客戶</option>
+              <option value="D-B客戶 - 經銷商 前一年新成交">D-B客戶 - 經銷商 前一年新成交</option>
+              <option value="D-C客戶 - 經銷商 預計開發及今年新成交">D-C客戶 - 經銷商 預計開發及今年新成交</option>
+              <option value="其它">其它</option>
             </select>
           </div>
         </div>
@@ -1445,8 +1449,8 @@
             <button type="button" id="btnAddNewKpiCase" class="btn btn-primary btn-sm" style="font-size:0.82rem; font-weight:600; padding:5px 10px; display:flex; align-items:center; gap:4px;">
               ➕ 新增追蹤案件
             </button>
-            <button type="button" id="btnCopySynologyFormat" class="btn btn-secondary btn-sm" style="font-size:0.82rem; font-weight:600; padding:5px 10px; background:#ecfdf5; color:#047857; border:1px solid #a7f3d0; display:flex; align-items:center; gap:4px;" title="複製為 Synology 試算表 BD~BL 欄貼上格式">
-              📋 複製 Synology 格式
+            <button type="button" id="btnRefreshKpiCases" class="btn btn-secondary btn-sm" style="font-size:0.82rem; font-weight:600; padding:5px 10px; display:flex; align-items:center; gap:4px;" title="重新載入案件追蹤最新數據">
+              🔄 重新整理
             </button>
           </div>
         </div>
@@ -1460,11 +1464,11 @@
             <button type="button" class="btn-filter-tab" data-filter="closed" style="background:#f0fdf4; color:#15803d; border-color:#bbf7d0;">✅ 已取單 (V) (<span id="kpiCountClosed">0</span>)</button>
             <button type="button" class="btn-filter-tab" data-filter="ongoing">⏳ 進行中 (<span id="kpiCountOngoing">0</span>)</button>
           </div>
+        </div>
 
-          <!-- 關鍵字搜尋框 -->
-          <div style="margin-left:auto; min-width:180px; flex:1; max-width:240px;">
-            <input type="text" id="kpiSearchInput" class="search-input" placeholder="搜尋客戶或案件規格..." style="font-size:0.8rem; padding:4px 8px; margin-bottom:0; background:#ffffff;">
-          </div>
+        <!-- 獨立全寬關鍵字搜尋框 (對齊久未聯繫客戶規格) -->
+        <div style="margin-top:2px;">
+          <input type="text" id="kpiSearchInput" class="search-input" placeholder="🔍 關鍵字搜尋客戶、案件說明、規格、類別或取單時間..." style="margin-bottom:0; font-size:0.85rem; padding:6px 10px; background:#ffffff;">
         </div>
       </div>
 
@@ -1503,7 +1507,7 @@
               <label for="kpiEditClientName" style="font-weight:600; font-size:0.85rem; color:#334155; margin-bottom:0;">
                 客戶名稱 <span style="color:#ef4444;">*</span>
               </label>
-              <span id="kpiEditClientBadge" style="font-size:0.72rem; padding:2px 6px; border-radius:4px; background:#f1f5f9; color:#475569; font-weight:600;">需填四個字</span>
+              <span id="kpiEditClientBadge" style="display:none; font-size:0.72rem; padding:2px 6px; border-radius:4px; background:#f1f5f9; color:#475569; font-weight:600;">需填四個字</span>
             </div>
             <input type="text" id="kpiEditClientName" class="search-input" maxlength="4" placeholder="請輸入四個字..." required autocomplete="off" style="margin-bottom:0; font-weight:600;">
             <div id="kpiClientAutocomplete" class="autocomplete-dropdown hidden"></div>
@@ -1524,38 +1528,36 @@
               <input type="date" id="kpiEditDate" class="search-input" style="font-size:0.85rem; padding:6px 8px; margin-bottom:0; background:#ffffff;">
             </div>
             <div>
-              <label for="kpiEditExpectedMonth" style="font-weight:600; font-size:0.82rem; color:#334155; display:block; margin-bottom:3px;">取單時間 (月份)</label>
-              <select id="kpiEditExpectedMonth" class="search-input" style="font-size:0.85rem; padding:6px 8px; margin-bottom:0; background:#ffffff;">
-                <option value="">-- 請選擇月份或季度 --</option>
-                <option value="1月">1月</option>
-                <option value="2月">2月</option>
-                <option value="3月">3月</option>
-                <option value="4月">4月</option>
-                <option value="5月">5月</option>
-                <option value="6月">6月</option>
-                <option value="7月">7月</option>
-                <option value="8月">8月</option>
-                <option value="9月">9月</option>
-                <option value="10月">10月</option>
-                <option value="11月">11月</option>
-                <option value="12月">12月</option>
-                <option value="Q1">Q1</option>
-                <option value="Q2">Q2</option>
-                <option value="Q3">Q3</option>
-                <option value="Q4">Q4</option>
-                <option value="2027/Q1">2027/Q1</option>
-              </select>
+              <label for="kpiEditExpectedMonth" style="font-weight:600; font-size:0.82rem; color:#334155; display:block; margin-bottom:3px;">取單時間 (月份/季度)</label>
+              <input type="text" id="kpiEditExpectedMonth" list="kpiExpectedMonthList" class="search-input" placeholder="可點選或自訂（例：10月、Q4、2027/05）..." style="font-size:0.85rem; padding:6px 8px; margin-bottom:0; background:#ffffff;">
+              <datalist id="kpiExpectedMonthList">
+                <option value="1月"></option>
+                <option value="2月"></option>
+                <option value="3月"></option>
+                <option value="4月"></option>
+                <option value="5月"></option>
+                <option value="6月"></option>
+                <option value="7月"></option>
+                <option value="8月"></option>
+                <option value="9月"></option>
+                <option value="10月"></option>
+                <option value="11月"></option>
+                <option value="12月"></option>
+                <option value="Q1"></option>
+                <option value="Q2"></option>
+                <option value="Q3"></option>
+                <option value="Q4"></option>
+              </datalist>
             </div>
           </div>
 
-          <!-- 產品中分類 (23項標準規格) -->
+          <!-- 產品中分類 (23項標準規格，分組矩陣複選) -->
           <div class="form-group" style="margin-bottom:0.85rem;">
-            <label for="kpiEditSubcategory" style="font-weight:600; font-size:0.82rem; color:#334155; display:block; margin-bottom:3px;">
-              產品類別 (中分類規格) <span style="color:#ef4444;">*</span>
+            <label style="font-weight:600; font-size:0.82rem; color:#334155; display:block; margin-bottom:4px;">
+              產品類別 (中分類規格，點擊可複選) <span style="color:#ef4444;">*</span>
             </label>
-            <select id="kpiEditSubcategory" class="search-input" required style="font-size:0.85rem; padding:6px 8px; margin-bottom:0; background:#ffffff;">
-              <option value="">-- 請選擇 23 項標準中分類 --</option>
-            </select>
+            <input type="hidden" id="kpiEditSubcategory" value="">
+            <div id="kpiEditSubcategoryMatrix" class="subcat-matrix-container"></div>
           </div>
 
           <!-- 案件狀況說明 (規格/數量/案件名稱/設備名稱) -->
@@ -1664,6 +1666,11 @@
         <button type="button" id="btnTabReviewPending" class="btn-filter-tag active" style="font-weight:bold; font-size:0.85rem; padding:6px 14px;">待審查 (<span id="managerReviewPendingCount">0</span>)</button>
         <button type="button" id="btnTabReviewHistory" class="btn-filter-tag" style="font-size:0.85rem; padding:6px 14px; color:#1e40af; background:#eff6ff; border-color:#bfdbfe;">📜 審查與交辦紀錄 (<span id="managerReviewHistoryCount">0</span>)</button>
         <button type="button" id="btnTabReviewArchive" class="btn-filter-tag" style="font-size:0.85rem; padding:6px 14px; color:#475569; background:#f1f5f9; border-color:#cbd5e1;">🗄️ 結案封存庫 (<span id="managerReviewArchiveCount">0</span>)</button>
+      </div>
+
+      <!-- 不聯繫客戶審查關鍵字搜尋列 (對齊久未聯繫客戶規格) -->
+      <div style="margin-bottom:10px; flex-shrink:0;">
+        <input type="text" id="managerReviewSearchInput" class="search-input" placeholder="🔍 關鍵字搜尋審查客戶、業務、停聯原因或方針..." style="margin-bottom:0; font-size:0.85rem; padding:6px 10px;">
       </div>
 
       <!-- 容器 1: 待審查列表 -->
@@ -1875,8 +1882,8 @@
   </div>
 
   <!-- 🚀 畫面右下角簡潔版本訊息 (字體小、不佔用頂部空間) -->
-  <div class="app-version-bottom-right" id="appVersionInfo">v 1.82</div>
+  <div class="app-version-bottom-right" id="appVersionInfo">v 1.85</div>
 
-  <script src="app.js?v=1.82"></script>
+  <script src="app.js?v=1.85"></script>
 </body>
 </html>

@@ -45,8 +45,8 @@ function isTokenValid() {
 }
 
 document.addEventListener("DOMContentLoaded", () => {
-  // 🚀 版本自動同步與舊快取清理防護 (v 1.82)
-  const CURRENT_APP_VERSION = "1.82";
+  // 🚀 版本自動同步與舊快取清理防護 (v 1.83)
+  const CURRENT_APP_VERSION = "1.83";
   const appVersionInfo = document.getElementById("appVersionInfo");
   if (appVersionInfo) {
     appVersionInfo.textContent = "v " + CURRENT_APP_VERSION;
@@ -57,7 +57,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if ('caches' in window) {
       caches.keys().then(keys => {
         keys.forEach(k => {
-          if (k !== 'quote-draft-v1.82') {
+          if (k !== 'quote-draft-v1.83') {
             caches.delete(k);
           }
         });
@@ -167,33 +167,82 @@ document.addEventListener("DOMContentLoaded", () => {
   const REMINDER_DEALERS = ["赫力", "贊翔", "台瓷", "黃柏翰", "漢銓"];
 
   // 🎯 23 項標準產品中分類代碼定義 (對齊試算表『中分類定義』工作表)
-  const KPI_PRODUCT_SUBCATEGORIES = [
-    "LEB (士林伺服)",
-    "LNH (士林變頻器)",
-    "LNK (SD-INV/變頻器配件)",
-    "LCE (士林人機)",
-    "LPN (小型PLC_技提)",
-    "LPB (士林小型PLC)",
-    "LPD ()",
-    "LCA (三菱大型PLC)",
-    "LCG (三菱人機)",
-    "LCH (台製品端子臺/線材)",
-    "LCM (三菱運動控制器)",
-    "LPC (三菱小型PLC)",
-    "LEA (三菱伺服)",
-    "LNM (三菱變頻器)",
-    "LCR (機器人(ROBOT))",
-    "LSA (松下感測器)",
-    "LSB (IDEC 台灣和泉)",
-    "LSP (松下雷射雕刻機)",
-    "LTP (PBA 線性馬達 (碧綠威))",
-    "LTO (TOYO 線性馬達 (東佑達))",
-    "LER (減速機)",
-    "LFB (PATLITE警示燈/蜂鳴器)",
-    "LWT (士林溫控器)"
+  // 🎯 23 項標準產品中分類代碼與四大分組定義 (完全依照圖二分組矩陣結構)
+  const KPI_SUBCATEGORY_GROUPS = [
+    {
+      name: "士林品",
+      badgeColor: "#0284c7",
+      bgColor: "#f0f9ff",
+      borderColor: "#bae6fd",
+      items: [
+        "LEB (士林伺服)",
+        "LNH (士林變頻器)",
+        "LNK (SD-INV/變頻器配件)",
+        "LCE (士林人機)",
+        "LPN (小型PLC_技提)",
+        "LPB (士林小型PLC)",
+        "LPD ()"
+      ]
+    },
+    {
+      name: "三菱品",
+      badgeColor: "#dc2626",
+      bgColor: "#fef2f2",
+      borderColor: "#fecaca",
+      items: [
+        "LCA (三菱大型PLC)",
+        "LCG (三菱人機)",
+        "LCH (台製品端子臺/線材)",
+        "LPC (三菱小型PLC)",
+        "LEA (三菱伺服)",
+        "LCM (三菱運動控制器)",
+        "LNM (三菱變頻器)",
+        "LCR (機器人(ROBOT))"
+      ]
+    },
+    {
+      name: "松下",
+      badgeColor: "#059669",
+      bgColor: "#ecfdf5",
+      borderColor: "#a7f3d0",
+      items: [
+        "LSA (松下感測器)",
+        "LSP (松下雷射雕刻機)"
+      ]
+    },
+    {
+      name: "其他",
+      badgeColor: "#475569",
+      bgColor: "#f8fafc",
+      borderColor: "#e2e8f0",
+      items: [
+        "LSB (IDEC 台灣和泉)",
+        "LER (減速機)",
+        "LTP (PBA 線性馬達 (碧綠威))",
+        "LTO (TOYO 線性馬達 (東佑達))",
+        "LFB (PATLITE警示燈/蜂鳴器)",
+        "LWT (士林溫控器)"
+      ]
+    }
   ];
 
-  // 🏷️ 客戶分類去括號格式化 (去除 (A) 等前綴括號代碼，如「(A) 直賣A級」->「直賣A級」)
+  // 展開為一維陣列 (向下相容既有驗證)
+  const KPI_PRODUCT_SUBCATEGORIES = KPI_SUBCATEGORY_GROUPS.flatMap(g => g.items);
+
+  // 💰 金額數值格式化 (若小數點後為0移除小數點，並加千分位逗號，圖四需求)
+  function formatAmountDisplay(num) {
+    if (num === null || num === undefined || num === "") return "0";
+    const val = parseFloat(num);
+    if (isNaN(val)) return "0";
+    // 四捨五入至小數第二位，去除尾端無效 0
+    const rounded = Math.round(val * 100) / 100;
+    const parts = rounded.toString().split(".");
+    // 整數部分增加千位逗號
+    parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+    return parts.join(".");
+  }
+
+  // 🏷️ 客戶分類去括號格式化 (去除 (A) 等前綴括號代碼)
   function formatClientTier(raw) {
     if (!raw) return "-";
     return String(raw).replace(/^\([A-Z0-9-]+\)\s*/i, "").trim() || raw;
@@ -212,9 +261,9 @@ document.addEventListener("DOMContentLoaded", () => {
   // Service Worker 註冊與自動更新偵測
   // ====================================================
   if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('./sw.js?v=1.82')
+    navigator.serviceWorker.register('./sw.js?v=1.83')
       .then(reg => {
-        console.log('[PWA] Service Worker 已註冊 (v 1.82)', reg);
+        console.log('[PWA] Service Worker 已註冊 (v 1.83)', reg);
         // 主動檢查伺服器端是否有新版 sw.js
         reg.update();
 
@@ -2661,6 +2710,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const btnRefreshMonthlyReport    = document.getElementById("btnRefreshMonthlyReport");
   const crmReportStatusHint        = document.getElementById("crmReportStatusHint");
   const monthlyReportTableBody     = document.getElementById("monthlyReportTableBody");
+  const monthlyReportSearchInput   = document.getElementById("monthlyReportSearchInput");
   const btnExportReportExcel       = document.getElementById("btnExportReportExcel");
   const btnExportReportPdf         = document.getElementById("btnExportReportPdf");
 
@@ -2676,6 +2726,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const btnRefreshOgsmReport           = document.getElementById("btnRefreshOgsmReport");
   const ogsmReportStatusHint           = document.getElementById("ogsmReportStatusHint");
   const ogsmReportTableBody            = document.getElementById("ogsmReportTableBody");
+  const ogsmReportSearchInput          = document.getElementById("ogsmReportSearchInput");
   const btnExportOgsmExcel             = document.getElementById("btnExportOgsmExcel");
   const btnExportOgsmPdf               = document.getElementById("btnExportOgsmPdf");
 
@@ -2739,7 +2790,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const btnCloseCaseTrackingBottom     = document.getElementById("btnCloseCaseTrackingBottom");
   const kpiSalesFilter                 = document.getElementById("kpiSalesFilter");
   const btnAddNewKpiCase               = document.getElementById("btnAddNewKpiCase");
-  const btnCopySynologyFormat          = document.getElementById("btnCopySynologyFormat");
+  const btnRefreshKpiCases             = document.getElementById("btnRefreshKpiCases");
   const kpiFilterTabs                  = document.getElementById("kpiFilterTabs");
   const kpiSearchInput                 = document.getElementById("kpiSearchInput");
   const kpiCaseListContainer           = document.getElementById("kpiCaseListContainer");
@@ -2833,6 +2884,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const btnCloseManagerReviewModal = document.getElementById("btnCloseManagerReviewModal");
   const btnCloseManagerReviewFooter= document.getElementById("btnCloseManagerReviewFooter");
   const btnRefreshManagerReview    = document.getElementById("btnRefreshManagerReview");
+  const managerReviewSearchInput   = document.getElementById("managerReviewSearchInput");
   const managerReviewListContainer = document.getElementById("managerReviewListContainer");
 
   // 轉派新業務子對話框 DOM 元件
@@ -3553,7 +3605,7 @@ document.addEventListener("DOMContentLoaded", () => {
       if (isMgr) {
         html = `<div class="ogsm-empty-tip" style="padding:10px 14px; background:#f8fafc; border:1px dashed #cbd5e1; border-radius:8px; color:#64748b; font-size:0.85rem; margin-bottom:8px;">主管個人本日尚無拜訪日報（全團隊拜訪行程與回填狀態請見下方即時總覽）</div>`;
       } else {
-        html = `<div class="ogsm-empty-tip">本日尚無拜訪日報紀錄，可點擊上方「➕ 新增此日日報」</div>`;
+        html = `<div class="ogsm-empty-tip">本日尚無拜訪日報紀錄，可點擊上方「➕ 新增日報」</div>`;
       }
     } else {
       reports.forEach((item, idx) => {
@@ -4764,6 +4816,7 @@ document.addEventListener("DOMContentLoaded", () => {
       }
     }
 
+    if (monthlyReportSearchInput) monthlyReportSearchInput.value = "";
     monthlyReportModal.classList.remove("hidden");
     loadMonthlyReportData();
   }
@@ -4917,6 +4970,27 @@ document.addEventListener("DOMContentLoaded", () => {
   if (monthlyReportSalesSelect) monthlyReportSalesSelect.addEventListener("change", () => loadMonthlyReportData(false));
   if (btnRefreshMonthlyReport) btnRefreshMonthlyReport.addEventListener("click", () => loadMonthlyReportData(true));
 
+  // 🔍 CRM 商機關鍵字搜尋即時過濾
+  if (monthlyReportSearchInput) {
+    monthlyReportSearchInput.addEventListener("input", () => {
+      const kw = monthlyReportSearchInput.value.trim().toLowerCase();
+      if (!kw) {
+        renderMonthlyReportTable(currentMonthlyReportRecords);
+        return;
+      }
+      const filtered = (currentMonthlyReportRecords || []).filter(r => {
+        return (r.client_name || "").toLowerCase().includes(kw) ||
+               (r.client_owner || r.sales_name || "").toLowerCase().includes(kw) ||
+               (r.case_name || "").toLowerCase().includes(kw) ||
+               (r.target_month || "").toLowerCase().includes(kw) ||
+               (r.quotation_id || "").toLowerCase().includes(kw) ||
+               (r.status_desc || "").toLowerCase().includes(kw);
+      });
+      renderMonthlyReportTable(filtered);
+    });
+  }
+  if (btnRefreshMonthlyReport) btnRefreshMonthlyReport.addEventListener("click", () => loadMonthlyReportData(true));
+
   // ----------------------------------------------------
   // 2. OGSM 團隊商機月報
   // ----------------------------------------------------
@@ -4980,6 +5054,7 @@ document.addEventListener("DOMContentLoaded", () => {
       }
     }
 
+    if (ogsmReportSearchInput) ogsmReportSearchInput.value = "";
     ogsmMonthlyReportModal.classList.remove("hidden");
     loadOgsmMonthlyReportData();
   }
@@ -5110,6 +5185,25 @@ document.addEventListener("DOMContentLoaded", () => {
   if (ogsmReportSalesSelect) ogsmReportSalesSelect.addEventListener("change", () => loadOgsmMonthlyReportData(false));
   if (btnRefreshOgsmReport) btnRefreshOgsmReport.addEventListener("click", () => loadOgsmMonthlyReportData(true));
 
+  // 🔍 OGSM 日報關鍵字搜尋即時過濾
+  if (ogsmReportSearchInput) {
+    ogsmReportSearchInput.addEventListener("input", () => {
+      const kw = ogsmReportSearchInput.value.trim().toLowerCase();
+      if (!kw) {
+        renderOgsmReportTable(currentOgsmReportRecords);
+        return;
+      }
+      const filtered = (currentOgsmReportRecords || []).filter(r => {
+        return (r.client_name || "").toLowerCase().includes(kw) ||
+               (r.sales_name || "").toLowerCase().includes(kw) ||
+               (r.plan_promotion || "").toLowerCase().includes(kw) ||
+               (r.actual_progress || "").toLowerCase().includes(kw) ||
+               (r.action_suggestion || "").toLowerCase().includes(kw);
+      });
+      renderOgsmReportTable(filtered);
+    });
+  }
+
   // ----------------------------------------------------
   // 3. OGSM 二級覆蓋編輯彈窗控制 (浮於 OGSM 月報之上)
   // ----------------------------------------------------
@@ -5135,7 +5229,7 @@ document.addEventListener("DOMContentLoaded", () => {
         dynamicOpt.textContent = formatClientTier(rawRating);
         editOgsmClientRating.appendChild(dynamicOpt);
       }
-      editOgsmClientRating.value = rawRating || "直賣A級";
+      editOgsmClientRating.value = rawRating || "A客戶 - 大手客戶 & 既有客戶";
     }
     if (editOgsmPlanPromotion) editOgsmPlanPromotion.value = record.plan_promotion || "";
     if (editOgsmActualProgress) editOgsmActualProgress.value = record.actual_progress || "";
@@ -5248,7 +5342,7 @@ document.addEventListener("DOMContentLoaded", () => {
       // 本人：儲存修改原始日報
       const dateStr = editOgsmDate?.value || "";
       const clientName = editOgsmClientName?.value || "";
-      const clientRating = editOgsmClientRating?.value || "直賣A級";
+      const clientRating = editOgsmClientRating?.value || "A客戶 - 大手客戶 & 既有客戶";
       const planPromotion = editOgsmPlanPromotion?.value?.trim() || "";
       const actualProgress = editOgsmActualProgress?.value?.trim() || "";
 
@@ -5682,6 +5776,9 @@ document.addEventListener("DOMContentLoaded", () => {
       if (ogsmKpiFieldsWrap) ogsmKpiFieldsWrap.classList.toggle("hidden", !isKpiChecked);
       if (ogsmCheckboxClosedOrder) ogsmCheckboxClosedOrder.checked = (itemToEdit.is_closed_order === "V");
       if (ogsmSelectSubcategory) ogsmSelectSubcategory.value = itemToEdit.product_subcategory || "";
+      if (subcategoryMatrixControllers.ogsm) {
+        subcategoryMatrixControllers.ogsm.setValues(itemToEdit.product_subcategory || "");
+      }
       if (ogsmCheckboxNewClient) ogsmCheckboxNewClient.checked = (itemToEdit.is_new_client === "新");
       checkOgsmClientName(itemToEdit.client_name || "");
 
@@ -5734,6 +5831,9 @@ document.addEventListener("DOMContentLoaded", () => {
       if (ogsmKpiFieldsWrap) ogsmKpiFieldsWrap.classList.add("hidden");
       if (ogsmCheckboxClosedOrder) ogsmCheckboxClosedOrder.checked = false;
       if (ogsmSelectSubcategory) ogsmSelectSubcategory.value = "";
+      if (subcategoryMatrixControllers.ogsm) {
+        subcategoryMatrixControllers.ogsm.clearAll();
+      }
       if (ogsmCheckboxNewClient) ogsmCheckboxNewClient.checked = false;
       if (ogsmNewClientBadge) {
         ogsmNewClientBadge.textContent = "歷史自動比對";
@@ -6200,6 +6300,34 @@ document.addEventListener("DOMContentLoaded", () => {
           crmSyncSuccess = (crmData && crmData.status === "ok");
         } catch (crmErr) {
           console.warn("轉入 CRM 雲端同步異常:", crmErr);
+        }
+
+        // 2-1. 若勾選提報至案件追蹤 (KPI)，自動同步寫入「北區分公司案件狀況」試算表該業務分頁
+        if (isKpiCase === "是") {
+          try {
+            const kpiPayload = {
+              action: "add_kpi_case",
+              user_name: salesName,
+              sales_name: salesName,
+              date: dateStr,
+              client_name: clientName,
+              product_subcategory: productSubcategory,
+              status_desc: content || result,
+              estimated_amount: estimatedAmount,
+              expected_month: expectedMonth,
+              is_closed_order: isClosedOrder,
+              dependencies: dependencies,
+              is_new_client: isNewClient
+            };
+            const kpiParams = new URLSearchParams(kpiPayload);
+            await fetch(`${GAS_URL}?${kpiParams.toString()}`);
+            // 清除該業務案件快取以確保下次進入看板為最新資料
+            delete kpiCasesCache[salesName];
+            delete kpiCasesCache["全體業務"];
+            delete kpiCasesCache["all"];
+          } catch(kpiErr) {
+            console.warn("寫入北區分公司案件狀況異常:", kpiErr);
+          }
         }
 
         // 3. 組合即時日報實體物件並更新前端快取與記憶體狀態 (0 秒立即可見)
@@ -7155,6 +7283,7 @@ document.addEventListener("DOMContentLoaded", () => {
   // 工具列「🔄 轉派覆核」按鈕開啟主管專區對話框
   if (btnOpenReviewModal) {
     btnOpenReviewModal.addEventListener("click", () => {
+      if (managerReviewSearchInput) managerReviewSearchInput.value = "";
       if (managerReviewModal) managerReviewModal.classList.remove("hidden");
       switchReviewTab("pending");
       loadPendingReviews();
@@ -7191,6 +7320,15 @@ document.addEventListener("DOMContentLoaded", () => {
   if (btnTabReviewPending) btnTabReviewPending.addEventListener("click", () => switchReviewTab("pending"));
   if (btnTabReviewHistory) btnTabReviewHistory.addEventListener("click", () => switchReviewTab("history"));
   if (btnTabReviewArchive) btnTabReviewArchive.addEventListener("click", () => switchReviewTab("archive"));
+
+  // 🔍 審查專區關鍵字搜尋即時過濾
+  if (managerReviewSearchInput) {
+    managerReviewSearchInput.addEventListener("input", () => {
+      if (currentReviewTab === "pending") renderManagerReviewList();
+      else if (currentReviewTab === "history") renderSupervisorHistoryList();
+      else if (currentReviewTab === "archive") renderSupervisorArchiveList();
+    });
+  }
 
   // 指派跟催對話框取消事件
   if (btnCloseAssignFollowUpModal) btnCloseAssignFollowUpModal.addEventListener("click", () => {
@@ -7954,12 +8092,23 @@ document.addEventListener("DOMContentLoaded", () => {
   function renderManagerReviewList() {
     if (!managerReviewListContainer) return;
 
-    if (activePendingReviews.length === 0) {
-      managerReviewListContainer.innerHTML = '<div style="text-align:center; padding:30px; color:#64748b; font-size:0.88rem;">🎉 目前無任何組員提報的待覆核客戶</div>';
+    const kw = (managerReviewSearchInput ? managerReviewSearchInput.value.trim().toLowerCase() : "");
+    let list = activePendingReviews;
+    if (kw) {
+      list = list.filter(item => {
+        return (item.client_name || "").toLowerCase().includes(kw) ||
+               (item.client_owner || item.sales_name || "").toLowerCase().includes(kw) ||
+               (item.no_contact_reason || "").toLowerCase().includes(kw) ||
+               (item.case_name || "").toLowerCase().includes(kw);
+      });
+    }
+
+    if (list.length === 0) {
+      managerReviewListContainer.innerHTML = `<div style="text-align:center; padding:30px; color:#64748b; font-size:0.88rem;">${kw ? '🔍 無符合搜尋條件的待審查客戶' : '🎉 目前無任何組員提報的待覆核客戶'}</div>`;
       return;
     }
 
-    managerReviewListContainer.innerHTML = activePendingReviews.map(item => {
+    managerReviewListContainer.innerHTML = list.map(item => {
       return `
         <div class="manager-review-card">
           <div class="manager-review-card-header">
@@ -8163,12 +8312,24 @@ document.addEventListener("DOMContentLoaded", () => {
   function renderSupervisorHistoryList() {
     if (!managerReviewHistoryContainer) return;
 
-    if (supervisorHistoryTasks.length === 0) {
-      managerReviewHistoryContainer.innerHTML = '<div style="text-align:center; padding:30px; color:#64748b; font-size:0.88rem;">📜 尚無任何審查與交辦歷程紀錄</div>';
+    const kw = (managerReviewSearchInput ? managerReviewSearchInput.value.trim().toLowerCase() : "");
+    let list = supervisorHistoryTasks;
+    if (kw) {
+      list = list.filter(t => {
+        return (t.client_name || "").toLowerCase().includes(kw) ||
+               (t.old_owner || "").toLowerCase().includes(kw) ||
+               (t.new_owner || "").toLowerCase().includes(kw) ||
+               (t.manager || "").toLowerCase().includes(kw) ||
+               (t.manager_note || "").toLowerCase().includes(kw);
+      });
+    }
+
+    if (list.length === 0) {
+      managerReviewHistoryContainer.innerHTML = `<div style="text-align:center; padding:30px; color:#64748b; font-size:0.88rem;">${kw ? '🔍 無符合搜尋條件的審查歷程' : '📜 尚無任何審查與交辦歷程紀錄'}</div>`;
       return;
     }
 
-    managerReviewHistoryContainer.innerHTML = supervisorHistoryTasks.map(t => {
+    managerReviewHistoryContainer.innerHTML = list.map(t => {
       let statusBadge = `<span class="badge-task-resolved">已完成銷案</span>`;
       if (t.status === "待處置") {
         statusBadge = `<span class="badge-task-pending">待處置</span>`;
@@ -8213,12 +8374,24 @@ document.addEventListener("DOMContentLoaded", () => {
   function renderSupervisorArchiveList() {
     if (!managerReviewArchiveContainer) return;
 
-    if (supervisorArchivedClients.length === 0) {
-      managerReviewArchiveContainer.innerHTML = '<div style="text-align:center; padding:30px; color:#64748b; font-size:0.88rem;">🗄️ 尚無任何同意結案封存之客戶</div>';
+    const kw = (managerReviewSearchInput ? managerReviewSearchInput.value.trim().toLowerCase() : "");
+    let list = supervisorArchivedClients;
+    if (kw) {
+      list = list.filter(t => {
+        return (t.client_name || "").toLowerCase().includes(kw) ||
+               (t.manager || "").toLowerCase().includes(kw) ||
+               (t.old_owner || "").toLowerCase().includes(kw) ||
+               (t.case_name || "").toLowerCase().includes(kw) ||
+               (t.manager_note || "").toLowerCase().includes(kw);
+      });
+    }
+
+    if (list.length === 0) {
+      managerReviewArchiveContainer.innerHTML = `<div style="text-align:center; padding:30px; color:#64748b; font-size:0.88rem;">${kw ? '🔍 無符合搜尋條件的封存客戶' : '🗄️ 尚無任何同意結案封存之客戶'}</div>`;
       return;
     }
 
-    managerReviewArchiveContainer.innerHTML = supervisorArchivedClients.map(t => {
+    managerReviewArchiveContainer.innerHTML = list.map(t => {
       return `
         <div class="manager-archive-card">
           <div class="manager-history-header">
@@ -8401,19 +8574,148 @@ document.addEventListener("DOMContentLoaded", () => {
 
   let salesRepKnownClients = new Set();
   let kpiAllCases = [];
+  let kpiCasesCache = {}; // 快取: { [salesName]: { cases: Array, timestamp: number } }
   let kpiCurrentFilter = "all"; // all, new, existing, closed, ongoing
   let kpiSearchKeyword = "";
 
-  // 1. 初始化 23 項標準中分類選單
+  // 🎯 產品中分類分組矩陣控制器字典 (支援日報與案件編輯雙實例)
+  const subcategoryMatrixControllers = {};
+
+  function setupSubcategoryMatrix(containerId, hiddenInputId) {
+    const container = document.getElementById(containerId);
+    const hiddenInput = document.getElementById(hiddenInputId);
+    if (!container || !hiddenInput) return null;
+
+    let selectedItems = [];
+
+    function parseInitialValues(val) {
+      if (!val) return [];
+      if (Array.isArray(val)) return val.map(s => String(s).trim()).filter(Boolean);
+      return String(val).split(/[,，]/).map(s => s.trim()).filter(Boolean);
+    }
+
+    function syncHiddenInput() {
+      const valStr = selectedItems.join(", ");
+      hiddenInput.value = valStr;
+      hiddenInput.dispatchEvent(new Event("change", { bubbles: true }));
+    }
+
+    function render() {
+      const hasSelected = selectedItems.length > 0;
+
+      // 1. 頂部已選標籤摘要區 (可點擊 ✕ 刪除或一鍵清空)
+      let summaryHtml = `
+        <div class="subcat-selected-summary">
+          <span style="font-size:0.75rem; font-weight:700; color:#475569; margin-right:4px;">已選 (${selectedItems.length})：</span>
+          ${!hasSelected ? '<span class="subcat-placeholder-tip">（點擊下方品項進行多選）</span>' : ''}
+          ${selectedItems.map(item => `
+            <span class="subcat-selected-pill">
+              ${escapeHtml(item)}
+              <button type="button" class="subcat-remove-btn" data-item="${escapeHtml(item)}" title="移除此項">✕</button>
+            </span>
+          `).join('')}
+          ${hasSelected ? '<span class="subcat-clear-all" title="清空全部已選中分類">全部清空</span>' : ''}
+        </div>
+      `;
+
+      // 2. 四大分組網格排列 (完全依照圖二結構)
+      let groupsHtml = KPI_SUBCATEGORY_GROUPS.map(grp => {
+        const chipsHtml = grp.items.map(item => {
+          const isAct = selectedItems.includes(item);
+          return `
+            <button type="button" 
+                    class="subcat-chip ${isAct ? 'active' : ''}" 
+                    data-item="${escapeHtml(item)}" 
+                    title="${escapeHtml(item)}">
+              ${escapeHtml(item)}
+            </button>
+          `;
+        }).join('');
+
+        return `
+          <div class="subcat-group-block" style="border-color:${grp.borderColor};">
+            <div class="subcat-group-header" style="background:${grp.bgColor}; color:${grp.badgeColor};">
+              <span>🏷️ ${escapeHtml(grp.name)} (${grp.items.length})</span>
+            </div>
+            <div class="subcat-group-grid">
+              ${chipsHtml}
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      container.innerHTML = summaryHtml + groupsHtml;
+
+      // 事件綁定：Chip 點擊切換多選
+      container.querySelectorAll(".subcat-chip").forEach(chip => {
+        chip.addEventListener("click", (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          const item = chip.getAttribute("data-item");
+          if (!item) return;
+          const idx = selectedItems.indexOf(item);
+          if (idx >= 0) {
+            selectedItems.splice(idx, 1);
+          } else {
+            selectedItems.push(item);
+          }
+          syncHiddenInput();
+          render();
+        });
+      });
+
+      // 事件綁定：點擊 ✕ 移除單一標籤
+      container.querySelectorAll(".subcat-remove-btn").forEach(btn => {
+        btn.addEventListener("click", (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          const item = btn.getAttribute("data-item");
+          const idx = selectedItems.indexOf(item);
+          if (idx >= 0) {
+            selectedItems.splice(idx, 1);
+            syncHiddenInput();
+            render();
+          }
+        });
+      });
+
+      // 事件綁定：點擊全部清空
+      const clearBtn = container.querySelector(".subcat-clear-all");
+      if (clearBtn) {
+        clearBtn.addEventListener("click", (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          selectedItems = [];
+          syncHiddenInput();
+          render();
+        });
+      }
+    }
+
+    selectedItems = parseInitialValues(hiddenInput.value);
+    render();
+
+    return {
+      setValues: function(val) {
+        selectedItems = parseInitialValues(val);
+        syncHiddenInput();
+        render();
+      },
+      getValues: function() {
+        return selectedItems.slice();
+      },
+      clearAll: function() {
+        selectedItems = [];
+        syncHiddenInput();
+        render();
+      }
+    };
+  }
+
+  // 1. 初始化中分類分組矩陣控制器
   function initKpiSubcategorySelects() {
-    const optsHtml = `<option value="">-- 請選擇 23 項標準中分類 --</option>`
-      + KPI_PRODUCT_SUBCATEGORIES.map(sub => `<option value="${sub}">${sub}</option>`).join("");
-    if (ogsmSelectSubcategory) {
-      ogsmSelectSubcategory.innerHTML = optsHtml;
-    }
-    if (kpiEditSubcategory) {
-      kpiEditSubcategory.innerHTML = optsHtml;
-    }
+    subcategoryMatrixControllers.ogsm = setupSubcategoryMatrix("ogsmSubcategoryMatrix", "ogsmSelectSubcategory");
+    subcategoryMatrixControllers.kpi = setupSubcategoryMatrix("kpiEditSubcategoryMatrix", "kpiEditSubcategory");
   }
 
   // 2. 載入業務人員之歷史 4 字客戶名單 (支援新舊客即時判定)
@@ -8523,16 +8825,32 @@ document.addEventListener("DOMContentLoaded", () => {
     kpiSearchKeyword = "";
 
     caseTrackingModal.classList.remove("hidden");
-    loadKpiCases();
+    loadKpiCases(false);
   }
 
-  // 5. 向後端 GAS 讀取案件追蹤清單
-  async function loadKpiCases() {
+  // 5. 向後端 GAS 讀取案件追蹤清單 (支援本地記憶體快取與 SWR 0秒秒開)
+  async function loadKpiCases(forceRefresh = false) {
     if (!kpiCaseListContainer) return;
-    kpiCaseListContainer.innerHTML = '<div style="text-align:center; padding:30px; color:#94a3b8;">⏳ 正在載入案件追蹤資料...</div>';
 
     const viewer = getSalesName();
     const targetSales = kpiSalesFilter ? kpiSalesFilter.value : viewer;
+    const cacheKey = targetSales || "all";
+    const cached = kpiCasesCache[cacheKey];
+    const now = Date.now();
+    const CACHE_TTL = 60000; // 60 秒快取有效期
+
+    // 🚀 1. 快取秒開：若已有快取，0 毫秒極速渲染，消除等待感
+    if (cached && Array.isArray(cached.cases)) {
+      kpiAllCases = cached.cases.slice();
+      updateKpiTabCounters();
+      renderKpiCasesList();
+      // 若在有效期內且非強制重整，直接完成
+      if (!forceRefresh && (now - cached.timestamp < CACHE_TTL)) {
+        return;
+      }
+    } else {
+      kpiCaseListContainer.innerHTML = '<div style="text-align:center; padding:30px; color:#94a3b8;">⏳ 正在載入案件追蹤資料...</div>';
+    }
 
     try {
       const params = new URLSearchParams({
@@ -8546,6 +8864,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
       if (data && data.status === "ok" && Array.isArray(data.cases)) {
         kpiAllCases = data.cases;
+        kpiCasesCache[cacheKey] = {
+          cases: kpiAllCases.slice(),
+          timestamp: Date.now()
+        };
         updateKpiTabCounters();
         renderKpiCasesList();
       } else {
@@ -8553,12 +8875,16 @@ document.addEventListener("DOMContentLoaded", () => {
       }
     } catch(err) {
       console.error("[KPI] 讀取案件異常:", err);
-      kpiCaseListContainer.innerHTML = `
-        <div style="text-align:center; padding:30px; color:#ef4444;">
-          ⚠️ 載入案件失敗：${escapeHtml(err.message || String(err))}<br>
-          <button type="button" class="btn btn-secondary btn-sm" onclick="loadKpiCases()" style="margin-top:10px;">重新載入</button>
-        </div>
-      `;
+      if (!cached || !cached.cases) {
+        kpiCaseListContainer.innerHTML = `
+          <div style="text-align:center; padding:30px; color:#ef4444;">
+            ⚠️ 載入案件失敗：${escapeHtml(err.message || String(err))}<br>
+            <button type="button" class="btn btn-secondary btn-sm" onclick="loadKpiCases(true)" style="margin-top:10px;">重新載入</button>
+          </div>
+        `;
+      } else {
+        showToast("⚠️ 雲端資料同步中斷，目前顯示離線快取", "warning");
+      }
     }
   }
 
@@ -8606,10 +8932,10 @@ document.addEventListener("DOMContentLoaded", () => {
       });
     }
 
-    // 計算總商機金額
+    // 計算總商機金額 (圖四需求：若小數點後為0移除小數點，並加千位元符號)
     const totalAmount = filtered.reduce((acc, cur) => acc + (parseFloat(cur.estimated_amount) || 0), 0);
     if (kpiSummaryText) {
-      kpiSummaryText.textContent = `共 ${filtered.length} 筆案件，總商機：${totalAmount.toFixed(1)} 萬元`;
+      kpiSummaryText.textContent = `共 ${filtered.length} 筆案件，總商機：${formatAmountDisplay(totalAmount)} 萬元`;
     }
 
     if (filtered.length === 0) {
@@ -8625,7 +8951,14 @@ document.addEventListener("DOMContentLoaded", () => {
     kpiCaseListContainer.innerHTML = filtered.map(c => {
       const isNew = (c.is_new_client === "新");
       const isClosed = (c.is_closed_order === "V");
-      const amtStr = (c.estimated_amount > 0) ? `${c.estimated_amount} 萬` : "-";
+      const numAmt = parseFloat(c.estimated_amount);
+      const amtStr = (!isNaN(numAmt) && numAmt > 0) ? `${formatAmountDisplay(numAmt)} 萬` : "-";
+
+      // 支援多選中分類以多個膠囊標籤清晰排列
+      const subcatItems = (c.product_subcategory || "").split(/[,，]/).map(s => s.trim()).filter(Boolean);
+      const subcatTagsHtml = subcatItems.length > 0
+        ? subcatItems.map(s => `<span class="kpi-subcat-tag" style="font-size:0.75rem; background:#f1f5f9; color:#475569; padding:2px 8px; border-radius:12px; border:1px solid #cbd5e1; font-weight:600;">${escapeHtml(s)}</span>`).join(" ")
+        : '<span class="kpi-subcat-tag" style="font-size:0.75rem; background:#f1f5f9; color:#94a3b8; padding:2px 8px; border-radius:12px; border:1px solid #cbd5e1; font-weight:600;">未分類</span>';
 
       return `
         <div class="kpi-card ${isNew ? 'is-new-client' : ''} ${isClosed ? 'is-closed' : ''}" data-row="${c.row_index}" style="cursor:pointer;">
@@ -8633,7 +8966,7 @@ document.addEventListener("DOMContentLoaded", () => {
             <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
               <span class="kpi-client-title" style="font-size:1.05rem; font-weight:700; color:#1e293b;">${escapeHtml(c.client_name)}</span>
               ${isNew ? '<span class="kpi-badge-new" style="font-size:0.75rem; background:#2563eb; color:#ffffff; padding:1px 6px; border-radius:4px; font-weight:700;">🌟 新客</span>' : ''}
-              <span class="kpi-subcat-tag" style="font-size:0.75rem; background:#f1f5f9; color:#475569; padding:2px 8px; border-radius:12px; border:1px solid #cbd5e1; font-weight:600;">${escapeHtml(c.product_subcategory || '未分類')}</span>
+              ${subcatTagsHtml}
               <span style="font-size:0.75rem; color:#64748b;">(${escapeHtml(c.sales_name || c.client_owner || '負責業務')})</span>
             </div>
             <div style="display:flex; align-items:center; gap:8px;">
@@ -8685,6 +9018,15 @@ document.addEventListener("DOMContentLoaded", () => {
     updateKpiTabCounters();
     renderKpiCasesList();
 
+    // 同步更新快取
+    const viewer = getSalesName();
+    const targetSales = kpiSalesFilter ? kpiSalesFilter.value : viewer;
+    const cacheKey = targetSales || "all";
+    if (kpiCasesCache[cacheKey]) {
+      kpiCasesCache[cacheKey].cases = kpiAllCases.slice();
+      kpiCasesCache[cacheKey].timestamp = Date.now();
+    }
+
     const toastMsg = (newClosed === "V") ? `✅「${caseItem.client_name}」已標記為取單 (V)` : `ℹ️「${caseItem.client_name}」已取消取單標記`;
     showToast(toastMsg, "success");
 
@@ -8693,6 +9035,7 @@ document.addEventListener("DOMContentLoaded", () => {
       const params = new URLSearchParams({
         action: "update_kpi_case",
         row_index: caseItem.row_index,
+        sheet_name: caseItem.sheet_name || caseItem.sales_name || "",
         is_closed_order: newClosed
       });
       await fetch(`${GAS_URL}?${params.toString()}`);
@@ -8784,6 +9127,7 @@ document.addEventListener("DOMContentLoaded", () => {
       kpiEditClientName.style.cursor = "text";
     }
     if (kpiEditClientBadge) {
+      kpiEditClientBadge.style.display = "inline-block";
       kpiEditClientBadge.textContent = "需填四個字";
       kpiEditClientBadge.style.background = "#eff6ff";
       kpiEditClientBadge.style.color = "#1d4ed8";
@@ -8792,6 +9136,9 @@ document.addEventListener("DOMContentLoaded", () => {
     if (kpiEditDate) kpiEditDate.value = new Date().toISOString().split("T")[0];
     if (kpiEditExpectedMonth) kpiEditExpectedMonth.value = "";
     if (kpiEditSubcategory) kpiEditSubcategory.value = "";
+    if (subcategoryMatrixControllers.kpi) {
+      subcategoryMatrixControllers.kpi.clearAll();
+    }
     if (kpiEditStatusDesc) kpiEditStatusDesc.value = "";
     if (kpiEditAmount) kpiEditAmount.value = "0.0";
     if (kpiEditIsClosed) kpiEditIsClosed.checked = false;
@@ -8803,7 +9150,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }, 150);
   }
 
-  // 11. 開啟既有案件編輯對話框 (鎖定客戶名稱唯讀)
+  // 11. 開啟既有案件編輯對話框 (鎖定客戶名稱唯讀，移除多餘標籤)
   function openEditKpiCaseModal(c) {
     if (!kpiCaseEditModal || !c) return;
     if (kpiCaseEditModalTitle) kpiCaseEditModalTitle.innerHTML = "📝 編輯追蹤案件";
@@ -8816,10 +9163,10 @@ document.addEventListener("DOMContentLoaded", () => {
       kpiEditClientName.style.background = "#f8fafc";
       kpiEditClientName.style.cursor = "not-allowed";
     }
+    // 移除圖三中「既有案件鎖定」無作用字樣標籤
     if (kpiEditClientBadge) {
-      kpiEditClientBadge.textContent = "🔒 既有案件鎖定";
-      kpiEditClientBadge.style.background = "#fef3c7";
-      kpiEditClientBadge.style.color = "#92400e";
+      kpiEditClientBadge.textContent = "";
+      kpiEditClientBadge.style.display = "none";
     }
     if (kpiEditIsNewClient) kpiEditIsNewClient.checked = (c.is_new_client === "新");
     if (kpiEditDate) {
@@ -8828,6 +9175,9 @@ document.addEventListener("DOMContentLoaded", () => {
     }
     if (kpiEditExpectedMonth) kpiEditExpectedMonth.value = c.expected_month || "";
     if (kpiEditSubcategory) kpiEditSubcategory.value = c.product_subcategory || "";
+    if (subcategoryMatrixControllers.kpi) {
+      subcategoryMatrixControllers.kpi.setValues(c.product_subcategory || "");
+    }
     if (kpiEditStatusDesc) kpiEditStatusDesc.value = c.status_desc || c.case_name || "";
     if (kpiEditAmount) kpiEditAmount.value = (c.estimated_amount !== undefined && c.estimated_amount !== null) ? c.estimated_amount : "0.0";
     if (kpiEditIsClosed) kpiEditIsClosed.checked = (c.is_closed_order === "V");
@@ -8836,7 +9186,8 @@ document.addEventListener("DOMContentLoaded", () => {
     kpiCaseEditModal.classList.remove("hidden");
   }
 
-  // 12. 儲存案件追蹤編輯 / 新增
+
+  // 12. 儲存案件追蹤編輯 / 新增 (🚀 樂觀更新 + 背景非同步儲存)
   async function saveKpiCaseEdit() {
     const rowIndex = kpiEditRowIndex ? kpiEditRowIndex.value : "";
     const clientName = (kpiEditClientName ? kpiEditClientName.value : "").trim();
@@ -8849,6 +9200,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const isClosed = (kpiEditIsClosed && kpiEditIsClosed.checked) ? "V" : "";
     const dependencies = (kpiEditDependencies ? kpiEditDependencies.value : "").trim();
 
+    // 1. 嚴格欄位驗證
     if (!clientName) {
       alert("請填寫客戶名稱");
       if (kpiEditClientName) kpiEditClientName.focus();
@@ -8871,88 +9223,122 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     const userName = getSalesName();
+    const targetSales = kpiSalesFilter ? kpiSalesFilter.value : userName;
+    const cacheKey = targetSales || "all";
 
-    if (btnSaveKpiCaseEdit) {
-      btnSaveKpiCaseEdit.disabled = true;
-      btnSaveKpiCaseEdit.textContent = "⏳ 儲存中...";
+    // 2. 🚀 樂觀更新：立即關閉對話方塊，免除等待阻塞
+    if (kpiCaseEditModal) kpiCaseEditModal.classList.add("hidden");
+
+    const isEditing = !!rowIndex;
+    const rIdx = isEditing ? parseInt(rowIndex, 10) : null;
+    let tempCaseObj = null;
+
+    if (isEditing) {
+      // 本地物件立即覆寫
+      const existing = kpiAllCases.find(c => c.row_index === rIdx);
+      if (existing) {
+        existing.date = visitDate;
+        existing.product_subcategory = subcategory;
+        existing.status_desc = statusDesc;
+        existing.case_name = statusDesc;
+        existing.estimated_amount = amount;
+        existing.expected_month = expectedMonth;
+        existing.is_closed_order = isClosed;
+        existing.dependencies = dependencies;
+        existing.is_new_client = isNewClient;
+      }
+      showToast(`💾「${clientName}」案件已更新，背景同步中...`, "info");
+    } else {
+      // 獨立新增：先在前端建立臨時物件加入最前面
+      tempCaseObj = {
+        row_index: -Date.now(),
+        date: visitDate,
+        sales_name: userName,
+        client_name: clientName,
+        client_owner: userName,
+        is_new_client: isNewClient,
+        product_subcategory: subcategory,
+        status_desc: statusDesc,
+        case_name: statusDesc,
+        estimated_amount: amount,
+        expected_month: expectedMonth,
+        is_closed_order: isClosed,
+        dependencies: dependencies
+      };
+      kpiAllCases.unshift(tempCaseObj);
+      salesRepKnownClients.add(clientName);
+      showToast(`💾「${clientName}」新案件已建立，背景同步中...`, "info");
     }
 
-    try {
-      if (rowIndex) {
-        // 編輯既有案件
-        const rIdx = parseInt(rowIndex, 10);
-        const payload = {
-          action: "update_kpi_case",
-          row_index: rIdx,
-          visit_date: visitDate,
-          product_subcategory: subcategory,
-          status_desc: statusDesc,
-          case_name: statusDesc,
-          estimated_amount: amount,
-          expected_month: expectedMonth,
-          is_closed_order: isClosed,
-          dependencies: dependencies,
-          is_new_client: isNewClient
-        };
+    // 立即更新畫面計數與卡片列表
+    updateKpiTabCounters();
+    renderKpiCasesList();
 
-        const params = new URLSearchParams(payload);
-        const res = await fetch(`${GAS_URL}?${params.toString()}`);
-        const data = await res.json();
-        if (data.status !== "ok") throw new Error(data.msg || "更新案件追蹤失敗");
+    // 寫入快取確保資料最新
+    if (kpiCasesCache[cacheKey]) {
+      kpiCasesCache[cacheKey].cases = kpiAllCases.slice();
+      kpiCasesCache[cacheKey].timestamp = Date.now();
+    }
 
-        // 本地物件立即更新
-        const existing = kpiAllCases.find(c => c.row_index === rIdx);
-        if (existing) {
-          existing.date = visitDate;
-          existing.product_subcategory = subcategory;
-          existing.status_desc = statusDesc;
-          existing.estimated_amount = amount;
-          existing.expected_month = expectedMonth;
-          existing.is_closed_order = isClosed;
-          existing.dependencies = dependencies;
-          existing.is_new_client = isNewClient;
+    // 3. 🚀 背景非同步送出至雲端 GAS
+    (async () => {
+      try {
+        if (isEditing) {
+          const existing = kpiAllCases.find(c => c.row_index === rIdx);
+          const payload = {
+            action: "update_kpi_case",
+            row_index: rIdx,
+            sheet_name: (existing && (existing.sheet_name || existing.sales_name)) || targetSales || userName,
+            visit_date: visitDate,
+            client_name: clientName,
+            product_subcategory: subcategory,
+            status_desc: statusDesc,
+            case_name: statusDesc,
+            estimated_amount: amount,
+            expected_month: expectedMonth,
+            is_closed_order: isClosed,
+            dependencies: dependencies,
+            is_new_client: isNewClient
+          };
+          const params = new URLSearchParams(payload);
+          const res = await fetch(`${GAS_URL}?${params.toString()}`);
+          const data = await res.json();
+          if (data.status !== "ok") throw new Error(data.msg || "更新案件追蹤失敗");
+          showToast(`✅「${clientName}」案件已成功同步雲端！`, "success");
+        } else {
+          const assignedSales = (targetSales && targetSales !== "全體業務") ? targetSales : userName;
+          const payload = {
+            action: "add_kpi_case",
+            user_name: assignedSales,
+            sales_name: assignedSales,
+            client_name: clientName,
+            client_owner: assignedSales,
+            visit_date: visitDate,
+            product_subcategory: subcategory,
+            status_desc: statusDesc,
+            estimated_amount: amount,
+            expected_month: expectedMonth,
+            is_closed_order: isClosed,
+            dependencies: dependencies,
+            is_new_client: isNewClient
+          };
+          const params = new URLSearchParams(payload);
+          const res = await fetch(`${GAS_URL}?${params.toString()}`);
+          const data = await res.json();
+          if (data.status !== "ok") throw new Error(data.msg || "新增案件追蹤失敗");
+
+          const assignedRow = data.row_index || (data.case && data.case.row_index);
+          if (tempCaseObj && assignedRow) {
+            tempCaseObj.row_index = assignedRow;
+            tempCaseObj.sheet_name = data.sheet_name || assignedSales;
+          }
+          showToast(`✅「${clientName}」新案件已成功同步寫入【${data.sheet_name || assignedSales}】！`, "success");
         }
-
-        showToast(`✅「${clientName}」案件追蹤資料已更新成功！`, "success");
-      } else {
-        // 獨立新增案件
-        const payload = {
-          action: "add_kpi_case",
-          user_name: userName,
-          client_name: clientName,
-          client_owner: userName,
-          visit_date: visitDate,
-          product_subcategory: subcategory,
-          status_desc: statusDesc,
-          estimated_amount: amount,
-          expected_month: expectedMonth,
-          is_closed_order: isClosed,
-          dependencies: dependencies,
-          is_new_client: isNewClient
-        };
-
-        const params = new URLSearchParams(payload);
-        const res = await fetch(`${GAS_URL}?${params.toString()}`);
-        const data = await res.json();
-        if (data.status !== "ok") throw new Error(data.msg || "新增案件追蹤失敗");
-
-        salesRepKnownClients.add(clientName);
-        showToast(`✅「${clientName}」案件已成功建立並納入追蹤！`, "success");
+      } catch(err) {
+        console.error("[KPI] 背景儲存失敗:", err);
+        showToast(`⚠️「${clientName}」背景儲存失敗：${err.message || String(err)}`, "warning");
       }
-
-      if (kpiCaseEditModal) kpiCaseEditModal.classList.add("hidden");
-      updateKpiTabCounters();
-      renderKpiCasesList();
-      loadKpiCases(); // 背景重整確保一致性
-
-    } catch(err) {
-      alert("儲存案件異常：" + (err.message || String(err)));
-    } finally {
-      if (btnSaveKpiCaseEdit) {
-        btnSaveKpiCaseEdit.disabled = false;
-        btnSaveKpiCaseEdit.textContent = "💾 儲存追蹤資料";
-      }
-    }
+    })();
   }
 
   // 13. 初始化案件追蹤模組事件綁定
@@ -8979,7 +9365,7 @@ document.addEventListener("DOMContentLoaded", () => {
     // 責任業務下拉變更
     if (kpiSalesFilter) {
       kpiSalesFilter.addEventListener("change", () => {
-        loadKpiCases();
+        loadKpiCases(false);
       });
     }
 
@@ -9003,9 +9389,11 @@ document.addEventListener("DOMContentLoaded", () => {
       });
     }
 
-    // 複製 Synology 格式按鈕
-    if (btnCopySynologyFormat) {
-      btnCopySynologyFormat.addEventListener("click", copySynologyTsvFormat);
+    // 🔄 重新整理案件追蹤按鈕 (強制穿透快取重拉)
+    if (btnRefreshKpiCases) {
+      btnRefreshKpiCases.addEventListener("click", () => {
+        loadKpiCases(true);
+      });
     }
 
     // ➕ 新增追蹤案件按鈕
@@ -9030,11 +9418,13 @@ document.addEventListener("DOMContentLoaded", () => {
       btnSaveKpiCaseEdit.addEventListener("click", saveKpiCaseEdit);
     }
 
-    // 新增案件時輸入客戶名稱之 4 字校驗
+    // 新增案件時輸入客戶名稱之 4 字校驗 (既有案件鎖定時不觸發)
     if (kpiEditClientName) {
       kpiEditClientName.addEventListener("input", () => {
+        if (kpiEditRowIndex && kpiEditRowIndex.value) return; // 既有編輯模式略過
         const val = kpiEditClientName.value.trim();
         if (kpiEditClientBadge) {
+          kpiEditClientBadge.style.display = "inline-block";
           if (val.length === 4) {
             const isKnown = salesRepKnownClients.has(val);
             if (isKnown) {
@@ -9063,12 +9453,12 @@ document.addEventListener("DOMContentLoaded", () => {
         if (ogsmKpiFieldsWrap) {
           ogsmKpiFieldsWrap.classList.toggle("hidden", !ogsmCheckboxKpiCase.checked);
         }
-        if (ogsmCheckboxKpiCase.checked && ogsmSelectSubcategory && !ogsmSelectSubcategory.value) {
-          ogsmSelectSubcategory.focus();
-        }
       });
     }
   }
+
+  // 🚀 執行案件追蹤 (KPI) 模組與中分類矩陣初始化
+  initCaseTrackingModule();
 
 }); // end DOMContentLoaded
 
