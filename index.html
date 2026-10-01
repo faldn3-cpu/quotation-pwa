@@ -15,7 +15,7 @@
   
   <!-- Google Fonts: Inter -->
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=1.80">
+  <link rel="stylesheet" href="style.css?v=1.82">
   <style>
     .custom-delivery-box { display: flex !important; gap: 8px !important; align-items: center !important; }
     .custom-delivery-box .search-input { flex: 1 !important; margin-bottom: 0 !important; }
@@ -266,19 +266,27 @@
         <button type="button" id="btnNextMonth" class="btn-cal-nav" title="下個月">▶</button>
       </div>
 
-      <!-- 日報與商機跟催工具列 (含直賣/經銷雙月報、跟催紅綠燈、不聯繫客戶審查專區) -->
-      <div class="ogsm-tools-bar" style="display:flex; justify-content:flex-end; align-items:center; flex-wrap:wrap; margin-bottom:10px; gap:6px;">
-        <button type="button" id="btnOpenFollowUpModal" class="btn btn-secondary btn-sm" style="font-size:0.82rem; font-weight:600; padding:5px 9px; display:flex; align-items:center; gap:4px; border-radius:6px; background:#fff1f2; color:#be123c; border:1px solid #fecdd3; position:relative;" title="久未聯繫客戶清單與逾期紅燈">
-          🚨 久未聯繫 <span id="followUpBadge" class="badge-count hidden">0</span>
+      <!-- 日報與商機跟催工具列 (依指示排列為 2 列 × 3 鍵) -->
+      <div class="ogsm-tools-bar" style="display:grid; grid-template-columns:repeat(3, 1fr); gap:6px; margin-bottom:10px;">
+        <!-- 第 1 列 -->
+        <button type="button" id="btnOpenNewClientDevModal" class="btn btn-secondary btn-sm" style="font-size:0.8rem; font-weight:600; padding:6px 2px; display:flex; align-items:center; justify-content:center; gap:3px; border-radius:6px; background:#eff6ff; color:#1d4ed8; border:1px solid #bfdbfe;" title="新客戶開發進度 (藍底標記『新』)">
+          🌟 新客戶開發
         </button>
-        <button type="button" id="btnOpenReviewModal" class="btn btn-secondary btn-sm hidden" style="font-size:0.82rem; font-weight:600; padding:5px 9px; display:flex; align-items:center; gap:4px; border-radius:6px; background:#f5f3ff; color:#6d28d9; border:1px solid #ddd6fe; position:relative;" title="不聯繫客戶審查專區">
-          🔄 不聯繫客戶審查專區 <span id="reviewBadge" class="badge-count hidden">0</span>
+        <button type="button" id="btnOpenCaseTrackingModal" class="btn btn-secondary btn-sm" style="font-size:0.8rem; font-weight:600; padding:6px 2px; display:flex; align-items:center; justify-content:center; gap:3px; border-radius:6px; background:#faf5ff; color:#7c3aed; border:1px solid #e9d5ff;" title="案件追蹤 (KPI) 管理看板">
+          🎯 案件追蹤
         </button>
-        <button type="button" id="btnOpenOgsmMonthlyReportModal" class="btn btn-secondary btn-sm" style="font-size:0.82rem; font-weight:600; padding:5px 9px; display:flex; align-items:center; gap:4px; border-radius:6px; background:#eff6ff; color:#1d4ed8; border:1px solid #bfdbfe;">
+        <button type="button" id="btnOpenOgsmMonthlyReportModal" class="btn btn-secondary btn-sm" style="font-size:0.8rem; font-weight:600; padding:6px 2px; display:flex; align-items:center; justify-content:center; gap:3px; border-radius:6px; background:#eff6ff; color:#1d4ed8; border:1px solid #bfdbfe;" title="OGSM 日報總覽與匯出">
           📋 OGSM 日報
         </button>
-        <button type="button" id="btnOpenMonthlyReportModal" class="btn btn-secondary btn-sm" style="font-size:0.82rem; font-weight:600; padding:5px 9px; display:flex; align-items:center; gap:4px; border-radius:6px; background:#ecfdf5; color:#047857; border:1px solid #a7f3d0;">
-          📊 CRM 商機訊息
+        <!-- 第 2 列 -->
+        <button type="button" id="btnOpenFollowUpModal" class="btn btn-secondary btn-sm" style="font-size:0.8rem; font-weight:600; padding:6px 2px; display:flex; align-items:center; justify-content:center; gap:3px; border-radius:6px; background:#fff1f2; color:#be123c; border:1px solid #fecdd3; position:relative;" title="久未聯繫客戶清單">
+          🚨 久未聯繫客戶 <span id="followUpBadge" class="badge-count hidden">0</span>
+        </button>
+        <button type="button" id="btnOpenReviewModal" class="btn btn-secondary btn-sm" style="font-size:0.8rem; font-weight:600; padding:6px 2px; display:flex; align-items:center; justify-content:center; gap:3px; border-radius:6px; background:#f5f3ff; color:#6d28d9; border:1px solid #ddd6fe; position:relative;" title="停止跟催審查專區">
+          🔄 停止跟催審查 <span id="reviewBadge" class="badge-count hidden">0</span>
+        </button>
+        <button type="button" id="btnOpenMonthlyReportModal" class="btn btn-secondary btn-sm" style="font-size:0.8rem; font-weight:600; padding:6px 2px; display:flex; align-items:center; justify-content:center; gap:3px; border-radius:6px; background:#ecfdf5; color:#047857; border:1px solid #a7f3d0;" title="CRM 商機訊息與月報">
+          📊 CRM 商機
         </button>
       </div>
 
@@ -435,12 +443,49 @@
           </div>
 
           <div class="form-group" style="margin-bottom:0.85rem; position:relative;">
-            <label for="ogsmInputClient" style="font-weight:600; font-size:0.9rem; margin-bottom:4px; display:block;">
-              客戶名稱 <span style="color:#ef4444;">*</span>
-            </label>
-            <input type="text" id="ogsmInputClient" class="search-input" placeholder="輸入關鍵字快選或自訂新客戶..." required autocomplete="off" style="margin-bottom:0;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+              <label for="ogsmInputClient" style="font-weight:600; font-size:0.9rem; margin-bottom:0;">
+                客戶名稱 <span style="color:#ef4444;">*</span>
+              </label>
+              <span id="ogsmClientLengthTip" style="font-size:0.75rem; color:#64748b; font-weight:600;">(嚴格需填四個字)</span>
+            </div>
+            <input type="text" id="ogsmInputClient" class="search-input" placeholder="請填寫四個字（例如：東佑達自、漢民科技）..." required autocomplete="off" maxlength="4" style="margin-bottom:0; font-weight:600;">
             <!-- 自動完成下拉清單 -->
             <div id="ogsmClientAutocomplete" class="autocomplete-dropdown hidden"></div>
+          </div>
+
+          <!-- 🌟 新客戶開發即時判別開關 -->
+          <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:0.85rem; background:#eff6ff; border:1px solid #bfdbfe; padding:8px 12px; border-radius:8px;">
+            <label style="display:flex; align-items:center; gap:8px; cursor:pointer; margin-bottom:0; font-weight:600; font-size:0.85rem; color:#1e40af;">
+              <input type="checkbox" id="ogsmCheckboxNewClient" style="width:17px; height:17px; accent-color:#2563eb; cursor:pointer;">
+              <span>🌟 新客戶開發（圖一藍底標記『新』）</span>
+            </label>
+            <span id="ogsmNewClientBadge" style="font-size:0.72rem; padding:2px 6px; border-radius:4px; background:#dbeafe; color:#1d4ed8; font-weight:600;">歷史自動比對</span>
+          </div>
+
+          <!-- 🎯 提報至案件追蹤 (KPI) 快速選填區 -->
+          <div style="margin-bottom:0.85rem; background:#faf5ff; border:1px solid #e9d5ff; padding:10px 12px; border-radius:8px;">
+            <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:6px;">
+              <label style="display:flex; align-items:center; gap:8px; cursor:pointer; margin-bottom:0; font-weight:600; font-size:0.88rem; color:#6b21a8;">
+                <input type="checkbox" id="ogsmCheckboxKpiCase" style="width:17px; height:17px; accent-color:#9333ea; cursor:pointer;">
+                <span>🎯 同步提報至案件追蹤 (KPI)</span>
+              </label>
+              <label style="display:flex; align-items:center; gap:5px; cursor:pointer; margin-bottom:0; font-size:0.82rem; font-weight:600; color:#15803d;">
+                <input type="checkbox" id="ogsmCheckboxClosedOrder" style="width:16px; height:16px; accent-color:#16a34a; cursor:pointer;">
+                <span>✅ 取單否 (打 V)</span>
+              </label>
+            </div>
+            <div id="ogsmKpiFieldsWrap" class="hidden" style="margin-top:8px; display:flex; flex-direction:column; gap:8px;">
+              <div>
+                <label for="ogsmSelectSubcategory" style="font-weight:600; font-size:0.82rem; color:#581c87; display:block; margin-bottom:3px;">
+                  產品類別 (中分類規格) <span style="color:#ef4444;">*</span>
+                </label>
+                <select id="ogsmSelectSubcategory" class="search-input" style="background:#ffffff; font-size:0.85rem; padding:6px 8px; margin-bottom:0;">
+                  <option value="">-- 請選擇 23 項標準中分類 --</option>
+                  <!-- 由 JS 動態注入 23 項標準中分類 -->
+                </select>
+              </div>
+            </div>
           </div>
 
           <div class="form-group" style="margin-bottom:0.85rem;">
@@ -1369,6 +1414,187 @@
     </div>
   </div>
 
+  <!-- 🎯 [新增 16] 案件追蹤 (KPI) 管理看板對話框 (Modal) -->
+  <div id="caseTrackingModal" class="modal hidden">
+    <div class="modal-content" style="max-height:92vh; max-height:92dvh; display:flex; flex-direction:column; padding:1.25rem; max-width:880px;">
+      <div class="modal-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.75rem; flex-shrink:0;">
+        <div>
+          <h3 id="caseTrackingModalTitle" style="margin:0; font-size:1.2rem; color:#4338ca; display:flex; align-items:center; gap:8px;">
+            🎯 案件追蹤 (KPI) 管理看板
+          </h3>
+          <p style="margin:2px 0 0 0; font-size:0.8rem; color:#64748b;">
+            北區營業人員績效案件管考：藍底標記「新」為新客戶，其餘為既有客戶新案
+          </p>
+        </div>
+        <button id="btnCloseCaseTrackingModal" class="btn-close">&times;</button>
+      </div>
+
+      <!-- 頂部過濾與控制工具列 -->
+      <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:10px 12px; margin-bottom:10px; display:flex; flex-direction:column; gap:8px; flex-shrink:0;">
+        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+          <!-- 業務切換 (主管可切換) -->
+          <div style="display:flex; align-items:center; gap:6px;">
+            <label for="kpiSalesFilter" style="font-size:0.82rem; font-weight:600; color:#334155; margin-bottom:0;">責任業務：</label>
+            <select id="kpiSalesFilter" class="search-input" style="font-size:0.85rem; padding:4px 8px; margin-bottom:0; width:130px; background:#ffffff;">
+              <!-- 動態載入業務名單 -->
+            </select>
+          </div>
+
+          <!-- 快速按鈕群 -->
+          <div style="display:flex; gap:6px;">
+            <button type="button" id="btnAddNewKpiCase" class="btn btn-primary btn-sm" style="font-size:0.82rem; font-weight:600; padding:5px 10px; display:flex; align-items:center; gap:4px;">
+              ➕ 新增追蹤案件
+            </button>
+            <button type="button" id="btnCopySynologyFormat" class="btn btn-secondary btn-sm" style="font-size:0.82rem; font-weight:600; padding:5px 10px; background:#ecfdf5; color:#047857; border:1px solid #a7f3d0; display:flex; align-items:center; gap:4px;" title="複製為 Synology 試算表 BD~BL 欄貼上格式">
+              📋 複製 Synology 格式
+            </button>
+          </div>
+        </div>
+
+        <!-- 分類切換按鈕組 -->
+        <div style="display:flex; gap:6px; flex-wrap:wrap; align-items:center;">
+          <div id="kpiFilterTabs" style="display:flex; gap:4px; flex-wrap:wrap;">
+            <button type="button" class="btn-filter-tab active" data-filter="all">全部案件 (<span id="kpiCountAll">0</span>)</button>
+            <button type="button" class="btn-filter-tab" data-filter="new" style="background:#eff6ff; color:#1d4ed8; border-color:#bfdbfe;">🌟 新客戶開發 (<span id="kpiCountNew">0</span>)</button>
+            <button type="button" class="btn-filter-tab" data-filter="existing">既有客戶新案 (<span id="kpiCountExisting">0</span>)</button>
+            <button type="button" class="btn-filter-tab" data-filter="closed" style="background:#f0fdf4; color:#15803d; border-color:#bbf7d0;">✅ 已取單 (V) (<span id="kpiCountClosed">0</span>)</button>
+            <button type="button" class="btn-filter-tab" data-filter="ongoing">⏳ 進行中 (<span id="kpiCountOngoing">0</span>)</button>
+          </div>
+
+          <!-- 關鍵字搜尋框 -->
+          <div style="margin-left:auto; min-width:180px; flex:1; max-width:240px;">
+            <input type="text" id="kpiSearchInput" class="search-input" placeholder="搜尋客戶或案件規格..." style="font-size:0.8rem; padding:4px 8px; margin-bottom:0; background:#ffffff;">
+          </div>
+        </div>
+      </div>
+
+      <!-- 案件卡片清單主容器 -->
+      <div id="kpiCaseListContainer" class="modal-body" style="overflow-y:auto; flex:1; min-height:180px; padding-right:4px; display:flex; flex-direction:column; gap:8px;">
+        <div style="text-align:center; padding:30px; color:#94a3b8;">
+          ⏳ 正在載入案件追蹤資料...
+        </div>
+      </div>
+
+      <div class="modal-footer" style="padding-top:0.75rem; border-top:1px solid #e2e8f0; display:flex; justify-content:space-between; align-items:center; margin-top:0.5rem; flex-shrink:0;">
+        <span id="kpiSummaryText" style="font-size:0.82rem; color:#64748b; font-weight:600;">共 0 筆案件，總商機：0.0 萬元</span>
+        <button type="button" id="btnCloseCaseTrackingBottom" class="btn btn-secondary" style="font-size:0.85rem; padding:6px 16px;">關閉</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 📝 [新增 17] 案件追蹤詳細編輯 / 新增對話框 (Modal) -->
+  <div id="kpiCaseEditModal" class="modal hidden" style="z-index: 2200; align-items: center; justify-content: center; background: rgba(0,0,0,0.65);">
+    <div class="modal-content" style="max-height:88vh; max-height:88dvh; display:flex; flex-direction:column; padding:1.25rem; max-width:540px; border-radius:12px; margin:auto; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.4);">
+      <div class="modal-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.75rem; flex-shrink:0; border-bottom:1px solid #e2e8f0; padding-bottom:0.5rem;">
+        <h3 id="kpiCaseEditModalTitle" style="margin:0; font-size:1.1rem; color:#4338ca; display:flex; align-items:center; gap:6px;">
+          📝 編輯追蹤案件
+        </h3>
+        <button id="btnCloseKpiCaseEditModal" class="btn-close">&times;</button>
+      </div>
+
+      <div class="modal-body" style="overflow-y:auto; flex:1; min-height:0; padding-right:4px;">
+        <form id="kpiCaseEditForm" onsubmit="return false;">
+          <input type="hidden" id="kpiEditRowIndex" value="">
+          <input type="hidden" id="kpiEditOrigStatusDesc" value="">
+
+          <!-- 客戶名稱 (既有案件鎖定唯讀，新增案件開放輸入四字) -->
+          <div class="form-group" style="margin-bottom:0.85rem; position:relative;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+              <label for="kpiEditClientName" style="font-weight:600; font-size:0.85rem; color:#334155; margin-bottom:0;">
+                客戶名稱 <span style="color:#ef4444;">*</span>
+              </label>
+              <span id="kpiEditClientBadge" style="font-size:0.72rem; padding:2px 6px; border-radius:4px; background:#f1f5f9; color:#475569; font-weight:600;">需填四個字</span>
+            </div>
+            <input type="text" id="kpiEditClientName" class="search-input" maxlength="4" placeholder="請輸入四個字..." required autocomplete="off" style="margin-bottom:0; font-weight:600;">
+            <div id="kpiClientAutocomplete" class="autocomplete-dropdown hidden"></div>
+          </div>
+
+          <!-- 新客戶標記開關 -->
+          <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:0.85rem; background:#eff6ff; border:1px solid #bfdbfe; padding:8px 12px; border-radius:8px;">
+            <label style="display:flex; align-items:center; gap:8px; cursor:pointer; margin-bottom:0; font-weight:600; font-size:0.85rem; color:#1e40af;">
+              <input type="checkbox" id="kpiEditIsNewClient" style="width:17px; height:17px; accent-color:#2563eb; cursor:pointer;">
+              <span>🌟 新客戶開發（圖一藍底標記『新』）</span>
+            </label>
+          </div>
+
+          <!-- 提出日期 & 取單月份 -->
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:0.85rem;">
+            <div>
+              <label for="kpiEditDate" style="font-weight:600; font-size:0.82rem; color:#334155; display:block; margin-bottom:3px;">提出日期</label>
+              <input type="date" id="kpiEditDate" class="search-input" style="font-size:0.85rem; padding:6px 8px; margin-bottom:0; background:#ffffff;">
+            </div>
+            <div>
+              <label for="kpiEditExpectedMonth" style="font-weight:600; font-size:0.82rem; color:#334155; display:block; margin-bottom:3px;">取單時間 (月份)</label>
+              <select id="kpiEditExpectedMonth" class="search-input" style="font-size:0.85rem; padding:6px 8px; margin-bottom:0; background:#ffffff;">
+                <option value="">-- 請選擇月份或季度 --</option>
+                <option value="1月">1月</option>
+                <option value="2月">2月</option>
+                <option value="3月">3月</option>
+                <option value="4月">4月</option>
+                <option value="5月">5月</option>
+                <option value="6月">6月</option>
+                <option value="7月">7月</option>
+                <option value="8月">8月</option>
+                <option value="9月">9月</option>
+                <option value="10月">10月</option>
+                <option value="11月">11月</option>
+                <option value="12月">12月</option>
+                <option value="Q1">Q1</option>
+                <option value="Q2">Q2</option>
+                <option value="Q3">Q3</option>
+                <option value="Q4">Q4</option>
+                <option value="2027/Q1">2027/Q1</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- 產品中分類 (23項標準規格) -->
+          <div class="form-group" style="margin-bottom:0.85rem;">
+            <label for="kpiEditSubcategory" style="font-weight:600; font-size:0.82rem; color:#334155; display:block; margin-bottom:3px;">
+              產品類別 (中分類規格) <span style="color:#ef4444;">*</span>
+            </label>
+            <select id="kpiEditSubcategory" class="search-input" required style="font-size:0.85rem; padding:6px 8px; margin-bottom:0; background:#ffffff;">
+              <option value="">-- 請選擇 23 項標準中分類 --</option>
+            </select>
+          </div>
+
+          <!-- 案件狀況說明 (規格/數量/案件名稱/設備名稱) -->
+          <div class="form-group" style="margin-bottom:0.85rem;">
+            <label for="kpiEditStatusDesc" style="font-weight:600; font-size:0.82rem; color:#334155; display:block; margin-bottom:3px;">
+              案件狀況說明 (規格/數量/設備名稱) <span style="color:#ef4444;">*</span>
+            </label>
+            <textarea id="kpiEditStatusDesc" class="search-input" rows="2" placeholder="例：SDP-150A2A*2套，九月出貨，預計推廣SDC..." required style="font-size:0.85rem; padding:6px 8px; margin-bottom:0; resize:vertical;"></textarea>
+          </div>
+
+          <!-- 商機金額 & 取單否打 V -->
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:0.85rem; align-items:center;">
+            <div>
+              <label for="kpiEditAmount" style="font-weight:600; font-size:0.82rem; color:#334155; display:block; margin-bottom:3px;">商機 (單位: 萬元)</label>
+              <input type="number" id="kpiEditAmount" class="search-input" step="0.01" min="0" value="0.0" style="font-size:0.85rem; padding:6px 8px; margin-bottom:0; background:#ffffff;">
+            </div>
+            <div style="background:#f0fdf4; border:1px solid #bbf7d0; border-radius:6px; padding:6px 10px; margin-top:16px;">
+              <label style="display:flex; align-items:center; gap:6px; cursor:pointer; margin-bottom:0; font-weight:700; font-size:0.88rem; color:#15803d;">
+                <input type="checkbox" id="kpiEditIsClosed" style="width:18px; height:18px; accent-color:#16a34a; cursor:pointer;">
+                <span>✅ 取單否 (請打 V)</span>
+              </label>
+            </div>
+          </div>
+
+          <!-- 依賴事項 -->
+          <div class="form-group" style="margin-bottom:0;">
+            <label for="kpiEditDependencies" style="font-weight:600; font-size:0.82rem; color:#334155; display:block; margin-bottom:3px;">依賴事項 (交期、技術支援等)</label>
+            <textarea id="kpiEditDependencies" class="search-input" rows="2" placeholder="例：已經取單、交期2026.10，請RD評估SDP..." style="font-size:0.85rem; padding:6px 8px; margin-bottom:0; resize:vertical;"></textarea>
+          </div>
+        </form>
+      </div>
+
+      <div class="modal-footer" style="padding-top:0.75rem; border-top:1px solid #e2e8f0; display:flex; gap:0.5rem; flex-shrink:0; margin-top:0.5rem;">
+        <button type="button" id="btnCancelKpiCaseEdit" class="btn btn-secondary" style="flex:1; font-size:0.85rem;">取消</button>
+        <button type="button" id="btnSaveKpiCaseEdit" class="btn btn-primary" style="flex:2; font-weight:600; font-size:0.85rem;">💾 儲存追蹤資料</button>
+      </div>
+    </div>
+  </div>
+
   <!-- 🚫 [新增 3] 提報客戶不聯繫對話框 (Modal) -->
   <div id="noContactModal" class="modal hidden">
     <div class="modal-content" style="max-height:85vh; max-height:85dvh; display:flex; flex-direction:column; padding:1.25rem; max-width:480px;">
@@ -1649,8 +1875,8 @@
   </div>
 
   <!-- 🚀 畫面右下角簡潔版本訊息 (字體小、不佔用頂部空間) -->
-  <div class="app-version-bottom-right" id="appVersionInfo">v 1.81</div>
+  <div class="app-version-bottom-right" id="appVersionInfo">v 1.82</div>
 
-  <script src="app.js?v=1.81"></script>
+  <script src="app.js?v=1.82"></script>
 </body>
 </html>

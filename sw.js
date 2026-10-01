@@ -1,9 +1,9 @@
-const CACHE_NAME = 'quote-draft-v1.81';
+const CACHE_NAME = 'quote-draft-v1.82';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
-  './style.css?v=1.81',
-  './app.js?v=1.81',
+  './style.css?v=1.82',
+  './app.js?v=1.82',
   './manifest.json',
   './manifest.json?v=2',
   './icon-192x192-v2.png',
