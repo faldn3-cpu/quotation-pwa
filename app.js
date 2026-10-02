@@ -58,8 +58,8 @@ document.addEventListener("DOMContentLoaded", () => {
     }, 2800);
   }
 
-  // 🚀 版本自動同步與舊快取清理防護 (v 1.89)
-  const CURRENT_APP_VERSION = "1.89";
+  // 🚀 版本自動同步與舊快取清理防護 (v 1.90)
+  const CURRENT_APP_VERSION = "1.90";
   const appVersionInfo = document.getElementById("appVersionInfo");
   if (appVersionInfo) {
     appVersionInfo.textContent = "v " + CURRENT_APP_VERSION;
@@ -70,7 +70,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if ('caches' in window) {
       caches.keys().then(keys => {
         keys.forEach(k => {
-          if (k !== 'quote-draft-v1.89') {
+          if (k !== 'quote-draft-v1.90') {
             caches.delete(k);
           }
         });
@@ -274,9 +274,9 @@ document.addEventListener("DOMContentLoaded", () => {
   // Service Worker 註冊與自動更新偵測
   // ====================================================
   if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('./sw.js?v=1.89')
+    navigator.serviceWorker.register('./sw.js?v=1.90')
       .then(reg => {
-        console.log('[PWA] Service Worker 已註冊 (v 1.89)', reg);
+        console.log('[PWA] Service Worker 已註冊 (v 1.90)', reg);
         // 主動檢查伺服器端是否有新版 sw.js
         reg.update();
 
@@ -5766,7 +5766,14 @@ document.addEventListener("DOMContentLoaded", () => {
         is_new_client: itemToEdit.is_new_client || "",
         history: itemToEdit.history || ""
       };
-      if (ogsmEditModalTitle) ogsmEditModalTitle.textContent = "✏️ 編輯業務日報";
+      const isOtherUserReport = !!(itemToEdit && itemToEdit.sales_name && itemToEdit.sales_name !== currentSales);
+      if (ogsmEditModalTitle) {
+        if (isOtherUserReport) {
+          ogsmEditModalTitle.innerHTML = `👁️ 檢視業務日報 <span style="font-size:0.82rem; background:#e0f2fe; color:#0369a1; padding:2px 8px; border-radius:4px; font-weight:600; margin-left:6px;">👤 負責業務：${escapeHtml(itemToEdit.sales_name)}（唯讀模式）</span>`;
+        } else {
+          ogsmEditModalTitle.textContent = "✏️ 編輯業務日報";
+        }
+      }
       if (ogsmEditRowIndex) ogsmEditRowIndex.value = itemToEdit.row_index || "";
       if (ogsmEditOfflineId) ogsmEditOfflineId.value = itemToEdit.offline_id || "";
       ogsmInputDate.value = itemToEdit.date || dateStr;
@@ -5898,15 +5905,42 @@ document.addEventListener("DOMContentLoaded", () => {
 
     if (ogsmClientAutocomplete) ogsmClientAutocomplete.classList.add("hidden");
 
+    // 🛡️ 唯讀防護狀態控制：檢視他人日報時鎖定所有欄位並隱藏儲存按鈕
+    const isOtherUserReport = !!(itemToEdit && itemToEdit.sales_name && itemToEdit.sales_name !== currentSales);
+    const formInputs = ogsmEditModal.querySelectorAll("input:not([type=hidden]), select, textarea");
+    formInputs.forEach(el => {
+      el.disabled = isOtherUserReport;
+    });
+    const subcatBtns = ogsmEditModal.querySelectorAll(".btn-subcategory, .btn-matrix");
+    subcatBtns.forEach(btn => {
+      btn.style.pointerEvents = isOtherUserReport ? "none" : "";
+      btn.style.opacity = isOtherUserReport ? "0.6" : "";
+    });
+
+    if (btnSaveOgsmEdit) btnSaveOgsmEdit.classList.toggle("hidden", isOtherUserReport);
+    if (btnSaveOgsmAndCrm) btnSaveOgsmAndCrm.classList.toggle("hidden", isOtherUserReport);
+    if (btnCancelOgsmEdit) btnCancelOgsmEdit.textContent = isOtherUserReport ? "關閉" : "取消";
+
     ogsmEditModal.classList.remove("hidden");
     setTimeout(() => {
-      if (ogsmInputClient) ogsmInputClient.focus();
+      if (ogsmInputClient && !isOtherUserReport) ogsmInputClient.focus();
     }, 150);
   }
 
   function closeOgsmEditModal() {
     if (ogsmEditModal) ogsmEditModal.classList.add("hidden");
     if (ogsmClientAutocomplete) ogsmClientAutocomplete.classList.add("hidden");
+    // 還原欄位與儲存按鈕狀態
+    const formInputs = ogsmEditModal.querySelectorAll("input, select, textarea");
+    formInputs.forEach(el => { el.disabled = false; });
+    const subcatBtns = ogsmEditModal.querySelectorAll(".btn-subcategory, .btn-matrix");
+    subcatBtns.forEach(btn => {
+      btn.style.pointerEvents = "";
+      btn.style.opacity = "";
+    });
+    if (btnSaveOgsmEdit) btnSaveOgsmEdit.classList.remove("hidden");
+    if (btnSaveOgsmAndCrm) btnSaveOgsmAndCrm.classList.remove("hidden");
+    if (btnCancelOgsmEdit) btnCancelOgsmEdit.textContent = "取消";
   }
 
   if (btnCloseOgsmEditModal) btnCloseOgsmEditModal.addEventListener("click", closeOgsmEditModal);
@@ -7041,19 +7075,39 @@ document.addEventListener("DOMContentLoaded", () => {
 
       clearTimeout(searchDebounceTimer);
       searchDebounceTimer = setTimeout(async () => {
+        const salesName = getSalesName();
+        const isSeniorManager = ["曾維崧", "曾仁君", "張何達", "維崧", "仁君", "何達"].some(m => salesName.includes(m));
+
         // 1. 本地快速搜尋 (已載入當月紀錄 + 離線暫存)
         const offlineList = getOfflineOgsmDrafts();
         const localPool = [...ogsmMonthReports, ...offlineList];
         const localMatches = localPool.filter(r => {
-          const text = `${r.date} ${r.client_name} ${r.client_type} ${r.content} ${r.result}`.toLowerCase();
+          const text = `${r.date} ${r.client_name} ${r.client_type} ${r.content} ${r.result} ${r.sales_name || ''}`.toLowerCase();
           return text.includes(keyword);
         });
 
-        renderSearchResults(localMatches, keyword);
+        // 確保本地搜尋項目具有 sales_name 屬性
+        localMatches.forEach(item => {
+          if (!item.sales_name) item.sales_name = salesName;
+        });
+
+        if (isSeniorManager && localMatches.length === 0) {
+          // 主管搜尋他人客戶時，本地通常為空，先呈現檢索中狀態避免誤導為無紀錄
+          if (ogsmSearchResultsPanel) {
+            ogsmSearchResultsPanel.innerHTML = `
+              <div class="ogsm-search-results-header">
+                <span>🔍 全公司檢索中...</span>
+              </div>
+              <div style="padding:15px; text-align:center; color:#64748b; font-size:0.85rem;">正在全體業務日報庫中檢索「${escapeHtml(keyword)}」...</div>
+            `;
+            ogsmSearchResultsPanel.classList.remove("hidden");
+          }
+        } else {
+          renderSearchResults(localMatches, keyword);
+        }
 
         // 2. 背景請求全年度歷史搜尋
         try {
-          const salesName = getSalesName();
           const params = new URLSearchParams({
             action: "search_ogsm",
             user_name: salesName,
@@ -7062,12 +7116,15 @@ document.addEventListener("DOMContentLoaded", () => {
           });
           const res = await fetch(`${GAS_URL}?${params.toString()}`);
           const data = await res.json();
-          if (data.status === "ok" && Array.isArray(data.records) && data.records.length > 0) {
+          if (data.status === "ok" && Array.isArray(data.records)) {
             const map = new Map();
-            localMatches.forEach(item => map.set(item.row_index || item.temp_id || (item.date + item.client_name), item));
+            localMatches.forEach(item => {
+              const k = (item.sales_name || salesName) + "_" + (item.row_index || item.temp_id || (item.date + item.client_name));
+              map.set(k, item);
+            });
             data.records.forEach(item => {
-              const key = item.row_index || (item.date + item.client_name);
-              map.set(key, item);
+              const k = (item.sales_name || salesName) + "_" + (item.row_index || (item.date + item.client_name));
+              map.set(k, item);
             });
             renderSearchResults(Array.from(map.values()), keyword);
           }
@@ -7112,10 +7169,14 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const displayRecords = records.slice(0, 50);
     displayRecords.forEach((item, idx) => {
+      const ownerBadge = item.sales_name ? `<span style="display:inline-block; font-size:0.72rem; background:#e0f2fe; color:#0369a1; padding:2px 7px; border-radius:4px; font-weight:600; margin-right:6px;">👤 ${escapeHtml(item.sales_name)}</span>` : "";
       html += `
         <div class="ogsm-search-item" data-sidx="${idx}">
           <div class="ogsm-search-item-header">
-            <span class="ogsm-search-item-client">${escapeHtml(item.client_name)}</span>
+            <div>
+              ${ownerBadge}
+              <span class="ogsm-search-item-client">${escapeHtml(item.client_name)}</span>
+            </div>
             <div>
               <span class="badge-client-type" style="font-size:0.72rem; padding:2px 6px;">${escapeHtml(item.client_type || '其它')}</span>
               <span class="ogsm-search-item-date" style="margin-left:6px;">📅 ${escapeHtml(item.date)}</span>
