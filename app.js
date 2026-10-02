@@ -58,8 +58,8 @@ document.addEventListener("DOMContentLoaded", () => {
     }, 2800);
   }
 
-  // 🚀 版本自動同步與舊快取清理防護 (v 1.90)
-  const CURRENT_APP_VERSION = "1.90";
+  // 🚀 版本自動同步與舊快取清理防護 (v 1.92)
+  const CURRENT_APP_VERSION = "1.92";
   const appVersionInfo = document.getElementById("appVersionInfo");
   if (appVersionInfo) {
     appVersionInfo.textContent = "v " + CURRENT_APP_VERSION;
@@ -70,7 +70,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if ('caches' in window) {
       caches.keys().then(keys => {
         keys.forEach(k => {
-          if (k !== 'quote-draft-v1.90') {
+          if (k !== 'quote-draft-v1.92') {
             caches.delete(k);
           }
         });
@@ -274,9 +274,9 @@ document.addEventListener("DOMContentLoaded", () => {
   // Service Worker 註冊與自動更新偵測
   // ====================================================
   if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('./sw.js?v=1.90')
+    navigator.serviceWorker.register('./sw.js?v=1.92')
       .then(reg => {
-        console.log('[PWA] Service Worker 已註冊 (v 1.90)', reg);
+        console.log('[PWA] Service Worker 已註冊 (v 1.92)', reg);
         // 主動檢查伺服器端是否有新版 sw.js
         reg.update();
 
@@ -2636,6 +2636,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const btnCloseOgsmEditModal  = document.getElementById("btnCloseOgsmEditModal");
   const btnCancelOgsmEdit      = document.getElementById("btnCancelOgsmEdit");
   const btnSaveOgsmEdit        = document.getElementById("btnSaveOgsmEdit");
+  const btnDeleteOgsmFromModal = document.getElementById("btnDeleteOgsmFromModal");
 
   // 🚀 [Streamlit 對齊] 11 個商機延伸欄位 DOM 物件
   const btnToggleOgsmExtraFields  = document.getElementById("btnToggleOgsmExtraFields");
@@ -2783,6 +2784,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const btnCloseCrmEditModal       = document.getElementById("btnCloseCrmEditModal");
   const btnCancelCrmEdit           = document.getElementById("btnCancelCrmEdit");
   const btnSaveCrmEdit             = document.getElementById("btnSaveCrmEdit");
+  const btnDeleteCrmEdit           = document.getElementById("btnDeleteCrmEdit");
   const btnSaveOgsmAndCrm          = document.getElementById("btnSaveOgsmAndCrm");
 
   // 🎯 案件追蹤 (KPI) 管理看板與編輯對話框 DOM 元件
@@ -3019,39 +3021,40 @@ document.addEventListener("DOMContentLoaded", () => {
     localStorage.setItem("follow_up_settings", JSON.stringify(settings));
   }
 
-  // 智慧客戶分級選項注入器 (直賣組業務僅選 A/B/C；經銷組業務可選 D-A/D-B/D-C 與 A/B/C)
+  // 智慧客戶分級選項注入器 (依圖三標準 6 大選項白名單)
   function populateClientNatureOptions(selectElem, currentVal) {
     if (!selectElem) return;
-    const currentSales = getSalesName();
-    const isDealer = DEALER_SALES_MEMBERS.indexOf(currentSales) !== -1;
-    let options = [];
-
-    if (isDealer) {
-      options = [
-        { value: "D-A 級（持續大手）", label: "D-A 級 (經銷持續大手 14天)" },
-        { value: "D-B 級（前年新客）", label: "D-B 級 (經銷前年新客 30天)" },
-        { value: "D-C 級（今年新客/潛在客）", label: "D-C 級 (經銷今年新客 30天)" },
-        { value: "A 級（持續大手）", label: "A 級 (直賣持續大手 14天)" },
-        { value: "B 級（前年新客）", label: "B 級 (直賣前年新客 30天)" },
-        { value: "C 級（今年新客/潛在客）", label: "C 級 (直賣今年新客 30天)" }
-      ];
-    } else {
-      options = [
-        { value: "A 級（持續大手）", label: "A 級 (持續大手 14天)" },
-        { value: "B 級（前年新客）", label: "B 級 (前年新客 30天)" },
-        { value: "C 級（今年新客/潛在客）", label: "C 級 (今年新客/潛在客 30天)" }
-      ];
-    }
+    const options = [
+      "A客戶 - 大手客戶 & 既有客戶",
+      "B客戶 - 前一年新成交",
+      "C客戶 - 預計開發及今年新成交",
+      "D-A客戶 - 經銷商 大手客戶 & 既有客戶",
+      "D-B客戶 - 經銷商 前一年新成交",
+      "D-C客戶 - 經銷商 預計開發及今年新成交"
+    ];
 
     let extraHtml = "";
-    const hasMatch = options.some(o => o.value === currentVal || (currentVal && currentVal.indexOf(o.value.slice(0, 3)) === 0));
-    if (currentVal && !hasMatch) {
-      extraHtml = `<option value="${currentVal}" selected>${currentVal} (舊資料相容)</option>`;
+    let matchedVal = "";
+    if (currentVal) {
+      const trimmed = currentVal.trim();
+      const direct = options.find(o => o === trimmed);
+      if (direct) {
+        matchedVal = direct;
+      } else {
+        // 嘗試前綴匹配舊代碼，例如 "A 級" 匹配 "A客戶..."，"D-A" 匹配 "D-A客戶..."
+        const prefix = trimmed.slice(0, 3);
+        const byPrefix = options.find(o => o.indexOf(prefix) === 0 || (trimmed.startsWith("D-A") && o.startsWith("D-A")) || (trimmed.startsWith("D-B") && o.startsWith("D-B")) || (trimmed.startsWith("D-C") && o.startsWith("D-C")) || (trimmed.startsWith("A") && o.startsWith("A")) || (trimmed.startsWith("B") && o.startsWith("B")) || (trimmed.startsWith("C") && o.startsWith("C")));
+        if (byPrefix) {
+          matchedVal = byPrefix;
+        } else {
+          extraHtml = `<option value="${trimmed}" selected>${trimmed} (舊資料相容)</option>`;
+        }
+      }
     }
 
-    selectElem.innerHTML = extraHtml + options.map(o => {
-      const isSelected = (currentVal === o.value || (currentVal && currentVal.indexOf(o.value.slice(0, 3)) === 0));
-      return `<option value="${o.value}" ${isSelected ? "selected" : ""}>${o.label}</option>`;
+    selectElem.innerHTML = extraHtml + options.map(opt => {
+      const isSelected = (opt === matchedVal || (!matchedVal && opt === currentVal));
+      return `<option value="${opt}" ${isSelected ? "selected" : ""}>${opt}</option>`;
     }).join("");
   }
 
@@ -4237,11 +4240,27 @@ document.addEventListener("DOMContentLoaded", () => {
     if (crmInputPurpose) crmInputPurpose.value = item.content || "";
     if (crmInputStatusDesc) crmInputStatusDesc.value = item.result || "";
     if (crmSelectChannel && item.channel) crmSelectChannel.value = item.channel;
-    if (crmSelectIndustry && item.industry) crmSelectIndustry.value = item.industry;
+    if (crmSelectIndustry) {
+      crmSelectIndustry.value = item.industry || "";
+      if (!crmSelectIndustry.value && item.industry) {
+        const clean = item.industry.replace(/\s+/g, "");
+        for (let opt of crmSelectIndustry.options) {
+          if (opt.value.replace(/\s+/g, "") === clean) {
+            crmSelectIndustry.value = opt.value;
+            break;
+          }
+        }
+      }
+    }
     if (crmInputCompChannel) crmInputCompChannel.value = item.comp_channel || "";
-    if (crmSelectClientNature) populateClientNatureOptions(crmSelectClientNature, item.client_type || item.client_nature || "A 級（持續大手）");
+    if (crmSelectClientNature) populateClientNatureOptions(crmSelectClientNature, item.client_type || item.client_nature || "A客戶 - 大手客戶 & 既有客戶");
     if (crmSelectLostRetrieved) crmSelectLostRetrieved.value = item.is_lost_retrieved || "";
-    if (crmInputActionPlan) crmInputActionPlan.value = item.action_plan || "";
+    if (crmInputActionPlan) {
+      crmInputActionPlan.value = item.action_plan || "出差到客戶端拜訪";
+      if (!crmInputActionPlan.value && item.action_plan) {
+        crmInputActionPlan.value = item.action_plan.includes("拜訪") ? "出差到客戶端拜訪" : "電話聯繫 & 報價事宜 & 其他";
+      }
+    }
     if (crmSelectExpectedMonth && item.expected_month) crmSelectExpectedMonth.value = item.expected_month;
     if (crmInputAmount && item.estimated_amount) crmInputAmount.value = item.estimated_amount;
     if (crmSelectBrand && item.competing_brand) crmSelectBrand.value = item.competing_brand;
@@ -4941,6 +4960,9 @@ document.addEventListener("DOMContentLoaded", () => {
       }
 
       const visitDateStr = formatDisplayDate(r.visit_date || (r.latest_update ? r.latest_update.split(' ')[0] : ''));
+      const currentSales = getSalesName();
+      const caseOwner = r.client_owner || r.sales_name || "";
+      const isMyCase = !!(caseOwner && (caseOwner === currentSales || caseOwner.includes(currentSales) || currentSales.includes(caseOwner)));
 
       html += `
         <tr class="clickable-row" data-crm-row-idx="${rIdx}" title="點選直接修改此商機">
@@ -4951,7 +4973,12 @@ document.addEventListener("DOMContentLoaded", () => {
           <td class="col-month" style="text-align:center;">${escapeHtml(r.target_month || '-')}</td>
           <td class="col-amount" style="text-align:right;">${r.estimated_amount ? r.estimated_amount + ' 萬' : '-'}</td>
           <td class="col-quote">${qId ? `<span style="font-weight:bold; color:#1d4ed8;">${escapeHtml(qId)}</span>` : '<span style="color:#94a3b8;">-</span>'}</td>
-          <td class="col-desc">${escapeHtml(r.status_desc || '-')}</td>
+          <td class="col-desc">
+            <div style="display:flex; justify-content:space-between; align-items:center; gap:6px;">
+              <span style="flex:1;">${escapeHtml(r.status_desc || '-')}</span>
+              ${isMyCase && r.row_index ? `<button type="button" class="btn-del-crm-table" data-rindex="${r.row_index}" data-client="${escapeHtml(r.client_name || '')}" style="background:#fee2e2; color:#b91c1c; border:1px solid #fecaca; border-radius:4px; padding:2px 6px; font-size:0.75rem; cursor:pointer; flex-shrink:0; font-weight:600;" title="刪除此筆商機">🗑️</button>` : ''}
+            </div>
+          </td>
         </tr>
       `;
     });
@@ -4966,6 +4993,42 @@ document.addEventListener("DOMContentLoaded", () => {
         if (record) {
           openCrmEditModal(record, "monthly_report");
         }
+      });
+    });
+
+    // 🗑️ 綁定 CRM 列表單筆刪除按鈕
+    monthlyReportTableBody.querySelectorAll(".btn-del-crm-table").forEach(btn => {
+      btn.addEventListener("click", (e) => {
+        e.stopPropagation(); // 阻止觸發整列點選開啟編輯視窗
+        const rowIndex = btn.dataset.rindex;
+        const clientName = btn.dataset.client || "此客戶";
+        if (!rowIndex) return;
+
+        showConfirmModal(`確定要刪除「${clientName}」這筆 CRM 商機案件嗎？此操作將自雲端試算表永久移除該列。`, async () => {
+          try {
+            btn.disabled = true;
+            const salesName = getSalesName();
+            const params = new URLSearchParams({
+              action: "delete_crm_case",
+              user_name: salesName,
+              row_index: rowIndex
+            });
+            const res = await fetch(`${GAS_URL}?${params.toString()}`);
+            const data = await res.json();
+            if (data.status === "ok") {
+              showToast(data.msg || "✅ CRM 商機已成功刪除", "success");
+              invalidateMonthlyReportCaches();
+              loadMonthlyReportData(true);
+            } else {
+              alert("刪除失敗：" + (data.msg || "未知錯誤"));
+            }
+          } catch(err) {
+            console.error("[CRM] 列表刪除失敗:", err);
+            alert("刪除 CRM 商機失敗，請檢查網路連線。");
+          } finally {
+            btn.disabled = false;
+          }
+        });
       });
     });
   }
@@ -5729,9 +5792,12 @@ document.addEventListener("DOMContentLoaded", () => {
   function openOgsmEditModal(dateStr, itemToEdit = null) {
     if (!ogsmEditModal || !ogsmInputDate) return;
 
-    // 填入當前登入業務人員姓名
+    // 填入當前登入業務人員姓名 (若檢視他人日報則顯示原負責業務姓名)
     const currentSales = getSalesName();
-    if (ogsmInputUser) ogsmInputUser.value = currentSales;
+    const isOtherUserReport = !!(itemToEdit && itemToEdit.sales_name && itemToEdit.sales_name !== currentSales);
+    if (ogsmInputUser) {
+      ogsmInputUser.value = isOtherUserReport ? itemToEdit.sales_name : currentSales;
+    }
 
     // 動態填入「客戶所屬（偕同拜訪/擔當）」人員名單
     if (ogsmInputClientOwner) {
@@ -5921,6 +5987,12 @@ document.addEventListener("DOMContentLoaded", () => {
     if (btnSaveOgsmAndCrm) btnSaveOgsmAndCrm.classList.toggle("hidden", isOtherUserReport);
     if (btnCancelOgsmEdit) btnCancelOgsmEdit.textContent = isOtherUserReport ? "關閉" : "取消";
 
+    // 🗑️ 日報單筆刪除：僅在編輯本人已存檔（或離線）日報時顯示，唯讀模式強制隱藏
+    const canDeleteOgsm = !!(itemToEdit && (itemToEdit.row_index || itemToEdit.offline_id) && !isOtherUserReport);
+    if (btnDeleteOgsmFromModal) {
+      btnDeleteOgsmFromModal.classList.toggle("hidden", !canDeleteOgsm);
+    }
+
     ogsmEditModal.classList.remove("hidden");
     setTimeout(() => {
       if (ogsmInputClient && !isOtherUserReport) ogsmInputClient.focus();
@@ -5940,11 +6012,25 @@ document.addEventListener("DOMContentLoaded", () => {
     });
     if (btnSaveOgsmEdit) btnSaveOgsmEdit.classList.remove("hidden");
     if (btnSaveOgsmAndCrm) btnSaveOgsmAndCrm.classList.remove("hidden");
+    if (btnDeleteOgsmFromModal) btnDeleteOgsmFromModal.classList.add("hidden");
     if (btnCancelOgsmEdit) btnCancelOgsmEdit.textContent = "取消";
   }
 
   if (btnCloseOgsmEditModal) btnCloseOgsmEditModal.addEventListener("click", closeOgsmEditModal);
   if (btnCancelOgsmEdit) btnCancelOgsmEdit.addEventListener("click", closeOgsmEditModal);
+
+  // 🗑️ 表單內單筆刪除日報事件
+  if (btnDeleteOgsmFromModal) {
+    btnDeleteOgsmFromModal.addEventListener("click", () => {
+      if (!currentEditingOriginalItem) return;
+      const rIndex = currentEditingOriginalItem.row_index;
+      const isOff = !!currentEditingOriginalItem.offline_id;
+      const offId = currentEditingOriginalItem.offline_id;
+      const dStr = currentEditingOriginalItem.date;
+      closeOgsmEditModal();
+      deleteOgsmReport(rIndex, isOff, offId, dStr);
+    });
+  }
 
   // 客戶名稱輸入時觸發即時關鍵字模糊快選
   if (ogsmInputClient && ogsmClientAutocomplete) {
@@ -6483,11 +6569,27 @@ document.addEventListener("DOMContentLoaded", () => {
     if (crmEditBrand) crmEditBrand.value = record.competing_brand || "";
     if (crmEditDependencies) crmEditDependencies.value = record.dependencies || "";
     if (crmEditVisitDate) crmEditVisitDate.value = record.visit_date ? formatDisplayDate(record.visit_date) : "";
-    if (crmEditIndustry) crmEditIndustry.value = record.industry || "";
+    if (crmEditIndustry) {
+      crmEditIndustry.value = record.industry || "";
+      if (!crmEditIndustry.value && record.industry) {
+        const clean = record.industry.replace(/\s+/g, "");
+        for (let opt of crmEditIndustry.options) {
+          if (opt.value.replace(/\s+/g, "") === clean) {
+            crmEditIndustry.value = opt.value;
+            break;
+          }
+        }
+      }
+    }
     if (crmEditChannel) crmEditChannel.value = record.channel || "";
     if (crmEditClientNature) populateClientNatureOptions(crmEditClientNature, record.client_nature || "");
     if (crmEditLostRetrieved) crmEditLostRetrieved.value = record.is_lost_retrieved || "";
-    if (crmEditActionPlan) crmEditActionPlan.value = record.action_plan || "";
+    if (crmEditActionPlan) {
+      crmEditActionPlan.value = record.action_plan || "出差到客戶端拜訪";
+      if (!crmEditActionPlan.value && record.action_plan) {
+        crmEditActionPlan.value = record.action_plan.includes("拜訪") ? "出差到客戶端拜訪" : "電話聯繫 & 報價事宜 & 其他";
+      }
+    }
 
     // 綁定當前編輯紀錄供標記不聯繫使用
     activeCrmEditRecord = record;
@@ -6509,16 +6611,66 @@ document.addEventListener("DOMContentLoaded", () => {
         : "填寫後將新增至 CRM 試算表";
     }
 
+    // 🗑️ 刪除權限控制：僅限負責業務本人在編輯既有商機時顯示，他人商機或新建商機不顯示
+    const currentSales = getSalesName();
+    const effectiveOwner = record.client_owner || record.sales_name || "";
+    const isMyCrmCase = !!(effectiveOwner && (effectiveOwner === currentSales || effectiveOwner.includes(currentSales) || currentSales.includes(effectiveOwner)));
+    const canDeleteCrm = !!(record.row_index && isMyCrmCase);
+    if (btnDeleteCrmEdit) {
+      btnDeleteCrmEdit.classList.toggle("hidden", !canDeleteCrm);
+    }
+
     crmEditModal.classList.remove("hidden");
   }
 
   function closeCrmEditModal() {
     if (crmEditModal) crmEditModal.classList.add("hidden");
+    if (btnDeleteCrmEdit) btnDeleteCrmEdit.classList.add("hidden");
     crmEditSource = null;
   }
 
   if (btnCloseCrmEditModal) btnCloseCrmEditModal.addEventListener("click", closeCrmEditModal);
   if (btnCancelCrmEdit) btnCancelCrmEdit.addEventListener("click", closeCrmEditModal);
+
+  // 🗑️ CRM 商機表單內單筆刪除事件
+  if (btnDeleteCrmEdit) {
+    btnDeleteCrmEdit.addEventListener("click", () => {
+      const rowIndex = crmEditRowIndex ? crmEditRowIndex.value : "";
+      const clientName = crmEditClientName ? crmEditClientName.value : "此客戶";
+      if (!rowIndex) return;
+
+      showConfirmModal(`確定要刪除「${clientName}」這筆 CRM 商機案件嗎？此操作將自雲端試算表永久移除該列。`, async () => {
+        try {
+          btnDeleteCrmEdit.disabled = true;
+          btnDeleteCrmEdit.textContent = "⏳ 刪除中...";
+          const salesName = getSalesName();
+          const params = new URLSearchParams({
+            action: "delete_crm_case",
+            user_name: salesName,
+            row_index: rowIndex
+          });
+          const res = await fetch(`${GAS_URL}?${params.toString()}`);
+          const data = await res.json();
+          if (data.status === "ok") {
+            showToast(data.msg || "✅ CRM 商機已成功刪除", "success");
+            closeCrmEditModal();
+            invalidateMonthlyReportCaches();
+            if (crmEditSource === "monthly_report" && typeof loadMonthlyReportData === "function") {
+              loadMonthlyReportData(true);
+            }
+          } else {
+            alert("刪除失敗：" + (data.msg || "未知錯誤"));
+          }
+        } catch(err) {
+          console.error("[CRM] 刪除失敗:", err);
+          alert("刪除 CRM 商機失敗，請檢查網路連線。");
+        } finally {
+          btnDeleteCrmEdit.disabled = false;
+          btnDeleteCrmEdit.textContent = "🗑️ 刪除";
+        }
+      });
+    });
+  }
 
   // CRM 儲存邏輯
   if (btnSaveCrmEdit) {
