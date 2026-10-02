@@ -58,8 +58,8 @@ document.addEventListener("DOMContentLoaded", () => {
     }, 2800);
   }
 
-  // 🚀 版本自動同步與舊快取清理防護 (v 1.93)
-  const CURRENT_APP_VERSION = "1.93";
+  // 🚀 版本自動同步與舊快取清理防護 (v 1.94)
+  const CURRENT_APP_VERSION = "1.94";
   const appVersionInfo = document.getElementById("appVersionInfo");
   if (appVersionInfo) {
     appVersionInfo.textContent = "v " + CURRENT_APP_VERSION;
@@ -70,7 +70,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if ('caches' in window) {
       caches.keys().then(keys => {
         keys.forEach(k => {
-          if (k !== 'quote-draft-v1.93') {
+          if (k !== 'quote-draft-v1.94') {
             caches.delete(k);
           }
         });
@@ -331,29 +331,6 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
-  const btnLocalTestLogin = document.getElementById("btnLocalTestLogin");
-  if (btnLocalTestLogin) {
-    btnLocalTestLogin.style.display = "block";
-    btnLocalTestLogin.addEventListener("click", () => {
-      loginAsLocalWeiSong();
-    });
-  }
-
-  function loginAsLocalWeiSong() {
-    console.log("[Auth] 測試模式：以【曾維崧】最高管理員身分直接就緒");
-    localStorage.setItem("has_logged_in", "true");
-    localStorage.setItem("saved_display_name", "曾維崧");
-    localStorage.setItem("is_admin_user", "true");
-    userProfile = { name: "曾維崧", email: "tsengweisung@gmail.com" };
-    localStorage.setItem("saved_user_profile", JSON.stringify(userProfile));
-    enterDraftMode("曾維崧");
-    setupAdminImpersonator();
-    triggerBackgroundAutoSync();
-    if (typeof showToast === "function") {
-      showToast("👑 已成功進入【曾維崧】管理員身分", "success");
-    }
-  }
-
   if (hasLoggedIn) {
     console.log("[Auth] 偵測到本機登入資訊，直接進入報價表單：", savedDisplayName);
     try {
@@ -365,9 +342,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // 🚀 選項 A 智慧自動更新：啟動時在背景非同步連線 GAS 更新最新庫存與雲端資料
     triggerBackgroundAutoSync();
-  } else if (isTestEnvironment()) {
-    // 🌟 在本地測試環境下，若無歷史登入資訊，預設自動以曾維崧身分就緒
-    loginAsLocalWeiSong();
   } else {
     // 若無登入紀錄，顯示登入畫面以完成資料拉取
     console.log("[Auth] 顯示登入畫面 (hasLoggedIn: false)");
@@ -532,7 +506,7 @@ document.addEventListener("DOMContentLoaded", () => {
       gisInitAttempts++;
       setTimeout(ensureGisReady, 200);
     } else {
-      console.warn("[Auth] GIS 模組載入逾時，使用者仍可使用管理員身分快速登入");
+      console.warn("[Auth] GIS 模組載入逾時，請檢查網路連線。");
     }
   }
   ensureGisReady();
@@ -546,10 +520,7 @@ document.addEventListener("DOMContentLoaded", () => {
         initGoogleAuth();
       }
       if (!tokenClient) {
-        if (confirm("Google 登入服務載入中或受瀏覽器跨域限制。\n是否直接以【曾維崧】管理員身分快速進入系統？")) {
-          loginAsLocalWeiSong();
-          return;
-        }
+        alert("Google 登入服務載入中，請稍候重試。");
         return;
       }
     }
@@ -563,9 +534,7 @@ document.addEventListener("DOMContentLoaded", () => {
       tokenClient.requestAccessToken({ prompt: 'select_account' });
     } catch(err) {
       console.warn("[Auth] 請求存取權杖失敗:", err);
-      if (confirm(`啟動 Google 登入視窗失敗（${err.message || err}）。\n是否直接以【曾維崧】管理員身分快速進入系統？`)) {
-        loginAsLocalWeiSong();
-      }
+      alert(`啟動 Google 登入視窗失敗（${err.message || err}）。`);
     }
   });
 
@@ -576,10 +545,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (response.error) {
       console.warn("[Auth] 授權回應:", response.error, response.error_description);
       if (!isSilentAuth) {
-        if (confirm(`Google 登入失敗（${response.error_description || response.error}）。\n是否直接以【曾維崧】管理員身分快速進入系統？`)) {
-          loginAsLocalWeiSong();
-          return;
-        }
+        alert(`Google 授權失敗（${response.error_description || response.error}）。\n請確認您的 Google 帳號與網路連線。`);
       }
       isSilentAuth = false;
       pendingDraftAfterAuth = null;
