@@ -58,8 +58,8 @@ document.addEventListener("DOMContentLoaded", () => {
     }, 2800);
   }
 
-  // 🚀 版本自動同步與舊快取清理防護 (v 1.94)
-  const CURRENT_APP_VERSION = "1.94";
+  // 🚀 版本自動同步與舊快取清理防護 (v 1.95)
+  const CURRENT_APP_VERSION = "1.95";
   const appVersionInfo = document.getElementById("appVersionInfo");
   if (appVersionInfo) {
     appVersionInfo.textContent = "v " + CURRENT_APP_VERSION;
@@ -70,7 +70,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if ('caches' in window) {
       caches.keys().then(keys => {
         keys.forEach(k => {
-          if (k !== 'quote-draft-v1.94') {
+          if (k !== 'quote-draft-v1.95') {
             caches.delete(k);
           }
         });
@@ -274,9 +274,9 @@ document.addEventListener("DOMContentLoaded", () => {
   // Service Worker 註冊與自動更新偵測
   // ====================================================
   if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('./sw.js?v=1.93')
+    navigator.serviceWorker.register('./sw.js?v=1.95')
       .then(reg => {
-        console.log('[PWA] Service Worker 已註冊 (v 1.93)', reg);
+        console.log('[PWA] Service Worker 已註冊 (v 1.95)', reg);
         // 主動檢查伺服器端是否有新版 sw.js
         reg.update();
 
@@ -5819,7 +5819,6 @@ document.addEventListener("DOMContentLoaded", () => {
         is_new_client: itemToEdit.is_new_client || "",
         history: itemToEdit.history || ""
       };
-      const isOtherUserReport = !!(itemToEdit && itemToEdit.sales_name && itemToEdit.sales_name !== currentSales);
       if (ogsmEditModalTitle) {
         if (isOtherUserReport) {
           ogsmEditModalTitle.innerHTML = `👁️ 檢視業務日報 <span style="font-size:0.82rem; background:#e0f2fe; color:#0369a1; padding:2px 8px; border-radius:4px; font-weight:600; margin-left:6px;">👤 負責業務：${escapeHtml(itemToEdit.sales_name)}（唯讀模式）</span>`;
@@ -5959,7 +5958,6 @@ document.addEventListener("DOMContentLoaded", () => {
     if (ogsmClientAutocomplete) ogsmClientAutocomplete.classList.add("hidden");
 
     // 🛡️ 唯讀防護狀態控制：檢視他人日報時鎖定所有欄位並隱藏儲存按鈕
-    const isOtherUserReport = !!(itemToEdit && itemToEdit.sales_name && itemToEdit.sales_name !== currentSales);
     const formInputs = ogsmEditModal.querySelectorAll("input:not([type=hidden]), select, textarea");
     formInputs.forEach(el => {
       el.disabled = isOtherUserReport;
