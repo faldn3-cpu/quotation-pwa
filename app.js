@@ -3114,6 +3114,7 @@ document.addEventListener("DOMContentLoaded", () => {
     ogsmMonthReports = [];
     ogsmDatesWithReports = new Set();
     teamDailyCache.clear();
+    kpiCasesCache = {};
     if (!isCurrentUserManager()) {
       ogsmTeamDotsMap = {};
     }
@@ -3121,6 +3122,9 @@ document.addEventListener("DOMContentLoaded", () => {
     localStorage.removeItem("dismissed_reassign_ts");
     activeBannerTask = null;
     if (reassignedClientBanner) reassignedClientBanner.classList.add("hidden");
+
+    // 重新評估並刷新全系統業務選單權限
+    refreshAllSalesDropdowns();
 
     // 重新載入行事曆、快取、日報資料與跟催覆核引擎
     loadOgsmLocalCache(ogsmCurrentYear, ogsmCurrentMonth);
@@ -4005,17 +4009,39 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  // 刷新全系統所有業務人員下拉選單 (以 ACTIVE_SALES_MEMBERS 為唯一來源，移除非在職/非北區人員)
+  // 刷新全系統所有業務人員下拉選單 (依據使用者權限白名單嚴格過濾與鎖定)
   function refreshAllSalesDropdowns() {
     ALL_SALES_MEMBERS = [...ACTIVE_SALES_MEMBERS];
 
-    // 1. 久未聯繫負責業務篩選選單
+    const viewer = getSalesName();
+    const allowed = (cachedViewPermissions && cachedViewPermissions[viewer]) ? cachedViewPermissions[viewer] : [viewer];
+    const isTopMgr = ["曾維崧", "張何達", "曾仁君"].some(m => viewer.includes(m) || m.includes(viewer));
+    const authorizedMembers = isTopMgr ? ACTIVE_SALES_MEMBERS : ACTIVE_SALES_MEMBERS.filter(m => allowed.includes(m));
+    const finalMembers = authorizedMembers.length ? authorizedMembers : [viewer];
+
+    // 1. 久未聯繫負責業務篩選選單 (依權限嚴格過濾)
     if (selectFollowUpSales) {
-      const cur = selectFollowUpSales.value || "";
-      selectFollowUpSales.innerHTML = `
-        <option value="">-- 全部業務員 --</option>
-        ${ACTIVE_SALES_MEMBERS.map(m => `<option value="${m}" ${m === cur ? 'selected' : ''}>${m}</option>`).join("")}
-      `;
+      if (isTopMgr) {
+        selectFollowUpSales.disabled = false;
+        selectFollowUpSales.innerHTML = `
+          <option value="">-- 全體業務總覽 --</option>
+          ${ACTIVE_SALES_MEMBERS.map(m => `<option value="${m}">${m}</option>`).join("")}
+        `;
+        selectFollowUpSales.value = "";
+      } else if (allowed.length > 1) {
+        // 中階主管：提供「-- 授權業務總覽 --」作為預設值，僅列出主管本人與授權組員
+        selectFollowUpSales.disabled = false;
+        selectFollowUpSales.innerHTML = `
+          <option value="" selected>-- 授權業務總覽 --</option>
+          ${finalMembers.map(m => `<option value="${m}">${m}</option>`).join("")}
+        `;
+        selectFollowUpSales.value = "";
+      } else {
+        // 最低階業務：僅列出本人姓名並反灰鎖定
+        selectFollowUpSales.innerHTML = `<option value="${viewer}" selected>${viewer}</option>`;
+        selectFollowUpSales.value = viewer;
+        selectFollowUpSales.disabled = true;
+      }
     }
 
     // 2. 指派他人運作選單
@@ -4037,21 +4063,43 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     // 5. CRM 商機月報人員選單
-    if (monthlyReportSalesSelect && isCurrentUserManager()) {
-      const cur = monthlyReportSalesSelect.value || "";
-      monthlyReportSalesSelect.innerHTML = `
-        <option value="">-- 全體業務總覽 --</option>
-        ${ACTIVE_SALES_MEMBERS.map(m => `<option value="${m}" ${m === cur ? 'selected' : ''}>${m}</option>`).join("")}
-      `;
+    if (monthlyReportSalesSelect) {
+      if (isTopMgr) {
+        monthlyReportSalesSelect.disabled = false;
+        monthlyReportSalesSelect.innerHTML = `
+          <option value="">-- 全體業務總覽 --</option>
+          ${ACTIVE_SALES_MEMBERS.map(m => `<option value="${m}">${m}</option>`).join("")}
+        `;
+      } else if (allowed.length > 1) {
+        monthlyReportSalesSelect.disabled = false;
+        monthlyReportSalesSelect.innerHTML = `
+          <option value="" selected>-- 授權業務總覽 --</option>
+          ${finalMembers.map(m => `<option value="${m}">${m}</option>`).join("")}
+        `;
+      } else {
+        monthlyReportSalesSelect.innerHTML = `<option value="${viewer}" selected>${viewer}</option>`;
+        monthlyReportSalesSelect.disabled = true;
+      }
     }
 
     // 6. OGSM 日報月報人員選單
-    if (ogsmReportSalesSelect && isCurrentUserManager()) {
-      const cur = ogsmReportSalesSelect.value || "";
-      ogsmReportSalesSelect.innerHTML = `
-        <option value="">-- 全體業務總覽 --</option>
-        ${ACTIVE_SALES_MEMBERS.map(m => `<option value="${m}" ${m === cur ? 'selected' : ''}>${m}</option>`).join("")}
-      `;
+    if (ogsmReportSalesSelect) {
+      if (isTopMgr) {
+        ogsmReportSalesSelect.disabled = false;
+        ogsmReportSalesSelect.innerHTML = `
+          <option value="">-- 全體業務總覽 --</option>
+          ${ACTIVE_SALES_MEMBERS.map(m => `<option value="${m}">${m}</option>`).join("")}
+        `;
+      } else if (allowed.length > 1) {
+        ogsmReportSalesSelect.disabled = false;
+        ogsmReportSalesSelect.innerHTML = `
+          <option value="" selected>-- 授權業務總覽 --</option>
+          ${finalMembers.map(m => `<option value="${m}">${m}</option>`).join("")}
+        `;
+      } else {
+        ogsmReportSalesSelect.innerHTML = `<option value="${viewer}" selected>${viewer}</option>`;
+        ogsmReportSalesSelect.disabled = true;
+      }
     }
   }
 
@@ -5075,14 +5123,47 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
+  // 📅 計算預設五個工作日範圍 (選項 A：智能對齊工作日模式)
+  function getDefaultFiveWorkdaysRange() {
+    const today = new Date();
+    const dayOfWeek = today.getDay(); // 0 = Sun, 1 = Mon, ..., 5 = Fri, 6 = Sat
+    let endDate = new Date(today);
+
+    if (dayOfWeek === 0) {
+      // 週日：結束日對齊當週週五 (today - 2)
+      endDate.setDate(today.getDate() - 2);
+    } else if (dayOfWeek === 6) {
+      // 週六：結束日對齊當週週五 (today - 1)
+      endDate.setDate(today.getDate() - 1);
+    } else {
+      // 平日 (週一至週五)：結束日即為今天
+      endDate = new Date(today);
+    }
+
+    // 起始日：以 endDate 為基準，向前倒推包含 endDate 共 5 個工作日 (排除週六與週日)
+    let startDate = new Date(endDate);
+    let workdaysCount = 1; // endDate 本身算第 1 個工作日
+    while (workdaysCount < 5) {
+      startDate.setDate(startDate.getDate() - 1);
+      const d = startDate.getDay();
+      if (d !== 0 && d !== 6) {
+        workdaysCount++;
+      }
+    }
+
+    return {
+      startStr: formatDateToYMD(startDate),
+      endStr: formatDateToYMD(endDate)
+    };
+  }
+
   function openOgsmMonthlyReportModal() {
     if (!ogsmMonthlyReportModal) return;
-    const now = new Date();
-    const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-    const startStr = formatDateToYMD(thirtyDaysAgo);
-    const endStr = formatDateToYMD(now);
+    const range = getDefaultFiveWorkdaysRange();
+    const startStr = range.startStr;
+    const endStr = range.endStr;
 
-    // 方案 B：滑動近 30 天制，每次開啟預設皆動態前推至 [今日 - 30 天] ~ [今日]
+    // 智能對齊工作日制：預設往前 5 個工作日
     if (ogsmReportStartDate) ogsmReportStartDate.value = startStr;
     if (ogsmReportEndDate) ogsmReportEndDate.value = endStr;
 
@@ -5093,7 +5174,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (ogsmReportSalesSelect) {
       const myName = getSalesName();
       const allowedMembers = (cachedViewPermissions && cachedViewPermissions[myName]) ? cachedViewPermissions[myName] : [myName];
-      const isTopMgr = ["曾維崧", "張何達", "曾仁君"].includes(myName);
+      const isTopMgr = ["曾維崧", "張何達", "曾仁君"].some(m => myName.includes(m) || m.includes(myName));
       const membersToShow = isTopMgr ? ACTIVE_SALES_MEMBERS : ACTIVE_SALES_MEMBERS.filter(m => allowedMembers.includes(m));
 
       const cur = ogsmReportSalesSelect.value || "";
@@ -7472,6 +7553,7 @@ document.addEventListener("DOMContentLoaded", () => {
   // 工具列「🚨 客戶跟催」按鈕開啟對話框
   if (btnOpenFollowUpModal) {
     btnOpenFollowUpModal.addEventListener("click", () => {
+      refreshAllSalesDropdowns();
       if (followUpModal) followUpModal.classList.remove("hidden");
       renderFollowUpList();
     });
@@ -7712,9 +7794,16 @@ document.addEventListener("DOMContentLoaded", () => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
+    const viewer = currentSales;
+    const allowed = (cachedViewPermissions && cachedViewPermissions[viewer]) ? cachedViewPermissions[viewer] : [viewer];
+    const isTopMgr = ["曾維崧", "張何達", "曾仁君"].some(m => viewer.includes(m) || m.includes(viewer));
+
     let userCrmRecords = crmRecords;
-    if (!isCurrentUserManager()) {
-      userCrmRecords = crmRecords.filter(r => r.client_owner === currentSales || r.user_name === currentSales || r.sales_name === currentSales);
+    if (!isTopMgr) {
+      userCrmRecords = crmRecords.filter(r => {
+        const owner = (r.client_owner || r.user_name || r.sales_name || "").trim();
+        return allowed.includes(owner) || (owner && allowed.some(a => owner.includes(a)));
+      });
     }
 
     const clientMap = new Map();
@@ -7803,8 +7892,11 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // 2. 🚀 [自動雙向聚合] 融合 OGSM 日報中的最新拜訪日！取兩者之最大值
     let userOgsmRecords = ogsmRecords;
-    if (!isCurrentUserManager()) {
-      userOgsmRecords = ogsmRecords.filter(r => r.sales_name === currentSales);
+    if (!isTopMgr) {
+      userOgsmRecords = ogsmRecords.filter(r => {
+        const owner = (r.sales_name || "").trim();
+        return allowed.includes(owner) || (owner && allowed.some(a => owner.includes(a)));
+      });
     }
 
     userOgsmRecords.forEach(r => {
@@ -9003,25 +9095,30 @@ document.addEventListener("DOMContentLoaded", () => {
       });
     }
 
-    // 設定責任業務選單 (嚴格遵守設定條件；曾維崧預設為全體業務，溫達仁等僅能看授權名冊)
+    // 設定責任業務選單 (嚴格遵守設定條件；最高主管預設為全體業務總覽，中階主管預設為授權業務總覽，一般業務僅本人並鎖定)
     if (kpiSalesFilter) {
       const viewer = getSalesName();
       const allowed = (cachedViewPermissions && cachedViewPermissions[viewer]) ? cachedViewPermissions[viewer] : [viewer];
+      const isTopMgr = ["曾維崧", "張何達", "曾仁君"].some(m => viewer.includes(m) || m.includes(viewer));
 
-      if (viewer === "曾維崧" || viewer.includes("維崧")) {
+      if (isTopMgr) {
         const allList = ACTIVE_SALES_MEMBERS.length ? ACTIVE_SALES_MEMBERS : (allowed.length ? allowed : ALL_SALES_MEMBERS);
-        let opts = `<option value="全體業務" selected>全體業務</option>`;
+        let opts = `<option value="全體業務" selected>-- 全體業務總覽 --</option>`;
         opts += allList.map(m => `<option value="${m}">${m}</option>`).join("");
         kpiSalesFilter.innerHTML = opts;
         kpiSalesFilter.value = "全體業務";
         kpiSalesFilter.disabled = false;
       } else if (allowed.length > 1) {
-        // 主管僅能檢視所屬權限之業務名單 (例如溫達仁僅能檢視溫達仁、楊家豪、莊富丞、何宛茹、張書偉、黃柏翰，不列出曾仁君)
-        let opts = allowed.map(m => `<option value="${m}" ${m === viewer ? "selected" : ""}>${m}</option>`).join("");
+        // 中階主管：加入「-- 授權業務總覽 --」並作為預設值，僅列出主管本人與授權組員
+        const members = ACTIVE_SALES_MEMBERS.filter(m => allowed.includes(m));
+        const listToUse = members.length ? members : allowed;
+        let opts = `<option value="授權業務總覽" selected>-- 授權業務總覽 --</option>`;
+        opts += listToUse.map(m => `<option value="${m}">${m}</option>`).join("");
         kpiSalesFilter.innerHTML = opts;
-        kpiSalesFilter.value = viewer;
+        kpiSalesFilter.value = "授權業務總覽";
         kpiSalesFilter.disabled = false;
       } else {
+        // 最低階業務：僅列出本人姓名並反灰鎖定
         kpiSalesFilter.innerHTML = `<option value="${viewer}" selected>${viewer}</option>`;
         kpiSalesFilter.value = viewer;
         kpiSalesFilter.disabled = true;
@@ -9097,13 +9194,25 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // 6. 更新計數標籤 (已出貨者移出常態看板，歸入歷史封存)
   function updateKpiTabCounters() {
-    const activeCases = kpiAllCases.filter(c => c.is_shipped !== "V");
+    const viewer = getSalesName();
+    const allowed = (cachedViewPermissions && cachedViewPermissions[viewer]) ? cachedViewPermissions[viewer] : [viewer];
+    const isTopMgr = ["曾維崧", "張何達", "曾仁君"].some(m => viewer.includes(m) || m.includes(viewer));
+
+    let baseCases = kpiAllCases;
+    if (!isTopMgr) {
+      baseCases = baseCases.filter(c => {
+        const owner = (c.sales_name || c.client_owner || "").trim();
+        return allowed.includes(owner) || (owner && allowed.some(a => owner.includes(a)));
+      });
+    }
+
+    const activeCases = baseCases.filter(c => c.is_shipped !== "V");
     const total = activeCases.length;
     const newCount = activeCases.filter(c => c.is_new_client === "新").length;
     const existingCount = activeCases.filter(c => c.is_new_client !== "新").length;
     const closedCount = activeCases.filter(c => c.is_closed_order === "V").length;
     const ongoingCount = activeCases.filter(c => c.is_closed_order !== "V").length;
-    const shippedCount = kpiAllCases.filter(c => c.is_shipped === "V").length;
+    const shippedCount = baseCases.filter(c => c.is_shipped === "V").length;
 
     if (kpiCountAll) kpiCountAll.textContent = total;
     if (kpiCountNew) kpiCountNew.textContent = newCount;
@@ -9117,7 +9226,17 @@ document.addEventListener("DOMContentLoaded", () => {
   function renderKpiCasesList() {
     if (!kpiCaseListContainer) return;
 
+    const viewer = getSalesName();
+    const allowed = (cachedViewPermissions && cachedViewPermissions[viewer]) ? cachedViewPermissions[viewer] : [viewer];
+    const isTopMgr = ["曾維崧", "張何達", "曾仁君"].some(m => viewer.includes(m) || m.includes(viewer));
+
     let filtered = kpiAllCases.slice();
+    if (!isTopMgr) {
+      filtered = filtered.filter(c => {
+        const owner = (c.sales_name || c.client_owner || "").trim();
+        return allowed.includes(owner) || (owner && allowed.some(a => owner.includes(a)));
+      });
+    }
 
     // 分類篩選
     if (kpiCurrentFilter === "new") {
@@ -9163,8 +9282,6 @@ document.addEventListener("DOMContentLoaded", () => {
       return;
     }
 
-    const viewer = getSalesName();
-
     kpiCaseListContainer.innerHTML = filtered.map(c => {
       const isNew = (c.is_new_client === "新");
       const isClosed = (c.is_closed_order === "V");
@@ -9184,7 +9301,7 @@ document.addEventListener("DOMContentLoaded", () => {
           <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:6px;">
             <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
               <span class="kpi-client-title" style="font-size:1.05rem; font-weight:700; color:#1e293b;">${escapeHtml(c.client_name)}</span>
-              ${isNew ? '<span class="kpi-badge-new" style="font-size:0.75rem; background:#2563eb; color:#ffffff; padding:1px 6px; border-radius:4px; font-weight:700;">🌟 新客</span>' : ''}
+              ${isNew ? '<span class="kpi-badge-new" style="font-size:0.75rem; background:#2563eb; color:#ffffff; padding:1px 6px; border-radius:4px; font-weight:700;">🌟 新客戶開發</span>' : ''}
               ${isShipped ? '<span class="kpi-badge-shipped" style="font-size:0.75rem; background:#0284c7; color:#ffffff; padding:1px 6px; border-radius:4px; font-weight:700;">📦 已出貨</span>' : ''}
               ${subcatTagsHtml}
               <span style="font-size:0.75rem; color:#64748b;">(${escapeHtml(c.sales_name || c.client_owner || '負責業務')})</span>
