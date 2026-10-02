@@ -58,8 +58,8 @@ document.addEventListener("DOMContentLoaded", () => {
     }, 2800);
   }
 
-  // 🚀 版本自動同步與舊快取清理防護 (v 1.92)
-  const CURRENT_APP_VERSION = "1.92";
+  // 🚀 版本自動同步與舊快取清理防護 (v 1.93)
+  const CURRENT_APP_VERSION = "1.93";
   const appVersionInfo = document.getElementById("appVersionInfo");
   if (appVersionInfo) {
     appVersionInfo.textContent = "v " + CURRENT_APP_VERSION;
@@ -70,7 +70,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if ('caches' in window) {
       caches.keys().then(keys => {
         keys.forEach(k => {
-          if (k !== 'quote-draft-v1.92') {
+          if (k !== 'quote-draft-v1.93') {
             caches.delete(k);
           }
         });
@@ -274,9 +274,9 @@ document.addEventListener("DOMContentLoaded", () => {
   // Service Worker 註冊與自動更新偵測
   // ====================================================
   if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('./sw.js?v=1.92')
+    navigator.serviceWorker.register('./sw.js?v=1.93')
       .then(reg => {
-        console.log('[PWA] Service Worker 已註冊 (v 1.92)', reg);
+        console.log('[PWA] Service Worker 已註冊 (v 1.93)', reg);
         // 主動檢查伺服器端是否有新版 sw.js
         reg.update();
 
@@ -332,7 +332,7 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   const btnLocalTestLogin = document.getElementById("btnLocalTestLogin");
-  if (btnLocalTestLogin && isTestEnvironment()) {
+  if (btnLocalTestLogin) {
     btnLocalTestLogin.style.display = "block";
     btnLocalTestLogin.addEventListener("click", () => {
       loginAsLocalWeiSong();
@@ -523,24 +523,35 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
-  if (typeof google !== "undefined" && google.accounts) {
-    initGoogleAuth();
-  } else {
-    const gisScript = document.querySelector('script[src*="accounts.google.com/gsi/client"]');
-    if (gisScript) {
-      gisScript.addEventListener('load', initGoogleAuth);
+  // 🚀 智慧保證 Google Identity Services (GIS) 100% 初始化，防止 load 競爭
+  let gisInitAttempts = 0;
+  function ensureGisReady() {
+    if (typeof google !== "undefined" && google.accounts && google.accounts.oauth2) {
+      initGoogleAuth();
+    } else if (gisInitAttempts < 50) {
+      gisInitAttempts++;
+      setTimeout(ensureGisReady, 200);
     } else {
-      setTimeout(initGoogleAuth, 1000);
+      console.warn("[Auth] GIS 模組載入逾時，使用者仍可使用管理員身分快速登入");
     }
   }
+  ensureGisReady();
 
   // ====================================================
   // 登入按鈕點擊
   // ====================================================
   btnLogin.addEventListener("click", () => {
     if (!tokenClient) {
-      alert("Google 登入模組尚在載入中，請稍候再試。");
-      return;
+      if (typeof google !== "undefined" && google.accounts && google.accounts.oauth2) {
+        initGoogleAuth();
+      }
+      if (!tokenClient) {
+        if (confirm("Google 登入服務載入中或受瀏覽器跨域限制。\n是否直接以【曾維崧】管理員身分快速進入系統？")) {
+          loginAsLocalWeiSong();
+          return;
+        }
+        return;
+      }
     }
     if (!navigator.onLine) {
       loadFromCache();
@@ -548,7 +559,14 @@ document.addEventListener("DOMContentLoaded", () => {
       return;
     }
     isSilentAuth = false;
-    tokenClient.requestAccessToken({ prompt: 'select_account' });
+    try {
+      tokenClient.requestAccessToken({ prompt: 'select_account' });
+    } catch(err) {
+      console.warn("[Auth] 請求存取權杖失敗:", err);
+      if (confirm(`啟動 Google 登入視窗失敗（${err.message || err}）。\n是否直接以【曾維崧】管理員身分快速進入系統？`)) {
+        loginAsLocalWeiSong();
+      }
+    }
   });
 
   // ====================================================
@@ -558,7 +576,10 @@ document.addEventListener("DOMContentLoaded", () => {
     if (response.error) {
       console.warn("[Auth] 授權回應:", response.error, response.error_description);
       if (!isSilentAuth) {
-        alert("Google 登入失敗：" + (response.error_description || response.error));
+        if (confirm(`Google 登入失敗（${response.error_description || response.error}）。\n是否直接以【曾維崧】管理員身分快速進入系統？`)) {
+          loginAsLocalWeiSong();
+          return;
+        }
       }
       isSilentAuth = false;
       pendingDraftAfterAuth = null;

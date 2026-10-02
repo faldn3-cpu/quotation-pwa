@@ -1,9 +1,9 @@
-const CACHE_NAME = 'quote-draft-v1.92';
+const CACHE_NAME = 'quote-draft-v1.93';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
-  './style.css?v=1.92',
-  './app.js?v=1.92',
+  './style.css?v=1.93',
+  './app.js?v=1.93',
   './manifest.json',
   './manifest.json?v=2',
   './icon-192x192-v2.png',
@@ -41,14 +41,19 @@ self.addEventListener('activate', (event) => {
 });
 
 // 攔截網路請求：
-// 1. GAS / POST API -> Network Only (直接放行)
+// 1. GAS / Google 認證 / POST API -> Network Only (直接放行)
 // 2. HTML 頁面與核心程式碼 (JS/CSS) -> Network First (聯網優先取得最新版，斷網才用快取)
 // 3. 其他靜態資源 (圖片/字型) -> Stale-While-Revalidate (即時回傳快取並背景同步最新版)
 self.addEventListener('fetch', (event) => {
   const url = event.request.url;
 
-  // 1. API 請求直接放行
-  if (url.includes('script.google.com') || event.request.method === 'POST') {
+  // 1. API 與 Google 認證請求直接放行，避免快取或攔截干擾
+  if (
+    url.includes('script.google.com') ||
+    url.includes('accounts.google.com') ||
+    url.includes('googleapis.com') ||
+    event.request.method === 'POST'
+  ) {
     return;
   }
 
