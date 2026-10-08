@@ -58,8 +58,8 @@ document.addEventListener("DOMContentLoaded", () => {
     }, 2800);
   }
 
-  // 🚀 版本自動同步與舊快取清理防護 (v 1.97)
-  const CURRENT_APP_VERSION = "1.97";
+  // 🚀 版本自動同步與舊快取清理防護 (v 1.98)
+  const CURRENT_APP_VERSION = "1.98";
   const appVersionInfo = document.getElementById("appVersionInfo");
   if (appVersionInfo) {
     appVersionInfo.textContent = "v " + CURRENT_APP_VERSION;
@@ -70,7 +70,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if ('caches' in window) {
       caches.keys().then(keys => {
         keys.forEach(k => {
-          if (k !== 'quote-draft-v1.97') {
+          if (k !== 'quote-draft-v1.98') {
             caches.delete(k);
           }
         });
@@ -231,8 +231,53 @@ document.addEventListener("DOMContentLoaded", () => {
       }
 
       return allCases;
+    },
+
+    // 取得本機 IndexedDB 中所有已下載之季度資料包 (供全文檢索與全案分析)
+    async getAllBundles() {
+      const bundles = [];
+      try {
+        const d = await this.init();
+        if (d) {
+          const records = await new Promise((resolve) => {
+            const tx = d.transaction(["quarters"], "readonly");
+            const store = tx.objectStore("quarters");
+            const req = store.getAll();
+            req.onsuccess = () => resolve(req.result || []);
+            req.onerror = () => resolve([]);
+          });
+          records.forEach(r => {
+            if (r && r.bundle) bundles.push(r.bundle);
+          });
+        }
+      } catch (e) {}
+
+      if (bundles.length === 0) {
+        Object.keys(localStorage).forEach(k => {
+          if (k.startsWith("qb_")) {
+            try {
+              const b = JSON.parse(localStorage.getItem(k));
+              if (b) bundles.push(b);
+            } catch(e) {}
+          }
+        });
+      }
+      return bundles;
+    },
+
+    // 從所有已快取季度中提取最新完整的案件追蹤資料 (供 0ms 業務切換)
+    async getLatestKpiCases() {
+      const bundles = await this.getAllBundles();
+      // 依季度排序降序，取最新的有效 case_tracking
+      for (const b of bundles) {
+        if (Array.isArray(b.case_tracking) && b.case_tracking.length > 0) {
+          return b.case_tracking;
+        }
+      }
+      return [];
     }
   };
+  window.QuarterCacheManager = QuarterCacheManager;
 
   function applyQuarterBundleToMonthlyState(bundle, year, month, salesName) {
     if (!bundle || !bundle.sheets) return;
@@ -339,7 +384,8 @@ document.addEventListener("DOMContentLoaded", () => {
       const targets = [];
       let y = year;
       let q = quarter - 1;
-      for (let i = 0; i < 4; i++) {
+      // 涵蓋過去 8 個季度 (約 2 年之完整業務日報與案件資料)
+      for (let i = 0; i < 8; i++) {
         if (q < 1) {
           q = 4;
           y--;
@@ -360,12 +406,14 @@ document.addEventListener("DOMContentLoaded", () => {
         const item = this.queue.shift();
         const existing = await QuarterCacheManager.getBundle(item.year, item.quarter);
         if (!existing) {
-          console.log(`[SyncQueue] 背景非同步下載歷史季度: ${item.year}Q${item.quarter}`);
+          console.log(`[SyncQueue] 背景非同步靜默下載歷史季度: ${item.year}Q${item.quarter}`);
           const bundle = await this.fetchQuarterFromServer(item.year, item.quarter);
           if (bundle) {
             await QuarterCacheManager.saveBundle(item.year, item.quarter, bundle);
+            console.log(`[SyncQueue] 歷史季度 ${item.year}Q${item.quarter} 已存入本機 IndexedDB`);
           }
-          await new Promise(r => setTimeout(r, 1500));
+          // 靜默間隔 2 秒，避免阻塞網路與 Google 配額
+          await new Promise(r => setTimeout(r, 2000));
         }
       }
       this.isSyncing = false;
@@ -425,6 +473,7 @@ document.addEventListener("DOMContentLoaded", () => {
       loadOgsmMonthly(ogsmCurrentYear, ogsmCurrentMonth);
     }
   };
+  window.SyncQueueManager = SyncQueueManager;
 
   // --- DOM 元素 ---
   const loginSection        = document.getElementById("loginSection");
@@ -3832,13 +3881,27 @@ document.addEventListener("DOMContentLoaded", () => {
     if (!salesName) return;
 
     // 🚀 [極速優化] 第一優先自本地 IndexedDB 季度快取秒開 (0ms)
+    const quarter = Math.ceil(month / 3);
+    const now = new Date();
+    const isCurrentQuarter = (year === now.getFullYear() && quarter === Math.ceil((now.getMonth() + 1) / 3));
+
     try {
-      const quarter = Math.ceil(month / 3);
       const qBundle = await QuarterCacheManager.getBundle(year, quarter);
       if (qBundle && qBundle.sheets) {
         applyQuarterBundleToMonthlyState(qBundle, year, month, salesName);
         renderCalendar(year, month);
         console.log(`[OGSM 季度快取] 已自 ${year}Q${quarter}.json 本機秒開月曆與日報！`);
+
+        // 歷史月份（非當季）：直接結束，完全阻斷任何 GAS 網路請求 (0ms 秒切無延遲)
+        if (!isCurrentQuarter) {
+          return;
+        }
+
+        // 當季月份：若已有快取與指紋，交由背景 SyncQueueManager 靜默比對，不在此重複發送請求
+        const lastFp = localStorage.getItem("last_sheets_fingerprint");
+        if (lastFp) {
+          return;
+        }
       }
     } catch(err) {
       console.warn("[OGSM 季度快取] 本機讀取失敗，接續網路載入:", err);
@@ -7664,11 +7727,13 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   // ====================================================
-  // 全域關鍵字即時搜尋 (搜尋時隱藏選定日面板，點擊直接開案)
+  // 全域關鍵字即時搜尋 (100% 本機 IndexedDB 極速秒開 + 注音防跳字)
   // ====================================================
   let searchDebounceTimer = null;
+  let isComposingSearch = false;
+
   if (ogsmSearchInput && ogsmSearchResultsPanel) {
-    ogsmSearchInput.addEventListener("input", () => {
+    async function triggerOgsmSearch() {
       const keyword = (ogsmSearchInput.value || "").trim().toLowerCase();
       if (btnOgsmSearchClear) {
         if (keyword) btnOgsmSearchClear.classList.remove("hidden");
@@ -7678,11 +7743,11 @@ document.addEventListener("DOMContentLoaded", () => {
       if (!keyword) {
         ogsmSearchResultsPanel.innerHTML = "";
         ogsmSearchResultsPanel.classList.add("hidden");
-        if (ogsmDayPanel) ogsmDayPanel.classList.remove("hidden"); // 恢復顯示選取日期的日報清單
+        if (ogsmDayPanel) ogsmDayPanel.classList.remove("hidden");
         return;
       }
 
-      // 搜尋中：隱藏選取日期的日報面板，專注呈現搜尋結果
+      // 搜尋中：隱藏選取日期的日報面板
       if (ogsmDayPanel) {
         ogsmDayPanel.classList.add("hidden");
       }
@@ -7690,62 +7755,64 @@ document.addEventListener("DOMContentLoaded", () => {
       clearTimeout(searchDebounceTimer);
       searchDebounceTimer = setTimeout(async () => {
         const salesName = getSalesName();
-        const isSeniorManager = ["曾維崧", "曾仁君", "張何達", "維崧", "仁君", "何達"].some(m => salesName.includes(m));
+        const matchedMap = new Map();
 
-        // 1. 本地快速搜尋 (已載入當月紀錄 + 離線暫存)
+        // 1. 本地 IndexedDB 全部已快取季度包 (含全體業務日報)
+        try {
+          const allBundles = await QuarterCacheManager.getAllBundles();
+          allBundles.forEach(bundle => {
+            if (bundle && bundle.sheets && typeof bundle.sheets === "object") {
+              Object.keys(bundle.sheets).forEach(member => {
+                const records = bundle.sheets[member];
+                if (Array.isArray(records)) {
+                  records.forEach(r => {
+                    const text = `${r.date || ''} ${r.client_name || ''} ${r.client_type || ''} ${r.content || ''} ${r.result || ''} ${member}`.toLowerCase();
+                    if (text.includes(keyword)) {
+                      const item = Object.assign({}, r, { sales_name: member });
+                      const k = `${member}_${r.date}_${r.client_name}_${r.row_index || ''}`;
+                      matchedMap.set(k, item);
+                    }
+                  });
+                }
+              });
+            }
+          });
+        } catch (e) {
+          console.warn("[OGSM 搜尋] 本地季度讀取異常:", e);
+        }
+
+        // 2. 當前月份記憶體與離線草稿
         const offlineList = getOfflineOgsmDrafts();
         const localPool = [...ogsmMonthReports, ...offlineList];
-        const localMatches = localPool.filter(r => {
-          const text = `${r.date} ${r.client_name} ${r.client_type} ${r.content} ${r.result} ${r.sales_name || ''}`.toLowerCase();
-          return text.includes(keyword);
+        localPool.forEach(r => {
+          const member = r.sales_name || salesName;
+          const text = `${r.date || ''} ${r.client_name || ''} ${r.client_type || ''} ${r.content || ''} ${r.result || ''} ${member}`.toLowerCase();
+          if (text.includes(keyword)) {
+            const item = Object.assign({}, r, { sales_name: member });
+            const k = `${member}_${r.date}_${r.client_name}_${r.temp_id || r.row_index || ''}`;
+            matchedMap.set(k, item);
+          }
         });
 
-        // 確保本地搜尋項目具有 sales_name 屬性
-        localMatches.forEach(item => {
-          if (!item.sales_name) item.sales_name = salesName;
-        });
+        // 依日期降序排序 (最新紀錄排在最前)
+        const finalResults = Array.from(matchedMap.values()).sort((a, b) => (b.date || "").localeCompare(a.date || ""));
 
-        if (isSeniorManager && localMatches.length === 0) {
-          // 主管搜尋他人客戶時，本地通常為空，先呈現檢索中狀態避免誤導為無紀錄
-          if (ogsmSearchResultsPanel) {
-            ogsmSearchResultsPanel.innerHTML = `
-              <div class="ogsm-search-results-header">
-                <span>🔍 全公司檢索中...</span>
-              </div>
-              <div style="padding:15px; text-align:center; color:#64748b; font-size:0.85rem;">正在全體業務日報庫中檢索「${escapeHtml(keyword)}」...</div>
-            `;
-            ogsmSearchResultsPanel.classList.remove("hidden");
-          }
-        } else {
-          renderSearchResults(localMatches, keyword);
-        }
+        // 🚀 0 毫秒極速本機渲染，完全拔除雲端檢索阻塞
+        renderSearchResults(finalResults, keyword);
+      }, 80);
+    }
 
-        // 2. 背景請求全年度歷史搜尋
-        try {
-          const params = new URLSearchParams({
-            action: "search_ogsm",
-            user_name: salesName,
-            keyword: keyword,
-            is_test: isTestMode ? "1" : "0"
-          });
-          const res = await fetch(`${GAS_URL}?${params.toString()}`);
-          const data = await res.json();
-          if (data.status === "ok" && Array.isArray(data.records)) {
-            const map = new Map();
-            localMatches.forEach(item => {
-              const k = (item.sales_name || salesName) + "_" + (item.row_index || item.temp_id || (item.date + item.client_name));
-              map.set(k, item);
-            });
-            data.records.forEach(item => {
-              const k = (item.sales_name || salesName) + "_" + (item.row_index || (item.date + item.client_name));
-              map.set(k, item);
-            });
-            renderSearchResults(Array.from(map.values()), keyword);
-          }
-        } catch(e) {
-          console.warn("[OGSM] 雲端全文搜尋失敗:", e);
-        }
-      }, 250);
+    // 中文輸入法組字防護 (注音打字未確定前不觸發搜尋)
+    ogsmSearchInput.addEventListener("compositionstart", () => {
+      isComposingSearch = true;
+    });
+    ogsmSearchInput.addEventListener("compositionend", () => {
+      isComposingSearch = false;
+      triggerOgsmSearch();
+    });
+    ogsmSearchInput.addEventListener("input", (e) => {
+      if (e.isComposing || isComposingSearch) return;
+      triggerOgsmSearch();
     });
 
     if (btnOgsmSearchClear) {
@@ -9528,7 +9595,7 @@ document.addEventListener("DOMContentLoaded", () => {
     loadKpiCases(false);
   }
 
-  // 5. 向後端 GAS 讀取案件追蹤清單 (支援本地記憶體快取與 SWR 0秒秒開)
+  // 5. 向本機 IndexedDB 與後端 GAS 讀取案件追蹤清單 (本機秒開優先)
   async function loadKpiCases(forceRefresh = false) {
     if (!kpiCaseListContainer) return;
 
@@ -9537,20 +9604,47 @@ document.addEventListener("DOMContentLoaded", () => {
     const cacheKey = targetSales || "all";
     const cached = kpiCasesCache[cacheKey];
     const now = Date.now();
-    const CACHE_TTL = 60000; // 60 秒快取有效期
+    const CACHE_TTL = 300000; // 5 分鐘記憶體快取
 
-    // 🚀 1. 快取秒開：若已有快取，0 毫秒極速渲染，消除等待感
+    // 🚀 1. 記憶體快取秒開
     if (cached && Array.isArray(cached.cases)) {
       kpiAllCases = cached.cases.slice();
       updateKpiTabCounters();
       renderKpiCasesList();
-      // 若在有效期內且非強制重整，直接完成
       if (!forceRefresh && (now - cached.timestamp < CACHE_TTL)) {
         return;
       }
-    } else {
-      kpiCaseListContainer.innerHTML = '<div style="text-align:center; padding:30px; color:#94a3b8;">⏳ 正在載入案件追蹤資料...</div>';
     }
+
+    // 🚀 2. 本地 IndexedDB 季度全案清單秒開 (0ms 極速切換，杜絕殘留)
+    if (!forceRefresh) {
+      try {
+        const localCases = await QuarterCacheManager.getLatestKpiCases();
+        if (Array.isArray(localCases) && localCases.length > 0) {
+          let filtered = localCases;
+          if (targetSales && targetSales !== "全體業務" && targetSales !== "授權業務總覽") {
+            filtered = localCases.filter(c => {
+              const owner = (c.sales_name || c.client_owner || "").trim();
+              return owner === targetSales;
+            });
+          }
+          kpiAllCases = filtered;
+          kpiCasesCache[cacheKey] = {
+            cases: filtered.slice(),
+            timestamp: Date.now()
+          };
+          updateKpiTabCounters();
+          renderKpiCasesList();
+          console.log(`[KPI 本機快取] 已自 IndexedDB 0ms 即時過濾業務「${targetSales}」案件共 ${filtered.length} 筆`);
+          return; // 本機秒開成功，直接返回！不打 GAS！
+        }
+      } catch (err) {
+        console.warn("[KPI] 本地快取讀取異常:", err);
+      }
+    }
+
+    // 若無快取或強制重整，顯示載入狀態並向雲端拉取
+    kpiCaseListContainer.innerHTML = '<div style="text-align:center; padding:30px; color:#94a3b8;">⏳ 正在載入案件追蹤資料...</div>';
 
     try {
       const params = new URLSearchParams({
