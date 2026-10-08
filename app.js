@@ -58,8 +58,8 @@ document.addEventListener("DOMContentLoaded", () => {
     }, 2800);
   }
 
-  // 🚀 版本自動同步與舊快取清理防護 (v 1.95)
-  const CURRENT_APP_VERSION = "1.95";
+  // 🚀 版本自動同步與舊快取清理防護 (v 1.97)
+  const CURRENT_APP_VERSION = "1.97";
   const appVersionInfo = document.getElementById("appVersionInfo");
   if (appVersionInfo) {
     appVersionInfo.textContent = "v " + CURRENT_APP_VERSION;
@@ -70,7 +70,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if ('caches' in window) {
       caches.keys().then(keys => {
         keys.forEach(k => {
-          if (k !== 'quote-draft-v1.95') {
+          if (k !== 'quote-draft-v1.97') {
             caches.delete(k);
           }
         });
@@ -82,6 +82,349 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   let isAutoSyncing = false;
+
+  // ====================================================
+  // 🚀 本機 IndexedDB 季度快取管理器 (QuarterCacheManager)
+  // 支援 YYYYQN.json 單一全集合成檔 (日報、月曆指示點、進行中 CRM、案件追蹤)
+  // ====================================================
+  const QuarterCacheManager = {
+    dbName: "QuotationApp_LocalDB",
+    dbVersion: 1,
+    db: null,
+
+    async init() {
+      if (this.db) return this.db;
+      if (!('indexedDB' in window)) {
+        console.warn("[IndexedDB] 瀏覽器不支援 IndexedDB，降級為 LocalStorage");
+        return null;
+      }
+      return new Promise((resolve) => {
+        try {
+          const req = indexedDB.open(this.dbName, this.dbVersion);
+          req.onupgradeneeded = (e) => {
+            const d = e.target.result;
+            if (!d.objectStoreNames.contains("quarters")) {
+              d.createObjectStore("quarters", { keyPath: "quarterKey" });
+            }
+            if (!d.objectStoreNames.contains("meta")) {
+              d.createObjectStore("meta", { keyPath: "key" });
+            }
+          };
+          req.onsuccess = (e) => {
+            this.db = e.target.result;
+            resolve(this.db);
+          };
+          req.onerror = (e) => {
+            console.warn("[IndexedDB] 開啟資料庫失敗:", e.target.error);
+            resolve(null);
+          };
+        } catch (err) {
+          console.warn("[IndexedDB] 初始化例外:", err);
+          resolve(null);
+        }
+      });
+    },
+
+    getQuarterKey(year, quarter) {
+      return `${year}Q${quarter}`;
+    },
+
+    async getBundle(year, quarter) {
+      const qKey = this.getQuarterKey(year, quarter);
+      try {
+        const d = await this.init();
+        if (d) {
+          return await new Promise((resolve) => {
+            const tx = d.transaction(["quarters"], "readonly");
+            const store = tx.objectStore("quarters");
+            const req = store.get(qKey);
+            req.onsuccess = () => resolve(req.result ? req.result.bundle : null);
+            req.onerror = () => resolve(null);
+          });
+        }
+      } catch (e) {
+        console.warn("[QuarterCache] 讀取 IndexedDB 異常:", e);
+      }
+      // 降級讀取 localStorage
+      try {
+        const fallback = localStorage.getItem(`qb_${qKey}`);
+        return fallback ? JSON.parse(fallback) : null;
+      } catch (e) {
+        return null;
+      }
+    },
+
+    async saveBundle(year, quarter, bundle) {
+      const qKey = this.getQuarterKey(year, quarter);
+      try {
+        const d = await this.init();
+        if (d) {
+          await new Promise((resolve) => {
+            const tx = d.transaction(["quarters"], "readwrite");
+            const store = tx.objectStore("quarters");
+            store.put({ quarterKey: qKey, bundle: bundle, savedAt: Date.now() });
+            tx.oncomplete = () => resolve(true);
+            tx.onerror = () => resolve(false);
+          });
+        }
+      } catch (e) {
+        console.warn("[QuarterCache] 寫入 IndexedDB 異常:", e);
+      }
+      // 備援寫入 localStorage
+      try {
+        localStorage.setItem(`qb_${qKey}`, JSON.stringify(bundle));
+      } catch (e) {}
+    },
+
+    async clearAll() {
+      try {
+        const d = await this.init();
+        if (d) {
+          const tx = d.transaction(["quarters", "meta"], "readwrite");
+          tx.objectStore("quarters").clear();
+          tx.objectStore("meta").clear();
+        }
+      } catch (e) {}
+      // 清理 localStorage 相關 keys
+      Object.keys(localStorage).forEach(k => {
+        if (k.startsWith("qb_") || k.startsWith("ogsm_cache_")) {
+          localStorage.removeItem(k);
+        }
+      });
+      localStorage.removeItem("last_sheets_fingerprint");
+      console.log("[QuarterCache] 本機季度快取資料庫已全面抹除！");
+    },
+
+    // 取得所有已快取季度中所有的 CRM 進行中案件（供報價單瞬間秒開關聯）
+    async getAllCrmCases() {
+      const allCases = [];
+      try {
+        const d = await this.init();
+        if (d) {
+          const quarters = await new Promise((resolve) => {
+            const tx = d.transaction(["quarters"], "readonly");
+            const store = tx.objectStore("quarters");
+            const req = store.getAll();
+            req.onsuccess = () => resolve(req.result || []);
+            req.onerror = () => resolve([]);
+          });
+          quarters.forEach(q => {
+            if (q.bundle && Array.isArray(q.bundle.crm_cases)) {
+              q.bundle.crm_cases.forEach(c => allCases.push(c));
+            }
+          });
+        }
+      } catch (e) {}
+
+      // 若 IndexedDB 無資料，嘗試從 localStorage 補充
+      if (allCases.length === 0) {
+        Object.keys(localStorage).forEach(k => {
+          if (k.startsWith("qb_")) {
+            try {
+              const b = JSON.parse(localStorage.getItem(k));
+              if (b && Array.isArray(b.crm_cases)) {
+                b.crm_cases.forEach(c => allCases.push(c));
+              }
+            } catch(e) {}
+          }
+        });
+      }
+
+      return allCases;
+    }
+  };
+
+  function applyQuarterBundleToMonthlyState(bundle, year, month, salesName) {
+    if (!bundle || !bundle.sheets) return;
+    const monthStr = month < 10 ? `0${month}` : `${month}`;
+    const targetPrefix = `${year}-${monthStr}`;
+
+    if (bundle.calendar_dots && typeof bundle.calendar_dots === "object") {
+      ogsmTeamDotsMap = bundle.calendar_dots;
+    }
+
+    let currentSheetRecords = [];
+    let targetMember = salesName;
+    if (adminImpersonateSelect && adminImpersonateSelect.value) {
+      targetMember = adminImpersonateSelect.value;
+    }
+
+    if (bundle.sheets[targetMember]) {
+      currentSheetRecords = bundle.sheets[targetMember];
+    } else if (bundle.sheets[salesName]) {
+      currentSheetRecords = bundle.sheets[salesName];
+    } else {
+      const allMembers = Object.keys(bundle.sheets);
+      allMembers.forEach(mem => {
+        if (Array.isArray(bundle.sheets[mem])) {
+          currentSheetRecords = currentSheetRecords.concat(bundle.sheets[mem]);
+        }
+      });
+    }
+
+    ogsmMonthReports = currentSheetRecords.filter(r => r.date && r.date.startsWith(targetPrefix));
+    ogsmDatesWithReports = new Set(ogsmMonthReports.map(r => r.date));
+
+    const offlineList = getOfflineOgsmDrafts();
+    offlineList.forEach(item => {
+      if (item.date && item.date.startsWith(targetPrefix)) {
+        ogsmDatesWithReports.add(item.date);
+      }
+    });
+  }
+
+  // ====================================================
+  // 🚀 背景循序佇列同步管理器 (SyncQueueManager)
+  // 實作「當季優先秒開 + 歷史季度背景排程 + 手動全部下載」
+  // ====================================================
+  const SyncQueueManager = {
+    isSyncing: false,
+    queue: [],
+
+    getCurrentYearQuarter() {
+      const now = new Date();
+      const y = now.getFullYear();
+      const m = now.getMonth() + 1;
+      const q = Math.ceil(m / 3);
+      return { year: y, quarter: q };
+    },
+
+    async syncCurrentQuarter(forceRefresh = false) {
+      const { year, quarter } = this.getCurrentYearQuarter();
+      const salesName = getSalesName();
+      if (!salesName) return null;
+
+      // 1. 若非強制，先檢查試算表極速狀態 (0.2s)
+      if (!forceRefresh) {
+        try {
+          const statusRes = await fetch(`${GAS_URL}?action=check_sheets_status&user_name=${encodeURIComponent(salesName)}&is_test=${isTestMode ? "1" : "0"}`);
+          if (statusRes.ok) {
+            const statusData = await statusRes.json();
+            if (statusData.status === "ok" && statusData.fingerprint) {
+              const lastFp = localStorage.getItem("last_sheets_fingerprint");
+              const hasLocal = await QuarterCacheManager.getBundle(year, quarter);
+              if (hasLocal && lastFp === statusData.fingerprint) {
+                console.log("[SyncQueue] 雲端試算表無資料異動，直接沿用本機快取");
+                this.scheduleOlderQuarters();
+                return hasLocal;
+              }
+              localStorage.setItem("last_sheets_fingerprint", statusData.fingerprint);
+            }
+          }
+        } catch(e) {
+          console.warn("[SyncQueue] 快篩檢查失敗，維持使用本機快取:", e);
+        }
+      }
+
+      // 2. 抓取當季最新資料包
+      const bundle = await this.fetchQuarterFromServer(year, quarter);
+      if (bundle) {
+        await QuarterCacheManager.saveBundle(year, quarter, bundle);
+        console.log(`[SyncQueue] 當季 ${year}Q${quarter} 同步完成！`);
+        // 立即刷新行事曆如果使用者正在看該季度月份
+        if (ogsmCurrentYear === year && Math.ceil(ogsmCurrentMonth / 3) === quarter) {
+          applyQuarterBundleToMonthlyState(bundle, year, ogsmCurrentMonth, salesName);
+          renderCalendar(year, ogsmCurrentMonth);
+        }
+      }
+
+      // 3. 閒置時排程歷史季度下載
+      this.scheduleOlderQuarters();
+      return bundle;
+    },
+
+    scheduleOlderQuarters() {
+      if (this.isSyncing) return;
+      const { year, quarter } = this.getCurrentYearQuarter();
+      const targets = [];
+      let y = year;
+      let q = quarter - 1;
+      for (let i = 0; i < 4; i++) {
+        if (q < 1) {
+          q = 4;
+          y--;
+        }
+        targets.push({ year: y, quarter: q });
+        q--;
+      }
+
+      this.queue = targets;
+      this.processQueue();
+    },
+
+    async processQueue() {
+      if (this.isSyncing || this.queue.length === 0) return;
+      this.isSyncing = true;
+
+      while (this.queue.length > 0) {
+        const item = this.queue.shift();
+        const existing = await QuarterCacheManager.getBundle(item.year, item.quarter);
+        if (!existing) {
+          console.log(`[SyncQueue] 背景非同步下載歷史季度: ${item.year}Q${item.quarter}`);
+          const bundle = await this.fetchQuarterFromServer(item.year, item.quarter);
+          if (bundle) {
+            await QuarterCacheManager.saveBundle(item.year, item.quarter, bundle);
+          }
+          await new Promise(r => setTimeout(r, 1500));
+        }
+      }
+      this.isSyncing = false;
+    },
+
+    async fetchQuarterFromServer(year, quarter) {
+      const salesName = getSalesName();
+      if (!salesName) return null;
+      try {
+        const params = new URLSearchParams({
+          action: "get_quarterly_unified_bundle",
+          user_name: salesName,
+          year: year.toString(),
+          quarter: quarter.toString(),
+          is_test: isTestMode ? "1" : "0"
+        });
+        const res = await fetch(`${GAS_URL}?${params.toString()}`);
+        if (!res.ok) throw new Error("HTTP " + res.status);
+        const data = await res.json();
+        if (data.status === "ok") {
+          return data;
+        }
+      } catch (err) {
+        console.warn(`[SyncQueue] 抓取 ${year}Q${quarter} 失敗:`, err);
+      }
+      return null;
+    },
+
+    async syncAllHistoryInteractive() {
+      const { year, quarter } = this.getCurrentYearQuarter();
+      showToast("⏳ 正在啟動全歷史季度資料下載...", "info");
+      const list = [{ year, quarter }];
+      let y = year;
+      let q = quarter - 1;
+      for (let i = 0; i < 4; i++) {
+        if (q < 1) {
+          q = 4;
+          y--;
+        }
+        list.push({ year: y, quarter: q });
+        q--;
+      }
+
+      let successCount = 0;
+      for (let i = 0; i < list.length; i++) {
+        const it = list[i];
+        showToast(`⏳ 正在下載 ${it.year}Q${it.quarter} (${i+1}/${list.length})...`, "info");
+        const b = await this.fetchQuarterFromServer(it.year, it.quarter);
+        if (b) {
+          await QuarterCacheManager.saveBundle(it.year, it.quarter, b);
+          successCount++;
+        }
+        await new Promise(r => setTimeout(r, 600));
+      }
+
+      showToast(`✅ 完成！已下載 ${successCount} 個季度的離線全功能資料包`, "success");
+      loadOgsmMonthly(ogsmCurrentYear, ogsmCurrentMonth);
+    }
+  };
 
   // --- DOM 元素 ---
   const loginSection        = document.getElementById("loginSection");
@@ -428,6 +771,11 @@ document.addEventListener("DOMContentLoaded", () => {
         console.warn("[AutoSync] 個人雲端資料背景更新異常:", err);
       });
     }
+
+    // 🚀 啟動全功能季度快取智慧檢查與同步
+    SyncQueueManager.syncCurrentQuarter().catch(err => {
+      console.warn("[AutoSync] 季度快取背景同步失敗（維持使用現有本機快取）:", err);
+    });
   }
 
   // 檢查是否需要因跨日或超過 1 小時而自動重新整理庫存
@@ -591,6 +939,16 @@ document.addEventListener("DOMContentLoaded", () => {
       } else {
         localStorage.removeItem("is_admin_user");
       }
+
+      // 🛡️ 帳號切換資安防線：檢查是否換成另一位同仁登入
+      const lastActiveEmail = (localStorage.getItem("last_active_user_email") || "").trim().toLowerCase();
+      if (lastActiveEmail && lastActiveEmail !== userEmail) {
+        console.log(`[Auth] 偵測到使用者帳號切換 (${lastActiveEmail} -> ${userEmail})，立即抹除舊帳號之本機離線季度快取！`);
+        try {
+          await QuarterCacheManager.clearAll();
+        } catch(e) {}
+      }
+      localStorage.setItem("last_active_user_email", userEmail);
 
       const displayName = checkResult.name || userProfile.name || userProfile.email;
 
@@ -3459,12 +3817,32 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
+  const btnSyncAllHistory = document.getElementById("btnSyncAllHistory");
+  if (btnSyncAllHistory) {
+    btnSyncAllHistory.addEventListener("click", () => {
+      SyncQueueManager.syncAllHistoryInteractive();
+    });
+  }
+
   // ====================================================
   // 後端 API：載入當月業務日報
   // ====================================================
   async function loadOgsmMonthly(year, month) {
     const salesName = getSalesName();
     if (!salesName) return;
+
+    // 🚀 [極速優化] 第一優先自本地 IndexedDB 季度快取秒開 (0ms)
+    try {
+      const quarter = Math.ceil(month / 3);
+      const qBundle = await QuarterCacheManager.getBundle(year, quarter);
+      if (qBundle && qBundle.sheets) {
+        applyQuarterBundleToMonthlyState(qBundle, year, month, salesName);
+        renderCalendar(year, month);
+        console.log(`[OGSM 季度快取] 已自 ${year}Q${quarter}.json 本機秒開月曆與日報！`);
+      }
+    } catch(err) {
+      console.warn("[OGSM 季度快取] 本機讀取失敗，接續網路載入:", err);
+    }
 
     try {
       const params = new URLSearchParams({
@@ -4475,6 +4853,24 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     crmCaseSelectorModal.classList.remove("hidden");
+
+    // 🚀 [極速秒開] 第一優先自本地季度快取提取 CRM 進行中案件 (0ms)
+    try {
+      const localCases = await QuarterCacheManager.getAllCrmCases();
+      if (localCases && localCases.length > 0) {
+        const clientCases = localCases.filter(c => {
+          const cName = (c.client_name || c.client || "").trim().toLowerCase();
+          const target = cleanClient.toLowerCase();
+          return cName.includes(target) || target.includes(cName);
+        });
+        if (clientCases.length > 0) {
+          console.log(`[CRM 本機快取] 已自本機快取秒開客戶「${cleanClient}」之 ${clientCases.length} 筆 CRM 案件`);
+          renderCrmCaseList(clientCases, cleanClient);
+        }
+      }
+    } catch(err) {
+      console.warn("[CRM 本機快取] 讀取失敗:", err);
+    }
 
     try {
       const params = new URLSearchParams({
