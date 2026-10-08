@@ -58,8 +58,8 @@ document.addEventListener("DOMContentLoaded", () => {
     }, 2800);
   }
 
-  // 🚀 版本自動同步與舊快取清理防護 (v 1.98)
-  const CURRENT_APP_VERSION = "1.98";
+  // 🚀 版本自動同步與舊快取清理防護 (v 1.99)
+  const CURRENT_APP_VERSION = "1.99";
   const appVersionInfo = document.getElementById("appVersionInfo");
   if (appVersionInfo) {
     appVersionInfo.textContent = "v " + CURRENT_APP_VERSION;
@@ -70,7 +70,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if ('caches' in window) {
       caches.keys().then(keys => {
         keys.forEach(k => {
-          if (k !== 'quote-draft-v1.98') {
+          if (k !== 'quote-draft-v1.99') {
             caches.delete(k);
           }
         });
@@ -9331,6 +9331,7 @@ document.addEventListener("DOMContentLoaded", () => {
   // ====================================================
 
   var salesRepKnownClients = new Set();
+  var kpiMasterCasesPool = []; // 🚀 全案大總冊（母池）：常駐管轄全體業務之所有案件
   var kpiAllCases = [];
   var kpiCasesCache = {}; // 快取: { [salesName]: { cases: Array, timestamp: number } }
   var kpiCurrentFilter = "all"; // all, new, existing, closed, ongoing, shipped
@@ -9595,81 +9596,83 @@ document.addEventListener("DOMContentLoaded", () => {
     loadKpiCases(false);
   }
 
-  // 5. 向本機 IndexedDB 與後端 GAS 讀取案件追蹤清單 (本機秒開優先)
+  // 🚀 全案大總冊（母池）前端 0 毫秒翻頁過濾器
+  function filterKpiCasesBySelectedSales() {
+    const viewer = getSalesName();
+    const targetSales = kpiSalesFilter ? kpiSalesFilter.value : viewer;
+
+    if (!targetSales || targetSales === "全體業務" || targetSales === "授權業務總覽") {
+      kpiAllCases = kpiMasterCasesPool.slice();
+    } else {
+      kpiAllCases = kpiMasterCasesPool.filter(c => {
+        const owner = (c.sales_name || c.client_owner || "").trim();
+        return owner === targetSales;
+      });
+    }
+    updateKpiTabCounters();
+    renderKpiCasesList();
+    console.log(`[KPI 母池翻頁] 0ms 即時切換至業務「${targetSales}」，案件共 ${kpiAllCases.length} 筆`);
+  }
+  window.filterKpiCasesBySelectedSales = filterKpiCasesBySelectedSales;
+  window.getKpiMasterCasesPool = () => kpiMasterCasesPool;
+  window.setKpiMasterCasesPool = (pool) => { kpiMasterCasesPool = pool; };
+  window.getKpiAllCases = () => kpiAllCases;
+
+  // 5. 向本機 IndexedDB 與後端 GAS 讀取全案母池 (母池常駐 + 0ms 前端翻頁)
   async function loadKpiCases(forceRefresh = false) {
     if (!kpiCaseListContainer) return;
 
-    const viewer = getSalesName();
-    const targetSales = kpiSalesFilter ? kpiSalesFilter.value : viewer;
-    const cacheKey = targetSales || "all";
-    const cached = kpiCasesCache[cacheKey];
-    const now = Date.now();
-    const CACHE_TTL = 300000; // 5 分鐘記憶體快取
-
-    // 🚀 1. 記憶體快取秒開
-    if (cached && Array.isArray(cached.cases)) {
-      kpiAllCases = cached.cases.slice();
-      updateKpiTabCounters();
-      renderKpiCasesList();
-      if (!forceRefresh && (now - cached.timestamp < CACHE_TTL)) {
-        return;
-      }
+    // 🚀 1. 若全案母池已有資料，直接 0ms 記憶體即時翻頁！完全不發網路請求！
+    if (!forceRefresh && kpiMasterCasesPool.length > 0) {
+      filterKpiCasesBySelectedSales();
+      return;
     }
 
-    // 🚀 2. 本地 IndexedDB 季度全案清單秒開 (0ms 極速切換，杜絕殘留)
+    // 🚀 2. 若母池暫空，第一優先自本地 IndexedDB 季度全案清單載入母池 (0ms 極速秒開)
     if (!forceRefresh) {
       try {
         const localCases = await QuarterCacheManager.getLatestKpiCases();
         if (Array.isArray(localCases) && localCases.length > 0) {
-          let filtered = localCases;
-          if (targetSales && targetSales !== "全體業務" && targetSales !== "授權業務總覽") {
-            filtered = localCases.filter(c => {
-              const owner = (c.sales_name || c.client_owner || "").trim();
-              return owner === targetSales;
-            });
-          }
-          kpiAllCases = filtered;
-          kpiCasesCache[cacheKey] = {
-            cases: filtered.slice(),
-            timestamp: Date.now()
-          };
-          updateKpiTabCounters();
-          renderKpiCasesList();
-          console.log(`[KPI 本機快取] 已自 IndexedDB 0ms 即時過濾業務「${targetSales}」案件共 ${filtered.length} 筆`);
-          return; // 本機秒開成功，直接返回！不打 GAS！
+          kpiMasterCasesPool = localCases;
+          filterKpiCasesBySelectedSales();
+          console.log(`[KPI 母池] 已自 IndexedDB 秒開全案大總冊共 ${localCases.length} 筆！`);
+          return;
         }
       } catch (err) {
         console.warn("[KPI] 本地快取讀取異常:", err);
       }
     }
 
-    // 若無快取或強制重整，顯示載入狀態並向雲端拉取
-    kpiCaseListContainer.innerHTML = '<div style="text-align:center; padding:30px; color:#94a3b8;">⏳ 正在載入案件追蹤資料...</div>';
+    // 若無快取或強制重整，顯示載入狀態並向雲端拉取「全案大總冊」
+    kpiCaseListContainer.innerHTML = '<div style="text-align:center; padding:30px; color:#94a3b8;">⏳ 正在載入全案大總冊...</div>';
+
+    const viewer = getSalesName();
+    const allowed = (cachedViewPermissions && cachedViewPermissions[viewer]) ? cachedViewPermissions[viewer] : [viewer];
+    const isTopMgr = ["曾維崧", "張何達", "曾仁君"].some(m => viewer.includes(m) || m.includes(viewer));
+
+    // 主管向雲端索取時，直接要求「全體業務」大總冊，一次到位
+    const fetchTargetSales = isTopMgr ? "全體業務" : (allowed.length > 1 ? "授權業務總覽" : viewer);
 
     try {
       const params = new URLSearchParams({
         action: "get_kpi_cases",
         viewer: viewer,
-        target_sales: targetSales,
+        target_sales: fetchTargetSales,
         filter_type: "all"
       });
       const res = await fetch(`${GAS_URL}?${params.toString()}`);
       const data = await res.json();
 
       if (data && data.status === "ok" && Array.isArray(data.cases)) {
-        kpiAllCases = data.cases;
-        kpiCasesCache[cacheKey] = {
-          cases: kpiAllCases.slice(),
-          timestamp: Date.now()
-        };
-        updateKpiTabCounters();
-        renderKpiCasesList();
+        kpiMasterCasesPool = data.cases;
+        filterKpiCasesBySelectedSales();
+        console.log(`[KPI 母池] 已自雲端更新全案大總冊共 ${kpiMasterCasesPool.length} 筆！`);
       } else {
         throw new Error(data && data.msg ? data.msg : "讀取案件失敗");
       }
     } catch(err) {
       console.error("[KPI] 讀取案件異常:", err);
-      if (!cached || !cached.cases) {
+      if (kpiMasterCasesPool.length === 0) {
         kpiCaseListContainer.innerHTML = `
           <div style="text-align:center; padding:30px; color:#ef4444;">
             ⚠️ 載入案件失敗：${escapeHtml(err.message || String(err))}<br>
@@ -9959,6 +9962,10 @@ document.addEventListener("DOMContentLoaded", () => {
     if (origIndex >= 0) {
       kpiAllCases.splice(origIndex, 1);
     }
+    const poolIndex = kpiMasterCasesPool.findIndex(c => c.row_index === caseItem.row_index && (c.sheet_name === caseItem.sheet_name || c.sales_name === caseItem.sales_name));
+    if (poolIndex >= 0) {
+      kpiMasterCasesPool.splice(poolIndex, 1);
+    }
 
     // 即時更新 UI 與計數
     updateKpiTabCounters();
@@ -10237,6 +10244,7 @@ document.addEventListener("DOMContentLoaded", () => {
         dependencies: dependencies
       };
       kpiAllCases.unshift(tempCaseObj);
+      kpiMasterCasesPool.unshift(tempCaseObj);
       salesRepKnownClients.add(clientName);
       showToast(`💾「${clientName}」新案件已建立，背景同步中...`, "info");
     }
@@ -10335,10 +10343,14 @@ document.addEventListener("DOMContentLoaded", () => {
       });
     }
 
-    // 責任業務下拉變更
+    // 責任業務下拉變更 (100% 前端記憶體母池 0ms 翻頁，徹底消除等待與殘留)
     if (kpiSalesFilter) {
       kpiSalesFilter.addEventListener("change", () => {
-        loadKpiCases(false);
+        if (kpiMasterCasesPool.length > 0) {
+          filterKpiCasesBySelectedSales();
+        } else {
+          loadKpiCases(false);
+        }
       });
     }
 
