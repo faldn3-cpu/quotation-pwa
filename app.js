@@ -58,8 +58,8 @@ document.addEventListener("DOMContentLoaded", () => {
     }, 2800);
   }
 
-  // 🚀 版本自動同步與舊快取清理防護 (v 1.99)
-  const CURRENT_APP_VERSION = "1.99";
+  // 🚀 版本自動同步與舊快取清理防護 (v 2.00)
+  const CURRENT_APP_VERSION = "2.00";
   const appVersionInfo = document.getElementById("appVersionInfo");
   if (appVersionInfo) {
     appVersionInfo.textContent = "v " + CURRENT_APP_VERSION;
@@ -70,7 +70,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if ('caches' in window) {
       caches.keys().then(keys => {
         keys.forEach(k => {
-          if (k !== 'quote-draft-v1.99') {
+          if (k !== 'quote-draft-v2.00') {
             caches.delete(k);
           }
         });
@@ -278,6 +278,85 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   };
   window.QuarterCacheManager = QuarterCacheManager;
+
+  // 🚀 本機 IndexedDB 季度資料同步更新函式 (確保儲存日報後 0 秒寫入本地季度檔，絕不被舊快取逆向覆蓋)
+  async function updateLocalQuarterBundleWithEntry(savedEntry, salesName) {
+    if (!savedEntry || !savedEntry.date) return;
+    const dParts = savedEntry.date.split("-");
+    const y = parseInt(dParts[0], 10);
+    const m = parseInt(dParts[1], 10);
+    const q = Math.ceil(m / 3);
+    try {
+      let bundle = await QuarterCacheManager.getBundle(y, q);
+      if (!bundle) {
+        bundle = {
+          quarter: `${y}Q${q}`,
+          year: y,
+          sheets: {},
+          calendar_dots: {},
+          case_tracking: [],
+          crm_cases: []
+        };
+      }
+      if (!bundle.sheets) bundle.sheets = {};
+      const targetMember = (adminImpersonateSelect && adminImpersonateSelect.value) ? adminImpersonateSelect.value : (salesName || (typeof getSalesName === "function" ? getSalesName() : ""));
+      if (targetMember) {
+        if (!Array.isArray(bundle.sheets[targetMember])) {
+          bundle.sheets[targetMember] = [];
+        }
+        const list = bundle.sheets[targetMember];
+        const existIdx = list.findIndex(r => r.date === savedEntry.date && r.client_name === savedEntry.client_name);
+        if (existIdx !== -1) {
+          list[existIdx] = { ...list[existIdx], ...savedEntry };
+        } else {
+          list.push(savedEntry);
+        }
+
+        // 同步更新日曆指示點
+        if (!bundle.calendar_dots) bundle.calendar_dots = {};
+        const dayReports = list.filter(r => r.date === savedEntry.date);
+        const allCompleted = dayReports.every(r => (r.content && String(r.content).trim()) && (r.result && String(r.result).trim()));
+        bundle.calendar_dots[savedEntry.date] = allCompleted ? "blue" : "red";
+
+        await QuarterCacheManager.saveBundle(y, q, bundle);
+        console.log(`[QuarterCache] 已將「${savedEntry.client_name}」成功寫入本機 ${y}Q${q} IndexedDB 快取！`);
+      }
+    } catch (err) {
+      console.warn("[QuarterCache] 寫入當季快取失敗:", err);
+    }
+  }
+
+  async function removeEntryFromLocalQuarterBundle(dateStr, clientName, salesName) {
+    if (!dateStr || !clientName) return;
+    const dParts = dateStr.split("-");
+    const y = parseInt(dParts[0], 10);
+    const m = parseInt(dParts[1], 10);
+    const q = Math.ceil(m / 3);
+    try {
+      const bundle = await QuarterCacheManager.getBundle(y, q);
+      if (bundle && bundle.sheets) {
+        const targetMember = (adminImpersonateSelect && adminImpersonateSelect.value) ? adminImpersonateSelect.value : (salesName || (typeof getSalesName === "function" ? getSalesName() : ""));
+        if (targetMember && Array.isArray(bundle.sheets[targetMember])) {
+          bundle.sheets[targetMember] = bundle.sheets[targetMember].filter(r => !(r.date === dateStr && r.client_name === clientName));
+          if (bundle.calendar_dots) {
+            const dayReports = bundle.sheets[targetMember].filter(r => r.date === dateStr);
+            if (dayReports.length === 0) {
+              delete bundle.calendar_dots[dateStr];
+            } else {
+              const allCompleted = dayReports.every(r => (r.content && String(r.content).trim()) && (r.result && String(r.result).trim()));
+              bundle.calendar_dots[dateStr] = allCompleted ? "blue" : "red";
+            }
+          }
+          await QuarterCacheManager.saveBundle(y, q, bundle);
+          console.log(`[QuarterCache] 已自本機 ${y}Q${q} IndexedDB 快取移除「${clientName}」！`);
+        }
+      }
+    } catch (err) {
+      console.warn("[QuarterCache] 移除快取失敗:", err);
+    }
+  }
+  window.updateLocalQuarterBundleWithEntry = updateLocalQuarterBundleWithEntry;
+  window.removeEntryFromLocalQuarterBundle = removeEntryFromLocalQuarterBundle;
 
   function applyQuarterBundleToMonthlyState(bundle, year, month, salesName) {
     if (!bundle || !bundle.sheets) return;
@@ -7022,11 +7101,16 @@ document.addEventListener("DOMContentLoaded", () => {
         }
         cleanDuplicateOfflineDrafts(dateStr, clientName);
 
-        // 重新整理月曆與當日清單 (即刻有感更新，不再呈現 0 筆)
+        // 🚀【雙向同步】1. 同步寫入本機 IndexedDB 季度檔，清除舊指紋避免逆向覆蓋與快取鎖死
+        await updateLocalQuarterBundleWithEntry(savedEntry, salesName);
+        localStorage.removeItem("last_sheets_fingerprint");
+
+        // 🚀【即時渲染】2. 重新整理月曆與當日清單 (0 秒立即看見贊翔實業，徹底根除 0 筆 Bug)
         ogsmDatesWithReports.add(dateStr);
         saveOgsmLocalCache(ogsmCurrentYear, ogsmCurrentMonth, ogsmMonthReports, ogsmDatesWithReports);
         currentViewingDate = dateStr;
         renderCalendar(ogsmCurrentYear, ogsmCurrentMonth);
+        renderDayReportList(dateStr);
         refreshCurrentDayModal();
         loadSupervisorTasks();
         refreshFollowUpEngine();
@@ -7037,8 +7121,8 @@ document.addEventListener("DOMContentLoaded", () => {
         const crmMsg = crmSyncSuccess ? "，並已成功同步轉入 CRM 商機！" : "（日報已儲存，CRM 正在背景排隊同步）";
         showToast(`✅「${clientName}」日報已儲存${crmMsg}`, "success");
 
-        // 背景非同步確保雲端最新資料拉回
-        loadOgsmMonthly(ogsmCurrentYear, ogsmCurrentMonth).catch(e => console.warn("背景重新載入月日報異常:", e));
+        // 🚀【背景靜默】3. 背景靜默排程確保雲端與歷史資料同步，不阻塞前端
+        SyncQueueManager.syncCurrentQuarter(true).catch(e => console.warn("背景同步當季資料異常:", e));
 
         // 👑 若主管填寫了商機方針，自動非同步發布督導交辦任務至管考表
         if (isCurrentUserManager() && ogsmSupervisorDirective) {
@@ -7340,13 +7424,30 @@ document.addEventListener("DOMContentLoaded", () => {
       }
       cleanDuplicateOfflineDrafts(payload.date, payload.client_name);
 
-      // 重新讀取雲端最新當月資料
-      await loadOgsmMonthly(ogsmCurrentYear, ogsmCurrentMonth);
-      invalidateMonthlyReportCaches();
+      // 🚀【雙向同步】1. 同步寫入本機 IndexedDB 季度快取並清除舊指紋
+      if (data.entry) {
+        await updateLocalQuarterBundleWithEntry(data.entry, payload.user_name);
+        const exIdx = ogsmMonthReports.findIndex(r => r.date === payload.date && r.client_name === payload.client_name);
+        if (exIdx !== -1) {
+          ogsmMonthReports[exIdx] = { ...ogsmMonthReports[exIdx], ...data.entry };
+        } else {
+          ogsmMonthReports.push(data.entry);
+        }
+      }
+      localStorage.removeItem("last_sheets_fingerprint");
+      ogsmDatesWithReports.add(payload.date);
+      saveOgsmLocalCache(ogsmCurrentYear, ogsmCurrentMonth, ogsmMonthReports, ogsmDatesWithReports);
 
+      // 🚀【即時渲染】2. 重新繪製月曆與當日日報卡片清單 (0 秒可見)
+      renderCalendar(ogsmCurrentYear, ogsmCurrentMonth);
+      renderDayReportList(payload.date);
       if (currentViewingDate === payload.date) {
         refreshCurrentDayModal();
       }
+      invalidateMonthlyReportCaches();
+
+      // 🚀【背景靜默】3. 背景靜默排程比對雲端最新當季
+      SyncQueueManager.syncCurrentQuarter(true).catch(e => console.warn("背景重新載入月日報異常:", e));
 
       showToast(`✅「${payload.client_name}」日報已成功同步至雲端！`, "success");
 
@@ -7555,9 +7656,15 @@ document.addEventListener("DOMContentLoaded", () => {
       // 2. 0 秒立即自記憶體移除 (樂觀刪除)
       ogsmMonthReports.splice(targetIdx, 1);
 
+      // 🚀【雙向同步】同步自本機 IndexedDB 季度快取移除並清除舊指紋
+      removeEntryFromLocalQuarterBundle(dateStr, backupItem.client_name, salesName);
+      localStorage.removeItem("last_sheets_fingerprint");
+      saveOgsmLocalCache(ogsmCurrentYear, ogsmCurrentMonth, ogsmMonthReports, ogsmDatesWithReports);
+
       // 3. 立即重新繪製列表與月曆 (完全不跳全螢幕轉圈遮罩！)
-      refreshCurrentDayModal();
       renderCalendar(ogsmCurrentYear, ogsmCurrentMonth);
+      renderDayReportList(dateStr);
+      refreshCurrentDayModal();
       showToast(`🗑️ 已刪除「${backupItem.client_name}」，背景同步中...`, "info");
 
       // 4. 背景非同步發送雲端刪除請求
@@ -7574,16 +7681,18 @@ document.addEventListener("DOMContentLoaded", () => {
           const data = await res.json();
           if (data.status !== "ok") throw new Error(data.msg || "伺服器刪除失敗");
 
-          // 成功後靜默載入最新整月紀錄以重排項次
-          await loadOgsmMonthly(ogsmCurrentYear, ogsmCurrentMonth);
+          // 成功後背景排程同步當季資料
+          SyncQueueManager.syncCurrentQuarter(true).catch(e => console.warn("背景同步當季資料異常:", e));
           invalidateMonthlyReportCaches();
           showToast(`✅「${backupItem.client_name}」已成功自雲端移除`, "success");
         } catch (err) {
           console.warn("[OGSM] 背景刪除失敗，復原該筆資料:", err);
           // 失敗：復原該筆資料
           ogsmMonthReports.splice(targetIdx, 0, backupItem);
-          refreshCurrentDayModal();
+          updateLocalQuarterBundleWithEntry(backupItem, salesName);
           renderCalendar(ogsmCurrentYear, ogsmCurrentMonth);
+          renderDayReportList(dateStr);
+          refreshCurrentDayModal();
           showToast(`⚠️ 刪除「${backupItem.client_name}」失敗，已自動復原`, "error");
         }
       })();
