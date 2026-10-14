@@ -267,8 +267,8 @@
       <!-- 日報與商機跟催工具列 (依指示排列為 2 列 × 3 鍵) -->
       <div class="ogsm-tools-bar" style="display:grid; grid-template-columns:repeat(3, 1fr); gap:6px; margin-bottom:10px;">
         <!-- 第 1 列 -->
-        <button type="button" id="btnOpenNewClientDevModal" class="btn btn-secondary btn-sm" style="font-size:0.8rem; font-weight:600; padding:6px 2px; display:flex; align-items:center; justify-content:center; gap:3px; border-radius:6px; background:#eff6ff; color:#1d4ed8; border:1px solid #bfdbfe;" title="新客戶開發進度 (藍底標記『新』)">
-          🌟 新客戶開發
+        <button type="button" id="btnOpenProjectTrackingModal" class="btn btn-secondary btn-sm" style="font-size:0.8rem; font-weight:600; padding:6px 2px; display:flex; align-items:center; justify-content:center; gap:3px; border-radius:6px; background:#fff7ed; color:#c2410c; border:1px solid #fed7aa;" title="重點專案攻堅進度追蹤看板">
+          🔥 重點專案攻堅
         </button>
         <button type="button" id="btnOpenCaseTrackingModal" class="btn btn-secondary btn-sm" style="font-size:0.8rem; font-weight:600; padding:6px 2px; display:flex; align-items:center; justify-content:center; gap:3px; border-radius:6px; background:#faf5ff; color:#7c3aed; border:1px solid #e9d5ff;" title="案件追蹤 (KPI) 管理看板">
           🎯 案件追蹤
@@ -1907,9 +1907,291 @@
     </div>
   </div>
 
-  <!-- 🚀 畫面右下角簡潔版本訊息 (字體小、不佔用頂部空間) -->
-  <div class="app-version-bottom-right" id="appVersionInfo">v 2.00</div>
+  <!-- 🔥 [新增 23] 重點專案攻堅管理看板對話框 (Modal) -->
+  <div id="projectTrackingModal" class="modal hidden">
+    <div class="modal-content project-modal-wide" style="max-height:92vh; max-height:92dvh; display:flex; flex-direction:column; padding:1.25rem;">
+      <div class="modal-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.75rem; flex-shrink:0;">
+        <div>
+          <h3 style="margin:0; font-size:1.25rem; color:#c2410c; display:flex; align-items:center; gap:8px;">
+            🔥 重點專案攻堅看板
+            <span id="projectOfflineBadge" class="hidden" style="font-size:0.72rem; background:#fee2e2; color:#b91c1c; padding:2px 8px; border-radius:12px; font-weight:600;">離線暫存模式</span>
+          </h3>
+          <p style="margin:2px 0 0 0; font-size:0.8rem; color:#64748b;">
+            追蹤各專案客戶推進進度、跟催燈號與主管跨部門支援
+          </p>
+        </div>
+        <button id="btnCloseProjectTrackingModal" class="btn-close">&times;</button>
+      </div>
 
-  <script src="app.js?v=2.00"></script>
+      <!-- 專案動態標籤切換列 (Tab) -->
+      <div id="projectTabsNav" class="project-tabs-nav" style="display:flex; gap:6px; overflow-x:auto; padding-bottom:6px; margin-bottom:8px; flex-shrink:0; border-bottom:1px solid #fed7aa;">
+        <!-- 由 JS 動態生成專案分頁標籤 -->
+      </div>
+
+      <!-- 主管與篩選工具列 -->
+      <div style="background:#fffaf5; border:1px solid #ffedd5; border-radius:8px; padding:10px 12px; margin-bottom:10px; display:flex; flex-direction:column; gap:8px; flex-shrink:0;">
+        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+          <!-- 責任業務篩選 -->
+          <div style="display:flex; align-items:center; gap:6px;">
+            <label for="projectSalesFilter" style="font-size:0.82rem; font-weight:600; color:#431407; margin-bottom:0;">負責擔當：</label>
+            <select id="projectSalesFilter" class="search-input" style="font-size:0.85rem; padding:4px 8px; margin-bottom:0; width:130px; background:#ffffff;">
+              <!-- 動態載入 -->
+            </select>
+          </div>
+
+          <!-- 搜尋與主管專案提供按鈕 -->
+          <div style="display:flex; align-items:center; gap:8px; flex-grow:1; justify-content:flex-end;">
+            <input type="text" id="projectSearchInput" class="search-input" placeholder="🔍 搜尋客戶/進度/窗口..." style="font-size:0.82rem; padding:4px 8px; margin-bottom:0; max-width:200px;">
+            <button type="button" id="btnRefreshProjectCases" class="btn btn-secondary btn-sm" style="font-size:0.8rem; padding:5px 10px;" title="重新整理雲端進度">🔄 重新整理</button>
+            <button type="button" id="btnOpenManagerAddModal" class="btn btn-primary btn-sm hidden" style="font-size:0.8rem; padding:5px 12px; background:#ea580c; border-color:#c2410c; display:flex; align-items:center; gap:4px;">
+              ➕ 新客戶/新專案提供
+            </button>
+          </div>
+        </div>
+
+        <!-- 燈號快速篩選標籤 (Chips) -->
+        <div id="projectLampFilterTabs" style="display:flex; gap:6px; flex-wrap:wrap; align-items:center;">
+          <button type="button" class="btn-filter-tab active" data-lamp="all" style="font-size:0.78rem; padding:3px 10px;">全部 (<span id="projectCountAll">0</span>)</button>
+          <button type="button" class="btn-filter-tab" data-lamp="support" style="font-size:0.78rem; padding:3px 10px; background:#fef08a; color:#854d0e; border-color:#fde047;">⚡ 請求支援 (<span id="projectCountSupport">0</span>)</button>
+          <button type="button" class="btn-filter-tab" data-lamp="unfiled" style="font-size:0.78rem; padding:3px 10px; background:#eff6ff; color:#1d4ed8; border-color:#bfdbfe;">🆕 待初訪 (<span id="projectCountUnfiled">0</span>)</button>
+          <button type="button" class="btn-filter-tab" data-lamp="red" style="font-size:0.78rem; padding:3px 10px; background:#fee2e2; color:#b91c1c; border-color:#fca5a5;">🔴 逾期異常 (<span id="projectCountRed">0</span>)</button>
+          <button type="button" class="btn-filter-tab" data-lamp="green" style="font-size:0.78rem; padding:3px 10px; background:#ecfdf5; color:#047857; border-color:#a7f3d0;">🟢 正常推進 (<span id="projectCountGreen">0</span>)</button>
+          <span id="projectSummaryText" style="font-size:0.78rem; color:#78350f; margin-left:auto; font-weight:600;"></span>
+        </div>
+      </div>
+
+      <!-- 卡片列表容器 (支援手機單欄 / 電腦多欄響應式網格) -->
+      <div id="projectCardsContainer" class="project-cards-container modal-body" style="overflow-y:auto; flex:1; min-height:220px; padding-right:4px;">
+        <!-- 由 JS 動態生成卡片 -->
+      </div>
+    </div>
+  </div>
+
+  <!-- 🔥 [新增 24] 專案客戶詳情、推進時間軸與進度填報視窗 -->
+  <div id="projectDetailModal" class="modal hidden">
+    <div class="modal-content project-detail-modal-wide" style="max-height:92vh; max-height:92dvh; display:flex; flex-direction:column; padding:1.25rem;">
+      <div class="modal-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.75rem; flex-shrink:0;">
+        <div style="display:flex; align-items:center; gap:10px;">
+          <span id="detailLampBadge" style="font-size:1.3rem;">🟢</span>
+          <div>
+            <h3 id="detailClientTitle" style="margin:0; font-size:1.25rem; color:#1e293b; display:flex; align-items:center; gap:8px;">
+              客戶名稱
+            </h3>
+            <span id="detailProjectTag" style="font-size:0.75rem; background:#ffedd5; color:#c2410c; padding:2px 8px; border-radius:12px; font-weight:600;">專案名稱</span>
+          </div>
+        </div>
+        <button id="btnCloseProjectDetailModal" class="btn-close">&times;</button>
+      </div>
+
+      <div class="project-detail-layout" style="overflow-y:auto; flex:1; display:flex; flex-direction:column; gap:12px; padding-right:4px;">
+        <!-- 主管支援呼叫警示橫幅 (若有未處理支援) -->
+        <div id="detailSupportAlert" class="hidden" style="background:#fef9c3; border:1px solid #facc15; border-radius:8px; padding:10px 14px; display:flex; justify-content:space-between; align-items:center;">
+          <div>
+            <div style="font-weight:700; color:#854d0e; font-size:0.88rem;">⚡ 業務請求主管支援事項：</div>
+            <div id="detailSupportText" style="font-size:0.84rem; color:#713f12; margin-top:3px; white-space:pre-wrap;"></div>
+          </div>
+          <button type="button" id="btnDetailResolveSupport" class="btn btn-sm hidden" style="background:#eab308; color:#ffffff; font-weight:700; border:none; padding:6px 12px; border-radius:6px; white-space:nowrap; margin-left:10px;">
+            ✅ 標記已處理
+          </button>
+        </div>
+
+        <!-- 基本資料摘要卡 (兩欄排版) -->
+        <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:10px 14px; font-size:0.83rem;">
+          <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(180px, 1fr)); gap:8px;">
+            <div><strong style="color:#64748b;">負責擔當：</strong> <span id="detailSalesOwner" style="font-weight:700; color:#0f172a;"></span> <button type="button" id="btnDetailChangeOwner" class="btn btn-secondary btn-sm hidden" style="font-size:0.7rem; padding:1px 6px; margin-left:4px;">更換</button></div>
+            <div><strong style="color:#64748b;">轉介窗口：</strong> <span id="detailReferral"></span></div>
+            <div><strong style="color:#64748b;">客戶窗口：</strong> <span id="detailWindow"></span></div>
+            <div><strong style="color:#64748b;">客戶單位：</strong> <span id="detailDept"></span></div>
+            <div><strong style="color:#64748b;">運作產品：</strong> <span id="detailProduct"></span></div>
+            <div><strong style="color:#64748b;">目前階段：</strong> <span id="detailStage" style="font-weight:700; color:#ea580c;"></span></div>
+            <div><strong style="color:#64748b;">預計下一步：</strong> <span id="detailNextDate" style="font-weight:700;"></span></div>
+            <div><strong style="color:#64748b;">最後更新：</strong> <span id="detailUpdatedAt"></span></div>
+          </div>
+          <div id="detailNotesRow" style="margin-top:6px; padding-top:6px; border-top:1px dashed #cbd5e1;">
+            <strong style="color:#64748b;">歷史備註：</strong> <span id="detailNotes" style="color:#334155; white-space:pre-wrap;"></span>
+          </div>
+        </div>
+
+        <!-- 推進歷史軌跡 (Timeline) -->
+        <div>
+          <h4 style="margin:0 0 8px 0; font-size:0.95rem; color:#334155; display:flex; align-items:center; gap:6px;">
+            📜 歷史推進軌跡時間軸
+          </h4>
+          <div id="detailTimelineContainer" style="display:flex; flex-direction:column; gap:8px; border-left:2px solid #fed7aa; margin-left:10px; padding-left:14px;">
+            <!-- 由 JS 動態生成 Timeline 節點 -->
+          </div>
+        </div>
+
+        <!-- 本次回報進度表單 -->
+        <div style="background:#ffffff; border:1px solid #fdba74; border-radius:8px; padding:12px 14px; margin-top:4px;">
+          <h4 style="margin:0 0 10px 0; font-size:0.95rem; color:#ea580c; display:flex; align-items:center; gap:6px;">
+            📝 回報本次推進進度
+          </h4>
+          <form id="projectReportForm" onsubmit="return false;">
+            <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:10px; margin-bottom:10px;">
+              <div>
+                <label style="font-size:0.8rem; font-weight:600; color:#334155; margin-bottom:2px; display:block;">運作階段 <span style="color:#ef4444;">*</span></label>
+                <select id="formProjectStage" class="search-input" style="font-size:0.85rem; padding:6px 8px; margin-bottom:0; width:100%;" required>
+                  <option value="0.未接觸">0.未接觸</option>
+                  <option value="1.已約訪/找窗口">1.已約訪/找窗口</option>
+                  <option value="2.需求盤點/規格確認">2.需求盤點/規格確認</option>
+                  <option value="3.送樣測試/報價中">3.送樣測試/報價中</option>
+                  <option value="4.列入合格名單(AVL)/導入成功">4.列入合格名單(AVL)/導入成功</option>
+                  <option value="X.暫緩/卡關">X.暫緩/卡關</option>
+                </select>
+              </div>
+
+              <div>
+                <label style="font-size:0.8rem; font-weight:600; color:#334155; margin-bottom:2px; display:block;">預計下一步開始日期 <span id="formNextDateRequiredStar" style="color:#ef4444;">*</span></label>
+                <input type="date" id="formProjectNextDate" class="search-input" style="font-size:0.85rem; padding:5px 8px; margin-bottom:0; width:100%;">
+                <span style="font-size:0.72rem; color:#94a3b8;">（若為導入成功可免填，逾期將亮紅燈）</span>
+              </div>
+
+              <div>
+                <label style="font-size:0.8rem; font-weight:600; color:#334155; margin-bottom:2px; display:block;">客戶窗口</label>
+                <input type="text" id="formProjectClientWindow" class="search-input" placeholder="例如：廠務陳課長" style="font-size:0.85rem; padding:6px 8px; margin-bottom:0; width:100%;">
+              </div>
+
+              <div>
+                <label style="font-size:0.8rem; font-weight:600; color:#334155; margin-bottom:2px; display:block;">客戶單位</label>
+                <input type="text" id="formProjectClientDept" class="search-input" placeholder="例如：電控研發部" style="font-size:0.85rem; padding:6px 8px; margin-bottom:0; width:100%;">
+              </div>
+
+              <div style="grid-column:1 / -1;">
+                <label style="font-size:0.8rem; font-weight:600; color:#334155; margin-bottom:2px; display:block;">運作產品</label>
+                <input type="text" id="formProjectProduct" class="search-input" placeholder="例如：變頻器、伺服、PLC (多項可用逗號分隔)" style="font-size:0.85rem; padding:6px 8px; margin-bottom:0; width:100%;">
+              </div>
+            </div>
+
+            <div style="margin-bottom:10px;">
+              <label style="font-size:0.8rem; font-weight:600; color:#334155; margin-bottom:2px; display:block;">最新進度與問題說明 <span style="color:#ef4444;">*</span></label>
+              <textarea id="formProjectProgress" class="search-input" rows="3" placeholder="請詳細敘述本次拜訪、通話或測試進展..." style="font-size:0.85rem; padding:6px 8px; margin-bottom:0; width:100%;" required></textarea>
+            </div>
+
+            <div style="margin-bottom:10px;">
+              <label style="font-size:0.8rem; font-weight:600; color:#854d0e; margin-bottom:2px; display:block;">⚡ 需求支援事項（卡住了，有甚麼建議？）</label>
+              <textarea id="formProjectSupportNeed" class="search-input" rows="2" placeholder="選填。若填寫內容，該案件卡片將即刻亮起 ⚡ 標記呼叫主管跨部門支援..." style="font-size:0.85rem; padding:6px 8px; margin-bottom:0; width:100%; border-color:#fde047; background:#fffbeb;"></textarea>
+            </div>
+
+            <div style="margin-bottom:12px;">
+              <label style="font-size:0.8rem; font-weight:600; color:#334155; margin-bottom:2px; display:block;">備註</label>
+              <textarea id="formProjectNotes" class="search-input" rows="2" placeholder="可修改或補充備註..." style="font-size:0.85rem; padding:6px 8px; margin-bottom:0; width:100%;"></textarea>
+            </div>
+
+            <div style="display:flex; justify-content:flex-end; gap:8px;">
+              <button type="button" id="btnCancelProjectReport" class="btn btn-secondary" style="font-size:0.85rem; padding:6px 14px;">取消</button>
+              <button type="button" id="btnSubmitProjectProgress" class="btn btn-primary" style="font-size:0.85rem; padding:6px 18px; background:#ea580c; border-color:#c2410c;">
+                🚀 儲存並送出進度
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 🔥 [新增 25] 主管專屬：新客戶/新專案提供彈出視窗 -->
+  <div id="projectManagerAddModal" class="modal hidden">
+    <div class="modal-content" style="max-height:90vh; max-height:90dvh; display:flex; flex-direction:column; padding:1.25rem; max-width:560px;">
+      <div class="modal-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.75rem; flex-shrink:0;">
+        <h3 style="margin:0; font-size:1.15rem; color:#c2410c; display:flex; align-items:center; gap:8px;">
+          ➕ 主管專屬：新客戶 / 新專案提供
+        </h3>
+        <button id="btnCloseManagerAddModal" class="btn-close">&times;</button>
+      </div>
+
+      <!-- 操作模式切換 -->
+      <div style="display:flex; gap:8px; border-bottom:1px solid #fed7aa; padding-bottom:8px; margin-bottom:12px; flex-shrink:0;">
+        <button type="button" id="btnTabModeAddClient" class="btn btn-sm btn-primary" style="font-size:0.85rem; padding:5px 12px; background:#ea580c; border-color:#c2410c;">➕ 指派新客戶</button>
+        <button type="button" id="btnTabModeCreateProject" class="btn btn-sm btn-secondary" style="font-size:0.85rem; padding:5px 12px;">📁 建立新專案分頁</button>
+      </div>
+
+      <div style="overflow-y:auto; flex:1; padding-right:4px;">
+        <!-- 模式 A：指派新客戶 -->
+        <div id="panelAddClient">
+          <form id="formAddClient" onsubmit="return false;">
+            <div style="margin-bottom:10px;">
+              <label style="font-size:0.82rem; font-weight:600; color:#334155; margin-bottom:2px; display:block;">目標專案分頁 <span style="color:#ef4444;">*</span></label>
+              <select id="addClientProjectSelect" class="search-input" style="font-size:0.85rem; padding:6px 8px; margin-bottom:0; width:100%;" required>
+                <!-- 動態注入專案清單 -->
+              </select>
+            </div>
+
+            <!-- 單筆模式欄位 -->
+            <div id="singleClientInputs">
+              <div style="margin-bottom:10px;">
+                <label style="font-size:0.82rem; font-weight:600; color:#334155; margin-bottom:2px; display:block;">客戶名稱（必須為 4 個字） <span style="color:#ef4444;">*</span></label>
+                <input type="text" id="addClientName" class="search-input" maxlength="4" placeholder="例如：景碩科技、欣興電子" style="font-size:0.85rem; padding:6px 8px; margin-bottom:0; width:100%;">
+              </div>
+
+              <div style="margin-bottom:10px;">
+                <label style="font-size:0.82rem; font-weight:600; color:#334155; margin-bottom:2px; display:block;">指定負責擔當 <span style="color:#ef4444;">*</span></label>
+                <select id="addClientSalesSelect" class="search-input" style="font-size:0.85rem; padding:6px 8px; margin-bottom:0; width:100%;">
+                  <!-- 動態注入業務清單 -->
+                </select>
+              </div>
+
+              <div style="margin-bottom:10px;">
+                <label style="font-size:0.82rem; font-weight:600; color:#334155; margin-bottom:2px; display:block;">轉介窗口 / 背景說明（選填）</label>
+                <input type="text" id="addClientReferral" class="search-input" placeholder="例如：竹音經銷商提供、陳協理轉介" style="font-size:0.85rem; padding:6px 8px; margin-bottom:0; width:100%;">
+              </div>
+
+              <div style="margin-bottom:10px;">
+                <label style="font-size:0.82rem; font-weight:600; color:#334155; margin-bottom:2px; display:block;">備註（選填）</label>
+                <input type="text" id="addClientNotes" class="search-input" placeholder="選填補充說明" style="font-size:0.85rem; padding:6px 8px; margin-bottom:0; width:100%;">
+              </div>
+            </div>
+
+            <!-- 批次模式開關與輸入區 -->
+            <div style="margin-top:10px; padding-top:10px; border-top:1px dashed #e2e8f0;">
+              <label style="font-size:0.82rem; color:#475569; display:flex; align-items:center; gap:6px; cursor:pointer;">
+                <input type="checkbox" id="chkBatchAddMode"> 切換為批次快速輸入模式
+              </label>
+
+              <div id="batchClientInputs" class="hidden" style="margin-top:8px;">
+                <p style="font-size:0.75rem; color:#64748b; margin:0 0 4px 0;">
+                  格式：每行一筆，以逗號或空格分隔「客戶名稱(4字), 負責擔當, 轉介窗口, 備註」<br>
+                  範例：<br>
+                  景碩科技, 邱文輝, 竹音經銷商, 經銷商維護<br>
+                  臻鼎科技, 黃柏翰, 自行開發, 
+                </p>
+                <textarea id="batchClientText" class="search-input" rows="5" placeholder="貼上批次名單..." style="font-size:0.82rem; padding:6px 8px; width:100%; font-family:monospace;"></textarea>
+              </div>
+            </div>
+
+            <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:12px;">
+              <button type="button" id="btnCancelAddClient" class="btn btn-secondary" style="font-size:0.85rem; padding:6px 14px;">取消</button>
+              <button type="button" id="btnSubmitAddClient" class="btn btn-primary" style="font-size:0.85rem; padding:6px 18px; background:#ea580c; border-color:#c2410c;">
+                確定指派客戶
+              </button>
+            </div>
+          </form>
+        </div>
+
+        <!-- 模式 B：建立新專案分頁 -->
+        <div id="panelCreateProject" class="hidden">
+          <form id="formCreateProject" onsubmit="return false;">
+            <div style="margin-bottom:12px;">
+              <label style="font-size:0.82rem; font-weight:600; color:#334155; margin-bottom:2px; display:block;">新專案名稱 <span style="color:#ef4444;">*</span></label>
+              <input type="text" id="newProjectNameInput" class="search-input" placeholder="例如：半導體設備、光電自動化" style="font-size:0.85rem; padding:6px 8px; margin-bottom:0; width:100%;" required>
+              <span style="font-size:0.75rem; color:#94a3b8;">系統將自動確保名稱以「專案」結尾，並建立 A～L 欄之標準試算表分頁</span>
+            </div>
+
+            <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:16px;">
+              <button type="button" id="btnCancelCreateProject" class="btn btn-secondary" style="font-size:0.85rem; padding:6px 14px;">取消</button>
+              <button type="button" id="btnSubmitCreateProject" class="btn btn-primary" style="font-size:0.85rem; padding:6px 18px; background:#ea580c; border-color:#c2410c;">
+                🚀 立即建立專案分頁
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 🚀 畫面右下角簡潔版本訊息 (字體小、不佔用頂部空間) -->
+  <div class="app-version-bottom-right" id="appVersionInfo">v 2.01</div>
+
+  <script src="app.js?v=2.01"></script>
 </body>
 </html>

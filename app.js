@@ -3261,7 +3261,6 @@ document.addEventListener("DOMContentLoaded", () => {
   const btnSaveOgsmAndCrm          = document.getElementById("btnSaveOgsmAndCrm");
 
   // 🎯 案件追蹤 (KPI) 管理看板與編輯對話框 DOM 元件
-  const btnOpenNewClientDevModal       = document.getElementById("btnOpenNewClientDevModal");
   const btnOpenCaseTrackingModal       = document.getElementById("btnOpenCaseTrackingModal");
   const caseTrackingModal              = document.getElementById("caseTrackingModal");
   const btnCloseCaseTrackingModal      = document.getElementById("btnCloseCaseTrackingModal");
@@ -3273,6 +3272,79 @@ document.addEventListener("DOMContentLoaded", () => {
   const kpiSearchInput                 = document.getElementById("kpiSearchInput");
   const kpiCaseListContainer           = document.getElementById("kpiCaseListContainer");
   const kpiSummaryText                 = document.getElementById("kpiSummaryText");
+
+  // 🔥 重點專案攻堅模組 DOM 元件
+  const btnOpenProjectTrackingModal    = document.getElementById("btnOpenProjectTrackingModal");
+  const projectTrackingModal           = document.getElementById("projectTrackingModal");
+  const btnCloseProjectTrackingModal   = document.getElementById("btnCloseProjectTrackingModal");
+  const projectOfflineBadge            = document.getElementById("projectOfflineBadge");
+  const projectTabsNav                 = document.getElementById("projectTabsNav");
+  const projectSalesFilter             = document.getElementById("projectSalesFilter");
+  const projectSearchInput             = document.getElementById("projectSearchInput");
+  const btnRefreshProjectCases         = document.getElementById("btnRefreshProjectCases");
+  const btnOpenManagerAddModal         = document.getElementById("btnOpenManagerAddModal");
+  const projectLampFilterTabs          = document.getElementById("projectLampFilterTabs");
+  const projectCardsContainer          = document.getElementById("projectCardsContainer");
+  const projectSummaryText             = document.getElementById("projectSummaryText");
+  const projectCountAll                = document.getElementById("projectCountAll");
+  const projectCountSupport            = document.getElementById("projectCountSupport");
+  const projectCountUnfiled            = document.getElementById("projectCountUnfiled");
+  const projectCountRed                = document.getElementById("projectCountRed");
+  const projectCountGreen              = document.getElementById("projectCountGreen");
+
+  const projectDetailModal             = document.getElementById("projectDetailModal");
+  const btnCloseProjectDetailModal     = document.getElementById("btnCloseProjectDetailModal");
+  const detailLampBadge                = document.getElementById("detailLampBadge");
+  const detailClientTitle              = document.getElementById("detailClientTitle");
+  const detailProjectTag               = document.getElementById("detailProjectTag");
+  const detailSupportAlert             = document.getElementById("detailSupportAlert");
+  const detailSupportText              = document.getElementById("detailSupportText");
+  const btnDetailResolveSupport        = document.getElementById("btnDetailResolveSupport");
+  const detailSalesOwner               = document.getElementById("detailSalesOwner");
+  const btnDetailChangeOwner           = document.getElementById("btnDetailChangeOwner");
+  const detailReferral                 = document.getElementById("detailReferral");
+  const detailWindow                   = document.getElementById("detailWindow");
+  const detailDept                     = document.getElementById("detailDept");
+  const detailProduct                  = document.getElementById("detailProduct");
+  const detailStage                    = document.getElementById("detailStage");
+  const detailNextDate                 = document.getElementById("detailNextDate");
+  const detailUpdatedAt                = document.getElementById("detailUpdatedAt");
+  const detailNotes                    = document.getElementById("detailNotes");
+  const detailNotesRow                 = document.getElementById("detailNotesRow");
+  const detailTimelineContainer        = document.getElementById("detailTimelineContainer");
+
+  const formProjectStage               = document.getElementById("formProjectStage");
+  const formProjectNextDate            = document.getElementById("formProjectNextDate");
+  const formNextDateRequiredStar       = document.getElementById("formNextDateRequiredStar");
+  const formProjectClientWindow        = document.getElementById("formProjectClientWindow");
+  const formProjectClientDept          = document.getElementById("formProjectClientDept");
+  const formProjectProduct             = document.getElementById("formProjectProduct");
+  const formProjectProgress            = document.getElementById("formProjectProgress");
+  const formProjectSupportNeed         = document.getElementById("formProjectSupportNeed");
+  const formProjectNotes               = document.getElementById("formProjectNotes");
+  const btnCancelProjectReport         = document.getElementById("btnCancelProjectReport");
+  const btnSubmitProjectProgress       = document.getElementById("btnSubmitProjectProgress");
+
+  const projectManagerAddModal         = document.getElementById("projectManagerAddModal");
+  const btnCloseManagerAddModal        = document.getElementById("btnCloseManagerAddModal");
+  const btnTabModeAddClient            = document.getElementById("btnTabModeAddClient");
+  const btnTabModeCreateProject        = document.getElementById("btnTabModeCreateProject");
+  const panelAddClient                 = document.getElementById("panelAddClient");
+  const panelCreateProject             = document.getElementById("panelCreateProject");
+  const addClientProjectSelect         = document.getElementById("addClientProjectSelect");
+  const singleClientInputs             = document.getElementById("singleClientInputs");
+  const addClientName                  = document.getElementById("addClientName");
+  const addClientSalesSelect           = document.getElementById("addClientSalesSelect");
+  const addClientReferral              = document.getElementById("addClientReferral");
+  const addClientNotes                 = document.getElementById("addClientNotes");
+  const chkBatchAddMode                = document.getElementById("chkBatchAddMode");
+  const batchClientInputs              = document.getElementById("batchClientInputs");
+  const batchClientText                = document.getElementById("batchClientText");
+  const btnCancelAddClient             = document.getElementById("btnCancelAddClient");
+  const btnSubmitAddClient             = document.getElementById("btnSubmitAddClient");
+  const newProjectNameInput            = document.getElementById("newProjectNameInput");
+  const btnCancelCreateProject         = document.getElementById("btnCancelCreateProject");
+  const btnSubmitCreateProject         = document.getElementById("btnSubmitCreateProject");
   const kpiCountAll                    = document.getElementById("kpiCountAll");
   const kpiCountNew                    = document.getElementById("kpiCountNew");
   const kpiCountExisting               = document.getElementById("kpiCountExisting");
@@ -10438,9 +10510,6 @@ document.addEventListener("DOMContentLoaded", () => {
     if (btnOpenCaseTrackingModal) {
       btnOpenCaseTrackingModal.addEventListener("click", () => openCaseTrackingModal("all"));
     }
-    if (btnOpenNewClientDevModal) {
-      btnOpenNewClientDevModal.addEventListener("click", () => openCaseTrackingModal("new"));
-    }
     if (btnCloseCaseTrackingModal) {
       btnCloseCaseTrackingModal.addEventListener("click", () => {
         if (caseTrackingModal) caseTrackingModal.classList.add("hidden");
@@ -10560,8 +10629,967 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
-  // 🚀 執行案件追蹤 (KPI) 模組與中分類矩陣初始化
+  // ====================================================
+  // 🔥 [新增 23~25] 重點專案攻堅管理模組 (流水帳與雙版面架構)
+  // ====================================================
+
+  let projectDataStore = {};
+  let projectNamesList = [];
+  let currentProjectName = "";
+  let currentProjectLampFilter = "all";
+  let currentProjectSearchKeyword = "";
+  let activeProjectCard = null;
+
+  function getProjectOfflineQueue() {
+    try {
+      const q = localStorage.getItem("project_offline_queue");
+      return q ? JSON.parse(q) : [];
+    } catch(e) {
+      return [];
+    }
+  }
+
+  function saveProjectOfflineQueue(queue) {
+    localStorage.setItem("project_offline_queue", JSON.stringify(queue));
+    updateProjectOfflineBadge();
+  }
+
+  function updateProjectOfflineBadge() {
+    const q = getProjectOfflineQueue();
+    if (projectOfflineBadge) {
+      if (q.length > 0) {
+        projectOfflineBadge.textContent = `待上傳暫存 (${q.length})`;
+        projectOfflineBadge.classList.remove("hidden");
+      } else {
+        projectOfflineBadge.classList.add("hidden");
+      }
+    }
+  }
+
+  async function syncProjectOfflineQueue() {
+    const q = getProjectOfflineQueue();
+    if (!q.length || !navigator.onLine) return;
+
+    console.log(`[Project] 正在同步本機暫存進度 ${q.length} 筆...`);
+    const token = localStorage.getItem("google_access_token") || "";
+    const remaining = [];
+
+    for (const item of q) {
+      try {
+        const currentCards = projectDataStore[item.project_name] || [];
+        const existingCard = currentCards.find(c => c.client_name === item.client_name);
+        if (existingCard && existingCard.updated_at && item.offline_filled_at) {
+          if (existingCard.updated_at > item.offline_filled_at) {
+            const proceed = confirm(`⚠️ 客戶「${item.client_name}」在雲端已有更新紀錄（${existingCard.updated_at}）！\n您在離線時填寫的時間為（${item.offline_filled_at}）。\n\n是否仍要補送此筆進度？（取消將捨棄該離線暫存）`);
+            if (!proceed) {
+              console.log(`[Project] 捨棄過期的離線暫存：${item.client_name}`);
+              continue;
+            }
+          }
+        }
+
+        const payload = {
+          action: "add_project_entry",
+          access_token: token,
+          ...item
+        };
+
+        const res = await fetch(GAS_URL, {
+          method: "POST",
+          headers: { "Content-Type": "text/plain;charset=utf-8" },
+          body: JSON.stringify(payload)
+        });
+        const resData = await res.json();
+        if (resData && resData.status === "ok") {
+          console.log(`[Project] 離線暫存「${item.client_name}」已成功上傳雲端！`);
+        } else {
+          remaining.push(item);
+        }
+      } catch(err) {
+        console.warn(`[Project] 補送離線進度異常:`, err);
+        remaining.push(item);
+      }
+    }
+
+    saveProjectOfflineQueue(remaining);
+    if (remaining.length === 0) {
+      showToast("✅ 所有離線進度已全數同步至雲端！", "success");
+      loadProjectCases(true);
+    } else {
+      showToast(`⚠️ 尚有 ${remaining.length} 筆離線進度待同步`, "warning");
+    }
+  }
+
+  window.addEventListener("online", () => {
+    syncProjectOfflineQueue();
+  });
+
+  function openProjectTrackingModal() {
+    if (!projectTrackingModal) return;
+
+    if (projectSalesFilter) {
+      const viewer = getSalesName();
+      const allowed = (cachedViewPermissions && cachedViewPermissions[viewer]) ? cachedViewPermissions[viewer] : [viewer];
+      const isTopMgr = ["曾維崧", "張何達", "曾仁君"].some(m => viewer.includes(m) || m.includes(viewer));
+
+      if (isTopMgr) {
+        const allList = ACTIVE_SALES_MEMBERS.length ? ACTIVE_SALES_MEMBERS : (allowed.length ? allowed : ALL_SALES_MEMBERS);
+        let opts = `<option value="全體業務" selected>-- 全體業務總覽 --</option>`;
+        opts += allList.map(m => `<option value="${m}">${m}</option>`).join("");
+        projectSalesFilter.innerHTML = opts;
+        projectSalesFilter.value = "全體業務";
+        projectSalesFilter.disabled = false;
+      } else if (allowed.length > 1) {
+        const members = ACTIVE_SALES_MEMBERS.filter(m => allowed.includes(m));
+        const listToUse = members.length ? members : allowed;
+        let opts = `<option value="授權業務總覽" selected>-- 授權業務總覽 --</option>`;
+        opts += listToUse.map(m => `<option value="${m}">${m}</option>`).join("");
+        projectSalesFilter.innerHTML = opts;
+        projectSalesFilter.value = "授權業務總覽";
+        projectSalesFilter.disabled = false;
+      } else {
+        projectSalesFilter.innerHTML = `<option value="${viewer}" selected>${viewer}</option>`;
+        projectSalesFilter.value = viewer;
+        projectSalesFilter.disabled = true;
+      }
+    }
+
+    if (btnOpenManagerAddModal) {
+      const viewer = getSalesName();
+      const isTopMgr = ["曾維崧", "張何達", "曾仁君"].some(m => viewer.includes(m) || m.includes(viewer));
+      btnOpenManagerAddModal.classList.toggle("hidden", !isTopMgr);
+    }
+
+    if (projectSearchInput) projectSearchInput.value = "";
+    currentProjectSearchKeyword = "";
+    currentProjectLampFilter = "all";
+
+    if (projectLampFilterTabs) {
+      projectLampFilterTabs.querySelectorAll(".btn-filter-tab").forEach(btn => {
+        btn.classList.toggle("active", btn.dataset.lamp === "all");
+      });
+    }
+
+    updateProjectOfflineBadge();
+    projectTrackingModal.classList.remove("hidden");
+    loadProjectCases(false);
+  }
+
+  async function loadProjectCases(forceRefresh = false) {
+    if (!projectCardsContainer) return;
+
+    if (!forceRefresh) {
+      try {
+        const cachedStr = localStorage.getItem("project_cache_data");
+        if (cachedStr) {
+          const cached = JSON.parse(cachedStr);
+          if (cached && cached.data && cached.projects) {
+            projectDataStore = cached.data;
+            projectNamesList = cached.projects;
+            if (!currentProjectName || !projectNamesList.includes(currentProjectName)) {
+              currentProjectName = projectNamesList[0] || "";
+            }
+            renderProjectTabs();
+            renderProjectCards();
+            updateProjectCounters();
+            console.log(`[Project] 已自本地快取載入重點專案共 ${projectNamesList.length} 個分頁！`);
+          }
+        }
+      } catch(e) {}
+    }
+
+    if (Object.keys(projectDataStore).length === 0) {
+      projectCardsContainer.innerHTML = '<div style="text-align:center; padding:30px; color:#94a3b8; grid-column:1/-1;">⏳ 正在向雲端讀取重點專案清單...</div>';
+    }
+
+    const viewer = getSalesName();
+    const token = localStorage.getItem("google_access_token") || "";
+
+    try {
+      const params = new URLSearchParams({
+        action: "get_project_cases",
+        viewer: viewer,
+        access_token: token
+      });
+      const res = await fetch(`${GAS_URL}?${params.toString()}`);
+      const data = await res.json();
+
+      if (data && data.status === "ok") {
+        projectDataStore = data.data || {};
+        projectNamesList = data.projects || [];
+        localStorage.setItem("project_cache_data", JSON.stringify({
+          data: projectDataStore,
+          projects: projectNamesList,
+          timestamp: Date.now()
+        }));
+
+        if (!currentProjectName || !projectNamesList.includes(currentProjectName)) {
+          currentProjectName = projectNamesList[0] || "";
+        }
+
+        renderProjectTabs();
+        updateProjectCounters();
+        renderProjectCards();
+        console.log(`[Project] 雲端更新重點專案成功，共有 ${projectNamesList.length} 個專案分頁`);
+      } else {
+        throw new Error(data && data.msg ? data.msg : "載入失敗");
+      }
+    } catch(err) {
+      console.warn("[Project] 雲端讀取異常:", err);
+      if (Object.keys(projectDataStore).length === 0) {
+        projectCardsContainer.innerHTML = `
+          <div style="text-align:center; padding:30px; color:#ef4444; grid-column:1/-1;">
+            ⚠️ 載入專案失敗：${escapeHtml(err.message || String(err))}<br>
+            <button type="button" class="btn btn-secondary btn-sm" onclick="loadProjectCases(true)" style="margin-top:10px;">重新載入</button>
+          </div>
+        `;
+      } else {
+        showToast("⚠️ 雲端專案連線中斷，目前顯示離線快取", "warning");
+      }
+    }
+  }
+
+  function renderProjectTabs() {
+    if (!projectTabsNav) return;
+    if (projectNamesList.length === 0) {
+      projectTabsNav.innerHTML = `<span style="font-size:0.82rem; color:#94a3b8; padding:4px 8px;">尚未建立專案分頁</span>`;
+      return;
+    }
+
+    projectTabsNav.innerHTML = projectNamesList.map(name => {
+      const isActive = (name === currentProjectName);
+      const cards = projectDataStore[name] || [];
+      const supportCount = cards.filter(c => c.lamp === "⚡").length;
+      const redCount = cards.filter(c => c.lamp === "🔴").length;
+
+      let badgeHtml = `<span class="project-tab-badge">${cards.length}</span>`;
+      if (supportCount > 0) {
+        badgeHtml += ` <span style="font-size:0.7rem; background:#eab308; color:#ffffff; padding:1px 5px; border-radius:10px;">⚡${supportCount}</span>`;
+      }
+      if (redCount > 0) {
+        badgeHtml += ` <span style="font-size:0.7rem; background:#ef4444; color:#ffffff; padding:1px 5px; border-radius:10px;">🔴${redCount}</span>`;
+      }
+
+      return `
+        <button type="button" class="project-tab-btn ${isActive ? 'active' : ''}" data-project="${escapeHtml(name)}">
+          📁 ${escapeHtml(name)} ${badgeHtml}
+        </button>
+      `;
+    }).join("");
+
+    projectTabsNav.querySelectorAll(".project-tab-btn").forEach(btn => {
+      btn.addEventListener("click", () => {
+        currentProjectName = btn.dataset.project;
+        renderProjectTabs();
+        updateProjectCounters();
+        renderProjectCards();
+      });
+    });
+  }
+
+  function updateProjectCounters() {
+    const cards = projectDataStore[currentProjectName] || [];
+    const viewer = getSalesName();
+    const targetSales = projectSalesFilter ? projectSalesFilter.value : viewer;
+
+    let filtered = cards;
+    if (targetSales && targetSales !== "全體業務" && targetSales !== "授權業務總覽") {
+      filtered = filtered.filter(c => (c.sales_name || "").trim() === targetSales);
+    }
+
+    const total = filtered.length;
+    const support = filtered.filter(c => c.lamp === "⚡").length;
+    const unfiled = filtered.filter(c => c.lamp === "🆕").length;
+    const red = filtered.filter(c => c.lamp === "🔴").length;
+    const green = filtered.filter(c => c.lamp === "🟢").length;
+
+    if (projectCountAll) projectCountAll.textContent = total;
+    if (projectCountSupport) projectCountSupport.textContent = support;
+    if (projectCountUnfiled) projectCountUnfiled.textContent = unfiled;
+    if (projectCountRed) projectCountRed.textContent = red;
+    if (projectCountGreen) projectCountGreen.textContent = green;
+
+    if (projectSummaryText) {
+      projectSummaryText.textContent = `共 ${total} 家專案客戶`;
+    }
+  }
+
+  function renderProjectCards() {
+    if (!projectCardsContainer) return;
+    const cards = projectDataStore[currentProjectName] || [];
+    const viewer = getSalesName();
+    const targetSales = projectSalesFilter ? projectSalesFilter.value : viewer;
+
+    let filtered = cards;
+
+    if (targetSales && targetSales !== "全體業務" && targetSales !== "授權業務總覽") {
+      filtered = filtered.filter(c => (c.sales_name || "").trim() === targetSales);
+    }
+
+    if (currentProjectLampFilter === "support") {
+      filtered = filtered.filter(c => c.lamp === "⚡");
+    } else if (currentProjectLampFilter === "unfiled") {
+      filtered = filtered.filter(c => c.lamp === "🆕");
+    } else if (currentProjectLampFilter === "red") {
+      filtered = filtered.filter(c => c.lamp === "🔴");
+    } else if (currentProjectLampFilter === "green") {
+      filtered = filtered.filter(c => c.lamp === "🟢");
+    }
+
+    if (currentProjectSearchKeyword) {
+      filtered = filtered.filter(c => {
+        const cl = (c.client_name || "").toLowerCase();
+        const sn = (c.sales_name || "").toLowerCase();
+        const pr = (c.product || "").toLowerCase();
+        const st = (c.stage || "").toLowerCase();
+        const pg = (c.progress || "").toLowerCase();
+        const cw = (c.client_window || "").toLowerCase();
+        const nt = (c.notes || "").toLowerCase();
+        return cl.includes(currentProjectSearchKeyword) || sn.includes(currentProjectSearchKeyword) || pr.includes(currentProjectSearchKeyword) || st.includes(currentProjectSearchKeyword) || pg.includes(currentProjectSearchKeyword) || cw.includes(currentProjectSearchKeyword) || nt.includes(currentProjectSearchKeyword);
+      });
+    }
+
+    if (filtered.length === 0) {
+      projectCardsContainer.innerHTML = `
+        <div style="text-align:center; padding:40px 20px; color:#94a3b8; grid-column:1 / -1;">
+          <div style="font-size:2.2rem; margin-bottom:8px;">🔥</div>
+          查無符合條件之專案客戶
+        </div>
+      `;
+      return;
+    }
+
+    projectCardsContainer.innerHTML = filtered.map((c, idx) => {
+      let lampClass = "lamp-green";
+      if (c.lamp === "⚡") {
+        lampClass = "lamp-support";
+      } else if (c.lamp === "🆕") {
+        lampClass = "lamp-unfiled";
+      } else if (c.lamp === "🔴") {
+        lampClass = "lamp-red";
+      }
+
+      const hasSupport = (c.support_need && c.support_need !== "無" && c.support_need.indexOf("✅已處理") !== 0);
+
+      return `
+        <div class="project-card ${lampClass}" data-client-idx="${idx}">
+          <div class="project-card-header">
+            <span class="project-card-title">
+              <span>${c.lamp}</span>
+              <span>${escapeHtml(c.client_name)}</span>
+            </span>
+            <span class="project-card-sales">👤 ${escapeHtml(c.sales_name || "未指定")}</span>
+          </div>
+
+          <div class="project-card-meta">
+            <span class="project-card-stage">${escapeHtml(c.stage || "0.未接觸")}</span>
+            ${c.product ? `<span class="project-card-product">📦 ${escapeHtml(c.product)}</span>` : ''}
+            ${c.client_window ? `<span style="color:#64748b;">窗口: ${escapeHtml(c.client_window)}</span>` : ''}
+          </div>
+
+          ${hasSupport ? `
+            <div class="project-card-support-callout">
+              ⚡ 支援：${escapeHtml(c.support_need)}
+            </div>
+          ` : ''}
+
+          <div class="project-card-progress">
+            ${c.progress ? escapeHtml(c.progress) : '<span style="color:#94a3b8; font-style:italic;">尚無推進進度紀錄（點擊進入初訪填寫）</span>'}
+          </div>
+
+          <div class="project-card-footer">
+            <span>下一步: <strong style="color:#0f172a;">${c.next_date ? escapeHtml(c.next_date) : '-'}</strong></span>
+            <span>更新: ${c.updated_at ? escapeHtml(c.updated_at.split(' ')[0]) : '未建檔'}</span>
+          </div>
+        </div>
+      `;
+    }).join("");
+
+    projectCardsContainer.querySelectorAll(".project-card").forEach(el => {
+      el.addEventListener("click", () => {
+        const idx = parseInt(el.dataset.clientIdx, 10);
+        if (filtered[idx]) {
+          openProjectDetailModal(filtered[idx]);
+        }
+      });
+    });
+  }
+
+  function openProjectDetailModal(card) {
+    if (!projectDetailModal || !card) return;
+    activeProjectCard = card;
+
+    const viewer = getSalesName();
+    const isTopMgr = ["曾維崧", "張何達", "曾仁君"].some(m => viewer.includes(m) || m.includes(viewer));
+
+    if (detailLampBadge) detailLampBadge.textContent = card.lamp || "🟢";
+    if (detailClientTitle) detailClientTitle.textContent = card.client_name;
+    if (detailProjectTag) detailProjectTag.textContent = card.project_name || currentProjectName;
+
+    if (detailSalesOwner) detailSalesOwner.textContent = card.sales_name || "未指定";
+    if (detailReferral) detailReferral.textContent = card.referral_window || "-";
+    if (detailWindow) detailWindow.textContent = card.client_window || "-";
+    if (detailDept) detailDept.textContent = card.client_dept || "-";
+    if (detailProduct) detailProduct.textContent = card.product || "-";
+    if (detailStage) detailStage.textContent = card.stage || "0.未接觸";
+    if (detailNextDate) detailNextDate.textContent = card.next_date || "-";
+    if (detailUpdatedAt) detailUpdatedAt.textContent = card.updated_at || "未建檔";
+
+    if (detailNotes && detailNotesRow) {
+      if (card.notes) {
+        detailNotes.textContent = card.notes;
+        detailNotesRow.classList.remove("hidden");
+      } else {
+        detailNotes.textContent = "";
+        detailNotesRow.classList.add("hidden");
+      }
+    }
+
+    if (btnDetailChangeOwner) {
+      btnDetailChangeOwner.classList.toggle("hidden", !isTopMgr);
+    }
+
+    const hasSupport = (card.support_need && card.support_need !== "無" && card.support_need.indexOf("✅已處理") !== 0);
+    if (detailSupportAlert && detailSupportText) {
+      if (hasSupport) {
+        detailSupportText.textContent = card.support_need;
+        detailSupportAlert.classList.remove("hidden");
+        if (btnDetailResolveSupport) {
+          btnDetailResolveSupport.classList.toggle("hidden", !isTopMgr);
+        }
+      } else {
+        detailSupportAlert.classList.add("hidden");
+      }
+    }
+
+    if (detailTimelineContainer) {
+      const history = card.history || [];
+      if (history.length === 0) {
+        detailTimelineContainer.innerHTML = `<div style="font-size:0.8rem; color:#94a3b8; padding:8px 0;">尚無歷史推進進度</div>`;
+      } else {
+        detailTimelineContainer.innerHTML = history.map(h => {
+          const isSeed = (!h.updated_at || h.updated_at.trim() === "");
+          return `
+            <div class="timeline-item">
+              <div class="timeline-dot" style="${isSeed ? 'background:#3b82f6; box-shadow:0 0 0 2px #bfdbfe;' : ''}"></div>
+              <div class="timeline-card">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px; font-size:0.75rem; color:#64748b;">
+                  <span><strong>${isSeed ? '🌱 主管初始指派' : escapeHtml(h.updated_at)}</strong> (${escapeHtml(h.sales_name || card.sales_name)})</span>
+                  <span style="font-weight:700; color:#ea580c; background:#fff7ed; padding:1px 6px; border-radius:4px;">${escapeHtml(h.stage || '0.未接觸')}</span>
+                </div>
+                ${h.progress ? `<div style="color:#1e293b; line-height:1.4; margin-bottom:4px; white-space:pre-wrap;">${escapeHtml(h.progress)}</div>` : ''}
+                ${h.support_need ? `<div style="font-size:0.75rem; color:#854d0e; background:#fef9c3; padding:2px 6px; border-radius:4px; margin-bottom:4px;">⚡ 支援需求: ${escapeHtml(h.support_need)}</div>` : ''}
+                <div style="display:flex; gap:10px; font-size:0.72rem; color:#94a3b8;">
+                  ${h.client_window ? `<span>窗口: ${escapeHtml(h.client_window)}</span>` : ''}
+                  ${h.product ? `<span>產品: ${escapeHtml(h.product)}</span>` : ''}
+                  ${h.next_date ? `<span>下一步預計: ${escapeHtml(h.next_date)}</span>` : ''}
+                </div>
+                ${h.notes ? `<div style="font-size:0.72rem; color:#64748b; margin-top:3px; border-top:1px dashed #e2e8f0; padding-top:2px;">備註: ${escapeHtml(h.notes)}</div>` : ''}
+              </div>
+            </div>
+          `;
+        }).join("");
+      }
+    }
+
+    if (formProjectStage) formProjectStage.value = card.stage || "0.未接觸";
+    if (formProjectClientWindow) formProjectClientWindow.value = card.client_window || "";
+    if (formProjectClientDept) formProjectClientDept.value = card.client_dept || "";
+    if (formProjectProduct) formProjectProduct.value = card.product || "";
+    if (formProjectNextDate) formProjectNextDate.value = "";
+    if (formProjectProgress) formProjectProgress.value = "";
+    if (formProjectSupportNeed) formProjectSupportNeed.value = "";
+    if (formProjectNotes) formProjectNotes.value = card.notes || "";
+
+    if (formProjectStage && formNextDateRequiredStar) {
+      const updateStar = () => {
+        const isSuccess = (formProjectStage.value.indexOf("4.") === 0 || formProjectStage.value.indexOf("導入成功") !== -1);
+        formNextDateRequiredStar.style.display = isSuccess ? "none" : "inline";
+      };
+      formProjectStage.onchange = updateStar;
+      updateStar();
+    }
+
+    projectDetailModal.classList.remove("hidden");
+  }
+
+  async function submitProjectProgress() {
+    if (!activeProjectCard) return;
+
+    const stage = formProjectStage ? formProjectStage.value : "";
+    const progress = formProjectProgress ? formProjectProgress.value.trim() : "";
+    const nextDate = formProjectNextDate ? formProjectNextDate.value.trim() : "";
+    const windowVal = formProjectClientWindow ? formProjectClientWindow.value.trim() : "";
+    const deptVal = formProjectClientDept ? formProjectClientDept.value.trim() : "";
+    const productVal = formProjectProduct ? formProjectProduct.value.trim() : "";
+    const supportNeed = formProjectSupportNeed ? formProjectSupportNeed.value.trim() : "";
+    const notesVal = formProjectNotes ? formProjectNotes.value.trim() : "";
+
+    if (!progress) {
+      alert("請填寫「最新進度與問題說明」！");
+      if (formProjectProgress) formProjectProgress.focus();
+      return;
+    }
+
+    const isSuccess = (stage.indexOf("4.") === 0 || stage.indexOf("導入成功") !== -1);
+    if (!isSuccess && !nextDate) {
+      alert("請填寫「預計下一步開始日期」以利系統進行跟催燈號計算！");
+      if (formProjectNextDate) formProjectNextDate.focus();
+      return;
+    }
+
+    const viewer = getSalesName();
+    const token = localStorage.getItem("google_access_token") || "";
+    const projectName = activeProjectCard.project_name || currentProjectName;
+    const clientName = activeProjectCard.client_name;
+
+    const payload = {
+      action: "add_project_entry",
+      access_token: token,
+      viewer: viewer,
+      project_name: projectName,
+      client_name: clientName,
+      sales_name: activeProjectCard.sales_name || viewer,
+      referral_window: activeProjectCard.referral_window || "",
+      client_window: windowVal,
+      client_dept: deptVal,
+      product: productVal,
+      stage: stage,
+      progress: progress,
+      next_date: nextDate,
+      support_need: supportNeed,
+      notes: notesVal
+    };
+
+    if (!navigator.onLine) {
+      const nowStr = formatTwDateTime(new Date());
+      payload.offline_filled_at = nowStr;
+
+      const q = getProjectOfflineQueue();
+      q.push(payload);
+      saveProjectOfflineQueue(q);
+
+      activeProjectCard.stage = stage;
+      activeProjectCard.progress = progress;
+      activeProjectCard.next_date = nextDate;
+      activeProjectCard.client_window = windowVal;
+      activeProjectCard.client_dept = deptVal;
+      activeProjectCard.product = productVal;
+      activeProjectCard.support_need = supportNeed;
+      activeProjectCard.notes = notesVal;
+      activeProjectCard.updated_at = nowStr;
+      activeProjectCard.lamp = supportNeed ? "⚡" : (isSuccess ? "🟢" : "🟢");
+
+      showToast("📶 離線暫存成功！連線後將自動同步至 Google 試算表", "info");
+      if (projectDetailModal) projectDetailModal.classList.add("hidden");
+      renderProjectCards();
+      updateProjectCounters();
+      return;
+    }
+
+    if (btnSubmitProjectProgress) {
+      btnSubmitProjectProgress.disabled = true;
+      btnSubmitProjectProgress.textContent = "⏳ 儲存中...";
+    }
+
+    try {
+      const res = await fetch(GAS_URL, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain;charset=utf-8" },
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+
+      if (data && data.status === "ok") {
+        showToast(data.msg || "進度已成功儲存！", "success");
+        if (projectDetailModal) projectDetailModal.classList.add("hidden");
+        loadProjectCases(true);
+      } else {
+        throw new Error(data && data.msg ? data.msg : "儲存失敗");
+      }
+    } catch(err) {
+      console.error("[Project] 送出推進進度失敗:", err);
+      alert(`儲存失敗（${err.message || err}），系統已將本次內容轉入本機離線暫存佇列！`);
+      payload.offline_filled_at = formatTwDateTime(new Date());
+      const q = getProjectOfflineQueue();
+      q.push(payload);
+      saveProjectOfflineQueue(q);
+      if (projectDetailModal) projectDetailModal.classList.add("hidden");
+    } finally {
+      if (btnSubmitProjectProgress) {
+        btnSubmitProjectProgress.disabled = false;
+        btnSubmitProjectProgress.textContent = "🚀 儲存並送出進度";
+      }
+    }
+  }
+
+  async function resolveSupportAction() {
+    if (!activeProjectCard) return;
+    if (!confirm(`確定要將客戶「${activeProjectCard.client_name}」之請求支援標記為已處理完成嗎？\n⚡ 燈號將會解除。`)) return;
+
+    const viewer = getSalesName();
+    const token = localStorage.getItem("google_access_token") || "";
+    const projectName = activeProjectCard.project_name || currentProjectName;
+
+    try {
+      const payload = {
+        action: "manager_project_action",
+        action_type: "resolve_support",
+        access_token: token,
+        viewer: viewer,
+        project_name: projectName,
+        client_name: activeProjectCard.client_name
+      };
+
+      const res = await fetch(GAS_URL, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain;charset=utf-8" },
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+
+      if (data && data.status === "ok") {
+        showToast(data.msg || "已標記為處理完成！", "success");
+        if (projectDetailModal) projectDetailModal.classList.add("hidden");
+        loadProjectCases(true);
+      } else {
+        throw new Error(data && data.msg ? data.msg : "操作失敗");
+      }
+    } catch(err) {
+      alert(`操作失敗：${err.message || err}`);
+    }
+  }
+
+  async function changeOwnerAction() {
+    if (!activeProjectCard) return;
+    const currentOwner = activeProjectCard.sales_name || "";
+    const newOwner = prompt(`請輸入「${activeProjectCard.client_name}」之新負責擔當業務姓名：`, currentOwner);
+    if (!newOwner || newOwner.trim() === "" || newOwner.trim() === currentOwner) return;
+
+    const viewer = getSalesName();
+    const token = localStorage.getItem("google_access_token") || "";
+    const projectName = activeProjectCard.project_name || currentProjectName;
+
+    try {
+      const payload = {
+        action: "manager_project_action",
+        action_type: "change_owner",
+        access_token: token,
+        viewer: viewer,
+        project_name: projectName,
+        client_name: activeProjectCard.client_name,
+        new_sales_name: newOwner.trim()
+      };
+
+      const res = await fetch(GAS_URL, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain;charset=utf-8" },
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+
+      if (data && data.status === "ok") {
+        showToast(data.msg || "負責擔當已更換！", "success");
+        if (projectDetailModal) projectDetailModal.classList.add("hidden");
+        loadProjectCases(true);
+      } else {
+        throw new Error(data && data.msg ? data.msg : "更換失敗");
+      }
+    } catch(err) {
+      alert(`更換失敗：${err.message || err}`);
+    }
+  }
+
+  function openManagerAddModal() {
+    if (!projectManagerAddModal) return;
+
+    if (addClientProjectSelect) {
+      addClientProjectSelect.innerHTML = projectNamesList.map(p => `
+        <option value="${escapeHtml(p)}" ${p === currentProjectName ? 'selected' : ''}>${escapeHtml(p)}</option>
+      `).join("");
+    }
+
+    if (addClientSalesSelect) {
+      const list = ACTIVE_SALES_MEMBERS.length ? ACTIVE_SALES_MEMBERS : ALL_SALES_MEMBERS;
+      addClientSalesSelect.innerHTML = list.map(m => `
+        <option value="${escapeHtml(m)}">${escapeHtml(m)}</option>
+      `).join("");
+    }
+
+    if (addClientName) addClientName.value = "";
+    if (addClientReferral) addClientReferral.value = "";
+    if (addClientNotes) addClientNotes.value = "";
+    if (newProjectNameInput) newProjectNameInput.value = "";
+    if (chkBatchAddMode) chkBatchAddMode.checked = false;
+    if (batchClientInputs) batchClientInputs.classList.add("hidden");
+    if (singleClientInputs) singleClientInputs.classList.remove("hidden");
+
+    switchManagerAddTab("client");
+    projectManagerAddModal.classList.remove("hidden");
+  }
+
+  function switchManagerAddTab(mode) {
+    if (btnTabModeAddClient) {
+      btnTabModeAddClient.className = (mode === "client") ? "btn btn-sm btn-primary" : "btn btn-sm btn-secondary";
+      btnTabModeAddClient.style.background = (mode === "client") ? "#ea580c" : "";
+    }
+    if (btnTabModeCreateProject) {
+      btnTabModeCreateProject.className = (mode === "project") ? "btn btn-sm btn-primary" : "btn btn-sm btn-secondary";
+      btnTabModeCreateProject.style.background = (mode === "project") ? "#ea580c" : "";
+    }
+    if (panelAddClient) panelAddClient.classList.toggle("hidden", mode !== "client");
+    if (panelCreateProject) panelCreateProject.classList.toggle("hidden", mode !== "project");
+  }
+
+  async function submitManagerAddClient() {
+    const targetProj = addClientProjectSelect ? addClientProjectSelect.value : "";
+    if (!targetProj) {
+      alert("請選擇目標專案分頁！");
+      return;
+    }
+
+    const viewer = getSalesName();
+    const token = localStorage.getItem("google_access_token") || "";
+    const isBatch = chkBatchAddMode && chkBatchAddMode.checked;
+    let clientsPayload = [];
+
+    if (isBatch) {
+      const rawText = batchClientText ? batchClientText.value.trim() : "";
+      if (!rawText) {
+        alert("請輸入批次客戶名單！");
+        return;
+      }
+      const lines = rawText.split("\n").map(l => l.trim()).filter(Boolean);
+      for (let i = 0; i < lines.length; i++) {
+        const parts = lines[i].split(/[,，\t\s]+/).map(p => p.trim()).filter(Boolean);
+        if (parts.length < 2) {
+          alert(`第 ${i + 1} 行格式不符，至少需包含「客戶名稱(4字), 負責擔當」`);
+          return;
+        }
+        const cName = parts[0];
+        const sName = parts[1];
+        if (cName.length !== 4) {
+          alert(`第 ${i + 1} 行客戶名稱「${cName}」必須剛好四個字！`);
+          return;
+        }
+        clientsPayload.push({
+          client_name: cName,
+          sales_name: sName,
+          referral_window: parts[2] || "",
+          notes: parts.slice(3).join(" ") || ""
+        });
+      }
+    } else {
+      const cName = addClientName ? addClientName.value.trim() : "";
+      const sName = addClientSalesSelect ? addClientSalesSelect.value : "";
+      const ref = addClientReferral ? addClientReferral.value.trim() : "";
+      const nts = addClientNotes ? addClientNotes.value.trim() : "";
+
+      if (!cName) {
+        alert("請輸入客戶名稱！");
+        if (addClientName) addClientName.focus();
+        return;
+      }
+      if (cName.length !== 4) {
+        alert(`客戶名稱「${cName}」必須剛好四個字（例如：景碩科技、欣興電子）！`);
+        if (addClientName) addClientName.focus();
+        return;
+      }
+      clientsPayload.push({
+        client_name: cName,
+        sales_name: sName,
+        referral_window: ref,
+        notes: nts
+      });
+    }
+
+    if (btnSubmitAddClient) {
+      btnSubmitAddClient.disabled = true;
+      btnSubmitAddClient.textContent = "⏳ 指派中...";
+    }
+
+    try {
+      const payload = {
+        action: "manager_project_action",
+        action_type: "add_client",
+        access_token: token,
+        viewer: viewer,
+        project_name: targetProj,
+        clients: clientsPayload
+      };
+
+      const res = await fetch(GAS_URL, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain;charset=utf-8" },
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+
+      if (data && data.status === "ok") {
+        showToast(data.msg || "新客戶已成功指派！", "success");
+        if (projectManagerAddModal) projectManagerAddModal.classList.add("hidden");
+        currentProjectName = targetProj;
+        loadProjectCases(true);
+      } else {
+        throw new Error(data && data.msg ? data.msg : "指派失敗");
+      }
+    } catch(err) {
+      alert(`指派失敗：${err.message || err}`);
+    } finally {
+      if (btnSubmitAddClient) {
+        btnSubmitAddClient.disabled = false;
+        btnSubmitAddClient.textContent = "確定指派客戶";
+      }
+    }
+  }
+
+  async function submitManagerCreateProject() {
+    const rawName = newProjectNameInput ? newProjectNameInput.value.trim() : "";
+    if (!rawName) {
+      alert("請輸入新專案名稱！");
+      if (newProjectNameInput) newProjectNameInput.focus();
+      return;
+    }
+
+    const viewer = getSalesName();
+    const token = localStorage.getItem("google_access_token") || "";
+
+    if (btnSubmitCreateProject) {
+      btnSubmitCreateProject.disabled = true;
+      btnSubmitCreateProject.textContent = "⏳ 建立分頁中...";
+    }
+
+    try {
+      const payload = {
+        action: "manager_project_action",
+        action_type: "create_project",
+        access_token: token,
+        viewer: viewer,
+        project_name: rawName
+      };
+
+      const res = await fetch(GAS_URL, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain;charset=utf-8" },
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+
+      if (data && data.status === "ok") {
+        showToast(data.msg || "新專案分頁建立成功！", "success");
+        if (projectManagerAddModal) projectManagerAddModal.classList.add("hidden");
+        currentProjectName = data.project_name || rawName;
+        loadProjectCases(true);
+      } else {
+        throw new Error(data && data.msg ? data.msg : "建立失敗");
+      }
+    } catch(err) {
+      alert(`建立失敗：${err.message || err}`);
+    } finally {
+      if (btnSubmitCreateProject) {
+        btnSubmitCreateProject.disabled = false;
+        btnSubmitCreateProject.textContent = "🚀 立即建立專案分頁";
+      }
+    }
+  }
+
+  function initProjectTrackingModule() {
+    if (btnOpenProjectTrackingModal) {
+      btnOpenProjectTrackingModal.addEventListener("click", openProjectTrackingModal);
+    }
+    if (btnCloseProjectTrackingModal) {
+      btnCloseProjectTrackingModal.addEventListener("click", () => {
+        if (projectTrackingModal) projectTrackingModal.classList.add("hidden");
+      });
+    }
+    if (btnRefreshProjectCases) {
+      btnRefreshProjectCases.addEventListener("click", () => loadProjectCases(true));
+    }
+    if (projectSalesFilter) {
+      projectSalesFilter.addEventListener("change", () => {
+        updateProjectCounters();
+        renderProjectCards();
+      });
+    }
+    if (projectSearchInput) {
+      projectSearchInput.addEventListener("input", () => {
+        currentProjectSearchKeyword = projectSearchInput.value.trim().toLowerCase();
+        renderProjectCards();
+      });
+    }
+    if (projectLampFilterTabs) {
+      projectLampFilterTabs.querySelectorAll(".btn-filter-tab").forEach(btn => {
+        btn.addEventListener("click", () => {
+          projectLampFilterTabs.querySelectorAll(".btn-filter-tab").forEach(b => b.classList.remove("active"));
+          btn.classList.add("active");
+          currentProjectLampFilter = btn.dataset.lamp || "all";
+          renderProjectCards();
+        });
+      });
+    }
+
+    if (btnCloseProjectDetailModal) {
+      btnCloseProjectDetailModal.addEventListener("click", () => {
+        if (projectDetailModal) projectDetailModal.classList.add("hidden");
+      });
+    }
+    if (btnCancelProjectReport) {
+      btnCancelProjectReport.addEventListener("click", () => {
+        if (projectDetailModal) projectDetailModal.classList.add("hidden");
+      });
+    }
+    if (btnSubmitProjectProgress) {
+      btnSubmitProjectProgress.addEventListener("click", submitProjectProgress);
+    }
+    if (btnDetailResolveSupport) {
+      btnDetailResolveSupport.addEventListener("click", resolveSupportAction);
+    }
+    if (btnDetailChangeOwner) {
+      btnDetailChangeOwner.addEventListener("click", changeOwnerAction);
+    }
+
+    if (btnOpenManagerAddModal) {
+      btnOpenManagerAddModal.addEventListener("click", openManagerAddModal);
+    }
+    if (btnCloseManagerAddModal) {
+      btnCloseManagerAddModal.addEventListener("click", () => {
+        if (projectManagerAddModal) projectManagerAddModal.classList.add("hidden");
+      });
+    }
+    if (btnTabModeAddClient) {
+      btnTabModeAddClient.addEventListener("click", () => switchManagerAddTab("client"));
+    }
+    if (btnTabModeCreateProject) {
+      btnTabModeCreateProject.addEventListener("click", () => switchManagerAddTab("project"));
+    }
+    if (btnCancelAddClient) {
+      btnCancelAddClient.addEventListener("click", () => {
+        if (projectManagerAddModal) projectManagerAddModal.classList.add("hidden");
+      });
+    }
+    if (btnCancelCreateProject) {
+      btnCancelCreateProject.addEventListener("click", () => {
+        if (projectManagerAddModal) projectManagerAddModal.classList.add("hidden");
+      });
+    }
+    if (btnSubmitAddClient) {
+      btnSubmitAddClient.addEventListener("click", submitManagerAddClient);
+    }
+    if (btnSubmitCreateProject) {
+      btnSubmitCreateProject.addEventListener("click", submitManagerCreateProject);
+    }
+    if (chkBatchAddMode) {
+      chkBatchAddMode.addEventListener("change", () => {
+        const isBatch = chkBatchAddMode.checked;
+        if (batchClientInputs) batchClientInputs.classList.toggle("hidden", !isBatch);
+        if (singleClientInputs) singleClientInputs.classList.toggle("hidden", isBatch);
+      });
+    }
+  }
+
+  // 🚀 執行案件追蹤 (KPI) 模組與重點專案攻堅模組初始化
   initCaseTrackingModule();
+  initProjectTrackingModule();
   loadSalesRepKnownClients(getSalesName());
 
 }); // end DOMContentLoaded

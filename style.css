@@ -3070,4 +3070,239 @@ input:focus {
   margin-left: 2px;
 }
 
+/* ====================================================
+   🔥 重點專案攻堅模組專屬樣式 (自適應雙版面與現代視覺)
+   ==================================================== */
+
+.project-modal-wide {
+  width: 95vw;
+  max-width: 980px !important;
+}
+
+.project-detail-modal-wide {
+  width: 95vw;
+  max-width: 760px !important;
+}
+
+/* 專案分頁導覽標籤 */
+.project-tabs-nav::-webkit-scrollbar {
+  height: 4px;
+}
+.project-tabs-nav::-webkit-scrollbar-thumb {
+  background: #fed7aa;
+  border-radius: 4px;
+}
+
+.project-tab-btn {
+  font-size: 0.85rem;
+  font-weight: 600;
+  padding: 6px 14px;
+  border-radius: 20px;
+  background: #f8fafc;
+  color: #64748b;
+  border: 1px solid #cbd5e1;
+  cursor: pointer;
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.2s ease;
+}
+
+.project-tab-btn:hover {
+  background: #ffedd5;
+  color: #ea580c;
+  border-color: #fdba74;
+}
+
+.project-tab-btn.active {
+  background: #ea580c !important;
+  color: #ffffff !important;
+  border-color: #c2410c !important;
+  box-shadow: 0 2px 4px rgba(234, 88, 12, 0.3);
+}
+
+.project-tab-badge {
+  font-size: 0.7rem;
+  padding: 1px 6px;
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.08);
+  font-weight: 700;
+}
+.project-tab-btn.active .project-tab-badge {
+  background: rgba(255, 255, 255, 0.25);
+  color: #ffffff;
+}
+
+/* 卡片排版：手機單欄，電腦平板多欄響應式網格 */
+.project-cards-container {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+  align-content: start;
+}
+
+@media (min-width: 768px) {
+  .project-cards-container {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+  }
+}
+
+@media (min-width: 1200px) {
+  .project-cards-container {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+/* 專案客戶卡片 */
+.project-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 12px 14px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  border-left: 5px solid #cbd5e1;
+}
+
+.project-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 12px -2px rgba(0, 0, 0, 0.08);
+  border-color: #fdba74;
+}
+
+/* 燈號邊框醒目提示 */
+.project-card.lamp-support {
+  border-left-color: #eab308;
+  background: #fffdf5;
+}
+.project-card.lamp-unfiled {
+  border-left-color: #3b82f6;
+  background: #f8fbff;
+}
+.project-card.lamp-red {
+  border-left-color: #ef4444;
+  background: #fff8f8;
+}
+.project-card.lamp-green {
+  border-left-color: #10b981;
+}
+
+.project-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.project-card-title {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #0f172a;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.project-card-sales {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #475569;
+  background: #f1f5f9;
+  padding: 2px 8px;
+  border-radius: 12px;
+}
+
+.project-card-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 6px;
+  font-size: 0.78rem;
+}
+
+.project-card-stage {
+  font-weight: 700;
+  color: #ea580c;
+  background: #fff7ed;
+  border: 1px solid #ffedd5;
+  padding: 1px 6px;
+  border-radius: 4px;
+}
+
+.project-card-product {
+  color: #475569;
+  background: #f1f5f9;
+  padding: 1px 6px;
+  border-radius: 4px;
+}
+
+.project-card-progress {
+  font-size: 0.82rem;
+  color: #334155;
+  background: #f8fafc;
+  border-radius: 6px;
+  padding: 6px 8px;
+  margin-bottom: 8px;
+  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.project-card-support-callout {
+  font-size: 0.78rem;
+  color: #854d0e;
+  background: #fef9c3;
+  border: 1px solid #fef08a;
+  border-radius: 4px;
+  padding: 4px 6px;
+  margin-bottom: 6px;
+  font-weight: 600;
+}
+
+.project-card-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.75rem;
+  color: #94a3b8;
+  margin-top: auto;
+  padding-top: 6px;
+  border-top: 1px dashed #f1f5f9;
+}
+
+/* 時間軸節點樣式 */
+.timeline-item {
+  position: relative;
+  padding-bottom: 8px;
+}
+
+.timeline-dot {
+  position: absolute;
+  left: -20px;
+  top: 3px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #ea580c;
+  border: 2px solid #ffffff;
+  box-shadow: 0 0 0 2px #fed7aa;
+}
+
+.timeline-card {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  padding: 8px 10px;
+  font-size: 0.8rem;
+}
+
+
 
