@@ -401,6 +401,23 @@ document.addEventListener("DOMContentLoaded", () => {
   // 🚀 背景循序佇列同步管理器 (SyncQueueManager)
   // 實作「當季優先秒開 + 歷史季度背景排程 + 手動全部下載」
   // ====================================================
+  function updateSyncAllButtonState(isLatest) {
+    const btn = document.getElementById("btnSyncAllHistory");
+    if (!btn) return;
+    if (isLatest) {
+      btn.disabled = true;
+      btn.classList.add("disabled");
+      btn.textContent = "✅ 已是最新";
+      btn.title = "所有季度離線資料與雲端一致，已是最新狀態，無需重複下載";
+    } else {
+      btn.disabled = false;
+      btn.classList.remove("disabled");
+      btn.textContent = "🔄 完整離線";
+      btn.title = "下載歷史季度離線包";
+    }
+  }
+  window.updateSyncAllButtonState = updateSyncAllButtonState;
+
   const SyncQueueManager = {
     isSyncing: false,
     queue: [],
@@ -429,10 +446,12 @@ document.addEventListener("DOMContentLoaded", () => {
               const hasLocal = await QuarterCacheManager.getBundle(year, quarter);
               if (hasLocal && lastFp === statusData.fingerprint) {
                 console.log("[SyncQueue] 雲端試算表無資料異動，直接沿用本機快取");
+                updateSyncAllButtonState(true);
                 this.scheduleOlderQuarters();
                 return hasLocal;
               }
               localStorage.setItem("last_sheets_fingerprint", statusData.fingerprint);
+              updateSyncAllButtonState(false);
             }
           }
         } catch(e) {
@@ -549,6 +568,7 @@ document.addEventListener("DOMContentLoaded", () => {
       }
 
       showToast(`✅ 完成！已下載 ${successCount} 個季度的離線全功能資料包`, "success");
+      updateSyncAllButtonState(true);
       loadOgsmMonthly(ogsmCurrentYear, ogsmCurrentMonth);
     }
   };
@@ -4019,7 +4039,12 @@ document.addEventListener("DOMContentLoaded", () => {
 
   const btnSyncAllHistory = document.getElementById("btnSyncAllHistory");
   if (btnSyncAllHistory) {
+    const currentFp = localStorage.getItem("last_sheets_fingerprint");
+    if (currentFp) {
+      updateSyncAllButtonState(true);
+    }
     btnSyncAllHistory.addEventListener("click", () => {
+      if (btnSyncAllHistory.disabled) return;
       SyncQueueManager.syncAllHistoryInteractive();
     });
   }
@@ -9809,14 +9834,31 @@ document.addEventListener("DOMContentLoaded", () => {
       return;
     }
 
-    // 🚀 2. 若母池暫空，第一優先自本地 IndexedDB 季度全案清單載入母池 (0ms 極速秒開)
+    // 🚀 2. 若母池暫空，第一優先自 localStorage 快取秒開 (0ms 極速無延遲，如同久未聯繫客戶)
     if (!forceRefresh) {
+      try {
+        const localCached = localStorage.getItem("kpi_master_cases_cache");
+        if (localCached) {
+          const parsed = JSON.parse(localCached);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            kpiMasterCasesPool = parsed;
+            filterKpiCasesBySelectedSales();
+            console.log(`[KPI 母池] 已自 localStorage 快取秒開全案大總冊共 ${parsed.length} 筆！`);
+            fetchKpiCasesInBackground();
+            return;
+          }
+        }
+      } catch (e) {}
+
+      // 🚀 3. 若 localStorage 無資料，再自 IndexedDB 季度全案清單載入母池
       try {
         const localCases = await QuarterCacheManager.getLatestKpiCases();
         if (Array.isArray(localCases) && localCases.length > 0) {
           kpiMasterCasesPool = localCases;
+          localStorage.setItem("kpi_master_cases_cache", JSON.stringify(localCases));
           filterKpiCasesBySelectedSales();
           console.log(`[KPI 母池] 已自 IndexedDB 秒開全案大總冊共 ${localCases.length} 筆！`);
+          fetchKpiCasesInBackground();
           return;
         }
       } catch (err) {
@@ -9846,6 +9888,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
       if (data && data.status === "ok" && Array.isArray(data.cases)) {
         kpiMasterCasesPool = data.cases;
+        localStorage.setItem("kpi_master_cases_cache", JSON.stringify(data.cases));
         filterKpiCasesBySelectedSales();
         console.log(`[KPI 母池] 已自雲端更新全案大總冊共 ${kpiMasterCasesPool.length} 筆！`);
       } else {
@@ -9864,6 +9907,32 @@ document.addEventListener("DOMContentLoaded", () => {
         showToast("⚠️ 雲端資料同步中斷，目前顯示離線快取", "warning");
       }
     }
+  }
+
+  function fetchKpiCasesInBackground() {
+    setTimeout(async () => {
+      try {
+        const viewer = getSalesName();
+        const allowed = (cachedViewPermissions && cachedViewPermissions[viewer]) ? cachedViewPermissions[viewer] : [viewer];
+        const isTopMgr = ["曾維崧", "張何達", "曾仁君"].some(m => viewer.includes(m) || m.includes(viewer));
+        const fetchTargetSales = isTopMgr ? "全體業務" : (allowed.length > 1 ? "授權業務總覽" : viewer);
+        const params = new URLSearchParams({
+          action: "get_kpi_cases",
+          viewer: viewer,
+          target_sales: fetchTargetSales,
+          filter_type: "all"
+        });
+        const res = await fetch(`${GAS_URL}?${params.toString()}`);
+        if (!res.ok) return;
+        const data = await res.json();
+        if (data && data.status === "ok" && Array.isArray(data.cases)) {
+          kpiMasterCasesPool = data.cases;
+          localStorage.setItem("kpi_master_cases_cache", JSON.stringify(data.cases));
+          filterKpiCasesBySelectedSales();
+          console.log(`[KPI 母池] 背景靜默更新案件追蹤成功，共 ${data.cases.length} 筆！`);
+        }
+      } catch(e) {}
+    }, 600);
   }
 
   // 6. 更新計數標籤 (已出貨者移出常態看板，歸入歷史封存)
@@ -10778,6 +10847,7 @@ document.addEventListener("DOMContentLoaded", () => {
   async function loadProjectCases(forceRefresh = false) {
     if (!projectCardsContainer) return;
 
+    let hasLoadedFromCache = false;
     if (!forceRefresh) {
       try {
         const cachedStr = localStorage.getItem("project_cache_data");
@@ -10792,14 +10862,21 @@ document.addEventListener("DOMContentLoaded", () => {
             renderProjectTabs();
             renderProjectCards();
             updateProjectCounters();
-            console.log(`[Project] 已自本地快取載入重點專案共 ${projectNamesList.length} 個分頁！`);
+            hasLoadedFromCache = true;
+            console.log(`[Project] 已自本地快取秒開重點專案共 ${projectNamesList.length} 個分頁！`);
           }
         }
       } catch(e) {}
     }
 
-    if (Object.keys(projectDataStore).length === 0) {
-      projectCardsContainer.innerHTML = '<div style="text-align:center; padding:30px; color:#94a3b8; grid-column:1/-1;">⏳ 正在向雲端讀取重點專案清單...</div>';
+    // 🚀 若非強制重新整理且本地已有快取資料，直接秒開結束，背景靜默更新 (Stale-While-Revalidate，如同久未聯繫客戶)
+    if (!forceRefresh && hasLoadedFromCache) {
+      fetchProjectCasesInBackground();
+      return;
+    }
+
+    if (!hasLoadedFromCache && Object.keys(projectDataStore).length === 0) {
+      projectCardsContainer.innerHTML = '<div style="text-align:center; padding:35px 20px; color:#94a3b8; grid-column:1/-1;">⏳ 正在連線下載重點專案清單...</div>';
     }
 
     const viewer = getSalesName();
@@ -10812,6 +10889,7 @@ document.addEventListener("DOMContentLoaded", () => {
         access_token: token
       });
       const res = await fetch(`${GAS_URL}?${params.toString()}`);
+      if (!res.ok) throw new Error("HTTP " + res.status);
       const data = await res.json();
 
       if (data && data.status === "ok") {
@@ -10830,23 +10908,64 @@ document.addEventListener("DOMContentLoaded", () => {
         renderProjectTabs();
         updateProjectCounters();
         renderProjectCards();
+        updateProjectOfflineBadge();
         console.log(`[Project] 雲端更新重點專案成功，共有 ${projectNamesList.length} 個專案分頁`);
       } else {
-        throw new Error(data && data.msg ? data.msg : "載入失敗");
+        throw new Error(data && data.msg ? data.msg : "雲端資料格式錯誤");
       }
     } catch(err) {
       console.warn("[Project] 雲端讀取異常:", err);
-      if (Object.keys(projectDataStore).length === 0) {
+      // 🚀 關鍵防護：若本地已有快取資料，絕對保留畫面，絕不替換成紅字錯誤！
+      if (Object.keys(projectDataStore).length > 0) {
+        if (projectOfflineBadge) projectOfflineBadge.classList.remove("hidden");
+        if (forceRefresh) {
+          showToast("⚠️ 雲端連線中斷，目前維持顯示本機快取資料", "warning");
+        }
+      } else {
         projectCardsContainer.innerHTML = `
-          <div style="text-align:center; padding:30px; color:#ef4444; grid-column:1/-1;">
-            ⚠️ 載入專案失敗：${escapeHtml(err.message || String(err))}<br>
-            <button type="button" class="btn btn-secondary btn-sm" onclick="loadProjectCases(true)" style="margin-top:10px;">重新載入</button>
+          <div style="text-align:center; padding:35px 20px; color:#ef4444; grid-column:1/-1;">
+            <div style="font-size:1.8rem; margin-bottom:8px;">⚠️</div>
+            <strong>專案資料連線逾時</strong><br>
+            <span style="font-size:0.8rem; color:#64748b; margin-top:4px; display:inline-block;">
+              請確認手機已連線至 Wi-Fi 或網際網路，或本機測試伺服器已開啟。
+            </span><br>
+            <button type="button" class="btn btn-secondary btn-sm" onclick="loadProjectCases(true)" style="margin-top:12px; font-weight:600;">🔄 重新載入</button>
           </div>
         `;
-      } else {
-        showToast("⚠️ 雲端專案連線中斷，目前顯示離線快取", "warning");
       }
     }
+  }
+
+  function fetchProjectCasesInBackground() {
+    setTimeout(async () => {
+      try {
+        const viewer = getSalesName();
+        const token = localStorage.getItem("google_access_token") || "";
+        const params = new URLSearchParams({
+          action: "get_project_cases",
+          viewer: viewer,
+          access_token: token
+        });
+        const res = await fetch(`${GAS_URL}?${params.toString()}`);
+        if (!res.ok) return;
+        const data = await res.json();
+        if (data && data.status === "ok") {
+          projectDataStore = data.data || {};
+          projectNamesList = data.projects || [];
+          localStorage.setItem("project_cache_data", JSON.stringify({
+            data: projectDataStore,
+            projects: projectNamesList,
+            timestamp: Date.now()
+          }));
+          renderProjectTabs();
+          updateProjectCounters();
+          renderProjectCards();
+          console.log("[Project] 背景靜默更新重點專案完成！");
+        }
+      } catch(e) {
+        console.log("[Project] 背景靜默同步略過（無網路或離線）");
+      }
+    }, 400);
   }
 
   function renderProjectTabs() {
@@ -11587,10 +11706,19 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
+  // 🚀 全域匯出供 HTML 內聯事件呼叫
+  window.loadProjectCases = loadProjectCases;
+
   // 🚀 執行案件追蹤 (KPI) 模組與重點專案攻堅模組初始化
   initCaseTrackingModule();
   initProjectTrackingModule();
   loadSalesRepKnownClients(getSalesName());
+
+  // 🚀 初次背景靜默預載：確保在使用者點選「重點專案」與「案件追蹤」前，本地快取已就緒，達到 0ms 秒開
+  setTimeout(() => {
+    fetchProjectCasesInBackground();
+    fetchKpiCasesInBackground();
+  }, 1000);
 
 }); // end DOMContentLoaded
 

@@ -3304,5 +3304,183 @@ input:focus {
   font-size: 0.8rem;
 }
 
+/* ====================================================
+   📱 手機端 6 個按鈕無圖示精簡排版
+   ==================================================== */
+.ogsm-tool-btn {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  min-height: 44px !important;
+  padding: 4px 2px !important;
+  text-align: center !important;
+  border-radius: 6px !important;
+  box-sizing: border-box !important;
+}
+
+.ogsm-tool-btn .btn-main-label {
+  font-size: 0.82rem;
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: -0.3px;
+  white-space: nowrap;
+}
+
+.ogsm-tool-btn .btn-sub-badge {
+  font-size: 0.7rem !important;
+  font-weight: 700 !important;
+  line-height: 1.1 !important;
+  margin-top: 2px !important;
+  padding: 1px 6px !important;
+  border-radius: 10px !important;
+  box-shadow: none !important;
+  display: inline-block !important;
+  white-space: nowrap !important;
+  color: #ffffff !important;
+}
+
+.ogsm-tool-btn #followUpBadge {
+  background: #e11d48 !important;
+  color: #ffffff !important;
+}
+
+.ogsm-tool-btn #reviewBadge {
+  background: #7c3aed !important;
+  color: #ffffff !important;
+}
+
+/* 完整離線按鈕反白 (disabled) 樣式 */
+.btn-today:disabled, .btn-today.disabled {
+  opacity: 0.55 !important;
+  cursor: not-allowed !important;
+  background: #e2e8f0 !important;
+  color: #94a3b8 !important;
+  border-color: #cbd5e1 !important;
+  box-shadow: none !important;
+  pointer-events: none !important;
+}
+
+/* ====================================================
+   🔥 重點專案手機版三列式工具列與橫向滑動晶片列
+   ==================================================== */
+.project-toolbar-box {
+  background: #fffaf5;
+  border: 1px solid #ffedd5;
+  border-radius: 8px;
+  padding: 8px 10px;
+  margin-bottom: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.project-toolbar-row-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+}
+
+.project-sales-picker {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: 1;
+  min-width: 0;
+}
+
+.project-btn-add {
+  white-space: nowrap !important;
+  flex-shrink: 0 !important;
+  font-size: 0.78rem !important;
+  padding: 5px 10px !important;
+  background: #ea580c !important;
+  border-color: #c2410c !important;
+  border-radius: 6px !important;
+  font-weight: 600 !important;
+}
+
+.project-toolbar-row-search {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+}
+
+.project-lamp-scroll-container {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  overflow: hidden;
+}
+
+.project-lamp-filter-tabs {
+  display: flex;
+  gap: 4px;
+  overflow-x: auto;
+  white-space: nowrap;
+  padding: 2px 0;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  flex: 1;
+}
+
+.project-lamp-filter-tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.project-summary-text {
+  font-size: 0.75rem;
+  color: #78350f;
+  font-weight: 700;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.tab-lamp-support {
+  background: #fef08a !important;
+  color: #854d0e !important;
+  border-color: #fde047 !important;
+}
+
+.tab-lamp-unfiled {
+  background: #eff6ff !important;
+  color: #1d4ed8 !important;
+  border-color: #bfdbfe !important;
+}
+
+.tab-lamp-red {
+  background: #fee2e2 !important;
+  color: #b91c1c !important;
+  border-color: #fca5a5 !important;
+}
+
+.tab-lamp-green {
+  background: #ecfdf5 !important;
+  color: #047857 !important;
+  border-color: #a7f3d0 !important;
+}
+
+@media (max-width: 600px) {
+  .project-modal-wide {
+    padding: 0.75rem 0.6rem !important;
+    width: 96vw !important;
+    max-width: 96vw !important;
+  }
+  .project-card {
+    padding: 10px 12px;
+    border-radius: 8px;
+  }
+  .project-card-title {
+    font-size: 0.98rem;
+  }
+}
+
+
 
 

@@ -15,7 +15,7 @@
   
   <!-- Google Fonts: Inter -->
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=2.00">
+  <link rel="stylesheet" href="style.css?v=2.02">
   <style>
     .custom-delivery-box { display: flex !important; gap: 8px !important; align-items: center !important; }
     .custom-delivery-box .search-input { flex: 1 !important; margin-bottom: 0 !important; }
@@ -264,27 +264,29 @@
         <button type="button" id="btnNextMonth" class="btn-cal-nav" title="下個月">▶</button>
       </div>
 
-      <!-- 日報與商機跟催工具列 (依指示排列為 2 列 × 3 鍵) -->
+      <!-- 日報與商機跟催工具列 (依指示排列為 2 列 × 3 鍵，無圖示精簡排版) -->
       <div class="ogsm-tools-bar" style="display:grid; grid-template-columns:repeat(3, 1fr); gap:6px; margin-bottom:10px;">
         <!-- 第 1 列 -->
-        <button type="button" id="btnOpenProjectTrackingModal" class="btn btn-secondary btn-sm" style="font-size:0.8rem; font-weight:600; padding:6px 2px; display:flex; align-items:center; justify-content:center; gap:3px; border-radius:6px; background:#fff7ed; color:#c2410c; border:1px solid #fed7aa;" title="重點專案攻堅進度追蹤看板">
-          🔥 重點專案攻堅
+        <button type="button" id="btnOpenProjectTrackingModal" class="btn btn-secondary btn-sm ogsm-tool-btn" style="font-size:0.82rem; font-weight:600; padding:6px 2px; min-height:44px; display:flex; flex-direction:column; align-items:center; justify-content:center; border-radius:6px; background:#fff7ed; color:#c2410c; border:1px solid #fed7aa;" title="重點專案進度追蹤看板">
+          <span class="btn-main-label">重點專案</span>
         </button>
-        <button type="button" id="btnOpenCaseTrackingModal" class="btn btn-secondary btn-sm" style="font-size:0.8rem; font-weight:600; padding:6px 2px; display:flex; align-items:center; justify-content:center; gap:3px; border-radius:6px; background:#faf5ff; color:#7c3aed; border:1px solid #e9d5ff;" title="案件追蹤 (KPI) 管理看板">
-          🎯 案件追蹤
+        <button type="button" id="btnOpenCaseTrackingModal" class="btn btn-secondary btn-sm ogsm-tool-btn" style="font-size:0.82rem; font-weight:600; padding:6px 2px; min-height:44px; display:flex; flex-direction:column; align-items:center; justify-content:center; border-radius:6px; background:#faf5ff; color:#7c3aed; border:1px solid #e9d5ff;" title="案件追蹤 (KPI) 管理看板">
+          <span class="btn-main-label">案件追蹤</span>
         </button>
-        <button type="button" id="btnOpenOgsmMonthlyReportModal" class="btn btn-secondary btn-sm" style="font-size:0.8rem; font-weight:600; padding:6px 2px; display:flex; align-items:center; justify-content:center; gap:3px; border-radius:6px; background:#eff6ff; color:#1d4ed8; border:1px solid #bfdbfe;" title="OGSM 日報總覽與匯出">
-          📋 OGSM 日報
+        <button type="button" id="btnOpenOgsmMonthlyReportModal" class="btn btn-secondary btn-sm ogsm-tool-btn" style="font-size:0.82rem; font-weight:600; padding:6px 2px; min-height:44px; display:flex; flex-direction:column; align-items:center; justify-content:center; border-radius:6px; background:#eff6ff; color:#1d4ed8; border:1px solid #bfdbfe;" title="OGSM 日報總覽與匯出">
+          <span class="btn-main-label">OGSM 日報</span>
         </button>
         <!-- 第 2 列 -->
-        <button type="button" id="btnOpenFollowUpModal" class="btn btn-secondary btn-sm" style="font-size:0.8rem; font-weight:600; padding:6px 2px; display:flex; align-items:center; justify-content:center; gap:3px; border-radius:6px; background:#fff1f2; color:#be123c; border:1px solid #fecdd3; position:relative;" title="久未聯繫客戶清單">
-          🚨 久未聯繫客戶 <span id="followUpBadge" class="badge-count hidden">0</span>
+        <button type="button" id="btnOpenFollowUpModal" class="btn btn-secondary btn-sm ogsm-tool-btn" style="font-size:0.82rem; font-weight:600; padding:4px 2px; min-height:44px; display:flex; flex-direction:column; align-items:center; justify-content:center; border-radius:6px; background:#fff1f2; color:#be123c; border:1px solid #fecdd3;" title="久未聯繫客戶清單">
+          <span class="btn-main-label">久未聯繫</span>
+          <span id="followUpBadge" class="btn-sub-badge hidden">0</span>
         </button>
-        <button type="button" id="btnOpenReviewModal" class="btn btn-secondary btn-sm" style="font-size:0.8rem; font-weight:600; padding:6px 2px; display:flex; align-items:center; justify-content:center; gap:3px; border-radius:6px; background:#f5f3ff; color:#6d28d9; border:1px solid #ddd6fe; position:relative;" title="停止跟催審查專區">
-          🔄 停止跟催審查 <span id="reviewBadge" class="badge-count hidden">0</span>
+        <button type="button" id="btnOpenReviewModal" class="btn btn-secondary btn-sm ogsm-tool-btn" style="font-size:0.82rem; font-weight:600; padding:4px 2px; min-height:44px; display:flex; flex-direction:column; align-items:center; justify-content:center; border-radius:6px; background:#f5f3ff; color:#6d28d9; border:1px solid #ddd6fe;" title="不運作審查專區">
+          <span class="btn-main-label">不運作審查</span>
+          <span id="reviewBadge" class="btn-sub-badge hidden">0</span>
         </button>
-        <button type="button" id="btnOpenMonthlyReportModal" class="btn btn-secondary btn-sm" style="font-size:0.8rem; font-weight:600; padding:6px 2px; display:flex; align-items:center; justify-content:center; gap:3px; border-radius:6px; background:#ecfdf5; color:#047857; border:1px solid #a7f3d0;" title="CRM 商機訊息與月報">
-          📊 CRM 商機
+        <button type="button" id="btnOpenMonthlyReportModal" class="btn btn-secondary btn-sm ogsm-tool-btn" style="font-size:0.82rem; font-weight:600; padding:6px 2px; min-height:44px; display:flex; flex-direction:column; align-items:center; justify-content:center; border-radius:6px; background:#ecfdf5; color:#047857; border:1px solid #a7f3d0;" title="CRM 商機訊息與月報">
+          <span class="btn-main-label">CRM 商機</span>
         </button>
       </div>
 
@@ -1907,16 +1909,16 @@
     </div>
   </div>
 
-  <!-- 🔥 [新增 23] 重點專案攻堅管理看板對話框 (Modal) -->
+  <!-- 🔥 [新增 23] 重點專案管理看板對話框 (Modal) -->
   <div id="projectTrackingModal" class="modal hidden">
-    <div class="modal-content project-modal-wide" style="max-height:92vh; max-height:92dvh; display:flex; flex-direction:column; padding:1.25rem;">
-      <div class="modal-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.75rem; flex-shrink:0;">
+    <div class="modal-content project-modal-wide" style="max-height:92vh; max-height:92dvh; display:flex; flex-direction:column;">
+      <div class="modal-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.5rem; flex-shrink:0;">
         <div>
-          <h3 style="margin:0; font-size:1.25rem; color:#c2410c; display:flex; align-items:center; gap:8px;">
-            🔥 重點專案攻堅看板
-            <span id="projectOfflineBadge" class="hidden" style="font-size:0.72rem; background:#fee2e2; color:#b91c1c; padding:2px 8px; border-radius:12px; font-weight:600;">離線暫存模式</span>
+          <h3 style="margin:0; font-size:1.15rem; color:#c2410c; display:flex; align-items:center; gap:6px;">
+            重點專案看板
+            <span id="projectOfflineBadge" class="hidden" style="font-size:0.7rem; background:#fee2e2; color:#b91c1c; padding:2px 7px; border-radius:10px; font-weight:600;">離線暫存</span>
           </h3>
-          <p style="margin:2px 0 0 0; font-size:0.8rem; color:#64748b;">
+          <p style="margin:2px 0 0 0; font-size:0.76rem; color:#64748b;">
             追蹤各專案客戶推進進度、跟催燈號與主管跨部門支援
           </p>
         </div>
@@ -1924,39 +1926,41 @@
       </div>
 
       <!-- 專案動態標籤切換列 (Tab) -->
-      <div id="projectTabsNav" class="project-tabs-nav" style="display:flex; gap:6px; overflow-x:auto; padding-bottom:6px; margin-bottom:8px; flex-shrink:0; border-bottom:1px solid #fed7aa;">
+      <div id="projectTabsNav" class="project-tabs-nav" style="display:flex; gap:6px; overflow-x:auto; padding-bottom:4px; margin-bottom:6px; flex-shrink:0; border-bottom:1px solid #fed7aa;">
         <!-- 由 JS 動態生成專案分頁標籤 -->
       </div>
 
-      <!-- 主管與篩選工具列 -->
-      <div style="background:#fffaf5; border:1px solid #ffedd5; border-radius:8px; padding:10px 12px; margin-bottom:10px; display:flex; flex-direction:column; gap:8px; flex-shrink:0;">
-        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
-          <!-- 責任業務篩選 -->
-          <div style="display:flex; align-items:center; gap:6px;">
-            <label for="projectSalesFilter" style="font-size:0.82rem; font-weight:600; color:#431407; margin-bottom:0;">負責擔當：</label>
-            <select id="projectSalesFilter" class="search-input" style="font-size:0.85rem; padding:4px 8px; margin-bottom:0; width:130px; background:#ffffff;">
+      <!-- 主管與篩選工具列 (專屬響應式三列式排版) -->
+      <div class="project-toolbar-box">
+        <!-- 第 1 列：責任業務篩選 + 主管新增按鈕 -->
+        <div class="project-toolbar-row-top">
+          <div class="project-sales-picker">
+            <label for="projectSalesFilter" style="font-size:0.8rem; font-weight:700; color:#431407; white-space:nowrap;">負責擔當：</label>
+            <select id="projectSalesFilter" class="search-input" style="font-size:0.84rem; padding:4px 6px; margin-bottom:0; width:100%; max-width:160px; background:#ffffff;">
               <!-- 動態載入 -->
             </select>
           </div>
-
-          <!-- 搜尋與主管專案提供按鈕 -->
-          <div style="display:flex; align-items:center; gap:8px; flex-grow:1; justify-content:flex-end;">
-            <input type="text" id="projectSearchInput" class="search-input" placeholder="🔍 搜尋客戶/進度/窗口..." style="font-size:0.82rem; padding:4px 8px; margin-bottom:0; max-width:200px;">
-            <button type="button" id="btnRefreshProjectCases" class="btn btn-secondary btn-sm" style="font-size:0.8rem; padding:5px 10px;" title="重新整理雲端進度">🔄 重新整理</button>
-            <button type="button" id="btnOpenManagerAddModal" class="btn btn-primary btn-sm hidden" style="font-size:0.8rem; padding:5px 12px; background:#ea580c; border-color:#c2410c; display:flex; align-items:center; gap:4px;">
-              ➕ 新客戶/新專案提供
-            </button>
-          </div>
+          <button type="button" id="btnOpenManagerAddModal" class="btn btn-primary btn-sm hidden project-btn-add" title="主管新增專案或指派客戶">
+            ➕ 新增專案/客戶
+          </button>
         </div>
 
-        <!-- 燈號快速篩選標籤 (Chips) -->
-        <div id="projectLampFilterTabs" style="display:flex; gap:6px; flex-wrap:wrap; align-items:center;">
-          <button type="button" class="btn-filter-tab active" data-lamp="all" style="font-size:0.78rem; padding:3px 10px;">全部 (<span id="projectCountAll">0</span>)</button>
-          <button type="button" class="btn-filter-tab" data-lamp="support" style="font-size:0.78rem; padding:3px 10px; background:#fef08a; color:#854d0e; border-color:#fde047;">⚡ 請求支援 (<span id="projectCountSupport">0</span>)</button>
-          <button type="button" class="btn-filter-tab" data-lamp="unfiled" style="font-size:0.78rem; padding:3px 10px; background:#eff6ff; color:#1d4ed8; border-color:#bfdbfe;">🆕 待初訪 (<span id="projectCountUnfiled">0</span>)</button>
-          <button type="button" class="btn-filter-tab" data-lamp="red" style="font-size:0.78rem; padding:3px 10px; background:#fee2e2; color:#b91c1c; border-color:#fca5a5;">🔴 逾期異常 (<span id="projectCountRed">0</span>)</button>
-          <button type="button" class="btn-filter-tab" data-lamp="green" style="font-size:0.78rem; padding:3px 10px; background:#ecfdf5; color:#047857; border-color:#a7f3d0;">🟢 正常推進 (<span id="projectCountGreen">0</span>)</button>
-          <span id="projectSummaryText" style="font-size:0.78rem; color:#78350f; margin-left:auto; font-weight:600;"></span>
+        <!-- 第 2 列：關鍵字搜尋 + 重新整理 -->
+        <div class="project-toolbar-row-search">
+          <input type="text" id="projectSearchInput" class="search-input" placeholder="🔍 搜尋客戶/進度/窗口..." style="font-size:0.82rem; padding:5px 8px; margin-bottom:0; flex:1; min-width:0;">
+          <button type="button" id="btnRefreshProjectCases" class="btn btn-secondary btn-sm" style="font-size:0.8rem; padding:5px 10px; white-space:nowrap; flex-shrink:0;" title="重新整理雲端進度">🔄 重新整理</button>
+        </div>
+
+        <!-- 第 3 列：燈號快速篩選標籤 (橫向平滑滾動列) -->
+        <div class="project-lamp-scroll-container">
+          <div id="projectLampFilterTabs" class="project-lamp-filter-tabs">
+            <button type="button" class="btn-filter-tab active" data-lamp="all">全部 (<span id="projectCountAll">0</span>)</button>
+            <button type="button" class="btn-filter-tab tab-lamp-support" data-lamp="support">⚡ 支援 (<span id="projectCountSupport">0</span>)</button>
+            <button type="button" class="btn-filter-tab tab-lamp-unfiled" data-lamp="unfiled">🆕 待訪 (<span id="projectCountUnfiled">0</span>)</button>
+            <button type="button" class="btn-filter-tab tab-lamp-red" data-lamp="red">🔴 逾期 (<span id="projectCountRed">0</span>)</button>
+            <button type="button" class="btn-filter-tab tab-lamp-green" data-lamp="green">🟢 正常 (<span id="projectCountGreen">0</span>)</button>
+          </div>
+          <span id="projectSummaryText" class="project-summary-text"></span>
         </div>
       </div>
 
@@ -2190,8 +2194,8 @@
   </div>
 
   <!-- 🚀 畫面右下角簡潔版本訊息 (字體小、不佔用頂部空間) -->
-  <div class="app-version-bottom-right" id="appVersionInfo">v 2.01</div>
+  <div class="app-version-bottom-right" id="appVersionInfo">v 2.02</div>
 
-  <script src="app.js?v=2.01"></script>
+  <script src="app.js?v=2.02"></script>
 </body>
 </html>
