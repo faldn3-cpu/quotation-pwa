@@ -15,7 +15,7 @@
   
   <!-- Google Fonts: Inter -->
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=2.02">
+  <link rel="stylesheet" href="style.css?v=2.03">
   <style>
     .custom-delivery-box { display: flex !important; gap: 8px !important; align-items: center !important; }
     .custom-delivery-box .search-input { flex: 1 !important; margin-bottom: 0 !important; }
@@ -1312,15 +1312,24 @@
 
   <!-- 🚨 [新增 1] 客戶拜訪跟催清單對話框 (Modal) -->
   <div id="followUpModal" class="modal hidden">
-    <div class="modal-content" style="max-height:90vh; max-height:90dvh; display:flex; flex-direction:column; padding:1.25rem; max-width:680px;">
+    <div class="modal-content follow-up-modal-wide" style="max-height:90vh; max-height:90dvh; display:flex; flex-direction:column; padding:1.25rem;">
       <div class="modal-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.75rem; flex-shrink:0;">
-        <div style="display:flex; align-items:center; gap:8px;">
+        <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
           <h3 style="margin:0; font-size:1.15rem; color:#0f172a; display:flex; align-items:center; gap:6px;">
             🚨 久未聯繫客戶清單 (<span id="followUpCount">0</span>)
           </h3>
           <button type="button" id="btnOpenFollowUpSettings" class="btn-icon" title="自訂久未聯繫天數門檻" style="padding:4px 6px; font-size:1rem; border:1px solid #cbd5e1; border-radius:6px; background:#f8fafc; cursor:pointer;">
             ⚙️
           </button>
+          <!-- 檢視開關：依天數倒序 vs 依業務分組 -->
+          <div id="followUpViewToggleGroup" class="follow-up-view-toggle">
+            <button type="button" id="btnFollowUpViewDays" class="btn-view-toggle active" title="全公司依未聯繫天數倒序，即刻鎖定最危急客戶">
+              📅 依天數排序
+            </button>
+            <button type="button" id="btnFollowUpViewSales" class="btn-view-toggle" title="依業務主管與組員帶狀分組，方便管考會議檢討">
+              👥 依業務分組
+            </button>
+          </div>
         </div>
         <button id="btnCloseFollowUpModal" class="btn-close">&times;</button>
       </div>
@@ -1436,7 +1445,7 @@
 
   <!-- 🎯 [新增 16] 案件追蹤 (KPI) 管理看板對話框 (Modal) -->
   <div id="caseTrackingModal" class="modal hidden">
-    <div class="modal-content" style="max-height:92vh; max-height:92dvh; display:flex; flex-direction:column; padding:1.25rem; max-width:880px;">
+    <div class="modal-content kpi-modal-wide" style="max-height:92vh; max-height:92dvh; display:flex; flex-direction:column; padding:1.25rem;">
       <div class="modal-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.75rem; flex-shrink:0;">
         <div>
           <h3 id="caseTrackingModalTitle" style="margin:0; font-size:1.2rem; color:#4338ca; display:flex; align-items:center; gap:8px;">
@@ -2269,8 +2278,8 @@
   </div>
 
   <!-- 🚀 畫面右下角簡潔版本訊息 (字體小、不佔用頂部空間) -->
-  <div class="app-version-bottom-right" id="appVersionInfo">v 2.02</div>
+  <div class="app-version-bottom-right" id="appVersionInfo">v 2.03</div>
 
-  <script src="app.js?v=2.02"></script>
+  <script src="app.js?v=2.03"></script>
 </body>
 </html>

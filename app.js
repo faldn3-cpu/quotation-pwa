@@ -58,8 +58,8 @@ document.addEventListener("DOMContentLoaded", () => {
     }, 2800);
   }
 
-  // 🚀 版本自動同步與舊快取清理防護 (v 2.02)
-  const CURRENT_APP_VERSION = "2.02";
+  // 🚀 版本自動同步與舊快取清理防護 (v 2.03)
+  const CURRENT_APP_VERSION = "2.03";
   const appVersionInfo = document.getElementById("appVersionInfo");
   if (appVersionInfo) {
     appVersionInfo.textContent = "v " + CURRENT_APP_VERSION;
@@ -70,7 +70,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if ('caches' in window) {
       caches.keys().then(keys => {
         keys.forEach(k => {
-          if (k !== 'quote-draft-v2.02') {
+          if (k !== 'quote-draft-v2.03') {
             caches.delete(k);
           }
         });
@@ -3516,6 +3516,9 @@ document.addEventListener("DOMContentLoaded", () => {
   const filterReassignedCount      = document.getElementById("filterReassignedCount");
   const filterRedCount             = document.getElementById("filterRedCount");
   const filterYellowCount          = document.getElementById("filterYellowCount");
+  const btnFollowUpViewDays        = document.getElementById("btnFollowUpViewDays");
+  const btnFollowUpViewSales       = document.getElementById("btnFollowUpViewSales");
+  let followUpViewMode             = localStorage.getItem("follow_up_view_mode") || "days";
 
   // 🔔 主管轉派新客戶提醒橫幅
   const reassignedClientBanner     = document.getElementById("reassignedClientBanner");
@@ -8593,6 +8596,33 @@ document.addEventListener("DOMContentLoaded", () => {
   if (btnFilterFollowUpRed) btnFilterFollowUpRed.addEventListener("click", () => setFollowUpFilter("red"));
   if (btnFilterFollowUpYellow) btnFilterFollowUpYellow.addEventListener("click", () => setFollowUpFilter("yellow"));
 
+  function updateFollowUpViewToggleUI() {
+    if (btnFollowUpViewDays) {
+      btnFollowUpViewDays.classList.toggle("active", followUpViewMode === "days");
+    }
+    if (btnFollowUpViewSales) {
+      btnFollowUpViewSales.classList.toggle("active", followUpViewMode === "sales");
+    }
+  }
+
+  if (btnFollowUpViewDays) {
+    btnFollowUpViewDays.addEventListener("click", () => {
+      followUpViewMode = "days";
+      localStorage.setItem("follow_up_view_mode", "days");
+      updateFollowUpViewToggleUI();
+      renderFollowUpList();
+    });
+  }
+  if (btnFollowUpViewSales) {
+    btnFollowUpViewSales.addEventListener("click", () => {
+      followUpViewMode = "sales";
+      localStorage.setItem("follow_up_view_mode", "sales");
+      updateFollowUpViewToggleUI();
+      renderFollowUpList();
+    });
+  }
+  updateFollowUpViewToggleUI();
+
   // ⚙️ 跟催天數設定對話框事件
   if (btnOpenFollowUpSettings) {
     btnOpenFollowUpSettings.addEventListener("click", () => {
@@ -9064,12 +9094,99 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
+  function renderFollowUpCardHtml(c) {
+    const pendingTask = supervisorPendingTasks.find(t => t.client_name === c.client_name && (t.status === "待處置" || t.status === "逾期未辦"));
+    let taskBadge = "";
+    let taskDirectiveHtml = "";
+    if (pendingTask) {
+      if (pendingTask.task_type === "覆核退回") {
+        taskBadge = `<span class="badge-status-yellow">⚠️ 退回繼續運作</span>`;
+        taskDirectiveHtml = `
+          <div style="background:#fffbeb; border:1px solid #fef08a; border-radius:6px; padding:6px 10px; margin-top:6px; font-size:0.8rem; color:#b45309; line-height:1.4;">
+            <b>⚠️ 退回交辦事項：</b>${escapeHtml(pendingTask.manager_note || '請再次聯絡客戶了解現況')}
+            <div style="font-size:0.75rem; color:#92400e; margin-top:2px;">期限：${pendingTask.deadline} | 指派人：${pendingTask.manager}</div>
+          </div>
+        `;
+      } else if (pendingTask.task_type === "久未聯繫跟催") {
+        taskBadge = `<span class="badge-reassigned">📢 任務跟催</span>`;
+        taskDirectiveHtml = `
+          <div style="background:#f5f3ff; border:1px solid #ddd6fe; border-radius:6px; padding:6px 10px; margin-top:6px; font-size:0.8rem; color:#6d28d9; line-height:1.4;">
+            <b>📢 運作方向：</b>${escapeHtml(pendingTask.manager_note || '請於期限內排訪以完成銷案')}
+            <div style="font-size:0.75rem; color:#5b21b6; margin-top:2px;">要求期限：${pendingTask.deadline} | 指派人：${pendingTask.manager}</div>
+          </div>
+        `;
+      } else if (pendingTask.task_type === "商機指派方針") {
+        taskBadge = `<span class="badge-reassigned">💡 建議行動方案</span>`;
+        taskDirectiveHtml = `
+          <div style="background:#eff6ff; border:1px solid #bfdbfe; border-radius:6px; padding:6px 10px; margin-top:6px; font-size:0.8rem; color:#1d4ed8; line-height:1.4;">
+            <b>💡 建議行動方案：</b>${escapeHtml(pendingTask.manager_note || '')}
+            <div style="font-size:0.75rem; color:#1e40af; margin-top:2px;">期限：${pendingTask.deadline} | 交辦人：${pendingTask.manager}</div>
+          </div>
+        `;
+      }
+    }
+
+    const borderClass = c.is_pending_reassignment
+      ? "card-border-purple"
+      : (c.alert_level === "red" ? "card-border-red" : (c.alert_level === "yellow" ? "card-border-yellow" : "card-border-green"));
+    const badgeClass = c.alert_level === "red" ? "badge-status-red" : (c.alert_level === "yellow" ? "badge-status-yellow" : "badge-status-green");
+    const reassignedBadge = c.is_pending_reassignment ? `<span class="badge-reassigned">👑 指派他人運作</span>` : "";
+    const daysText = c.diff_days >= 999 ? "無更新紀錄" : `${c.diff_days} 天前更新`;
+    const dateInfo = c.reassign_date ? `📅 轉派日: ${c.reassign_date} (緩衝期)` : (c.visit_date ? `📅 最後拜訪: ${c.visit_date}` : "尚未拜訪");
+    const reassignedDetailHtml = (c.is_pending_reassignment && c.reassigned_info) ? `
+      <div class="reassigned-detail-box">
+        <b>👑 交辦事項：</b>${escapeHtml(c.reassigned_info)}
+      </div>
+    ` : "";
+
+    return `
+      <div class="follow-up-card ${borderClass}">
+        <div class="follow-up-card-header">
+          <div class="follow-up-client-title">
+            <span class="follow-up-client-name">${escapeHtml(c.client_name)}</span>
+            <span class="badge-tier">${escapeHtml(formatClientTier(c.tier_display))}</span>
+            ${taskBadge}
+            ${reassignedBadge}
+            <span class="${badgeClass}">${escapeHtml(c.alert_label)}</span>
+          </div>
+          <span class="follow-up-days-text ${c.alert_level === 'red' ? 'text-red' : 'text-yellow'}">
+            ${daysText}
+          </span>
+        </div>
+
+        <div class="follow-up-card-body">
+          <div style="display:flex; justify-content:space-between; flex-wrap:wrap; gap:4px;">
+            <span>👤 負責業務：${escapeHtml(c.client_owner || '')}</span>
+            <span>${dateInfo}</span>
+          </div>
+          ${c.latest_case_name ? `<div>💼 最新案件：${escapeHtml(c.latest_case_name)} ${c.estimated_amount > 0 ? `(${c.estimated_amount}萬)` : ''}</div>` : ''}
+          ${taskDirectiveHtml}
+          ${reassignedDetailHtml}
+        </div>
+
+        <div class="follow-up-card-actions">
+          ${isCurrentUserManager() ? `
+            <button type="button" class="btn-card-action btn-card-action-assign" data-client="${escapeHtml(c.client_name)}" data-owner="${escapeHtml(c.client_owner || '')}">
+              📢 任務交辦
+            </button>
+          ` : ''}
+          <button type="button" class="btn-card-action btn-card-action-nocontact" data-client="${escapeHtml(c.client_name)}" data-owner="${escapeHtml(c.client_owner || '')}" data-tier="${escapeHtml(c.tier_display || '')}" data-row="${c.row_index || ''}">
+            🚫 標記不聯繫
+          </button>
+          <button type="button" class="btn-card-action btn-card-action-visit" data-client="${escapeHtml(c.client_name)}">
+            📅 立即排訪
+          </button>
+        </div>
+      </div>
+    `;
+  }
+
   function renderFollowUpList() {
     if (!followUpListContainer) return;
     const keyword = (followUpSearchInput ? followUpSearchInput.value : "").trim().toLowerCase();
     const selectedSales = (selectFollowUpSales ? selectFollowUpSales.value : "").trim();
 
-    let filtered = activeFollowUpList;
+    let filtered = activeFollowUpList.slice();
     if (currentFollowUpFilter === "reassigned") {
       filtered = filtered.filter(i => i.is_pending_reassignment);
     } else if (currentFollowUpFilter === "red") {
@@ -9104,92 +9221,58 @@ document.addEventListener("DOMContentLoaded", () => {
       return;
     }
 
-    followUpListContainer.innerHTML = filtered.map(c => {
-      const pendingTask = supervisorPendingTasks.find(t => t.client_name === c.client_name && (t.status === "待處置" || t.status === "逾期未辦"));
-      let taskBadge = "";
-      let taskDirectiveHtml = "";
-      if (pendingTask) {
-        if (pendingTask.task_type === "覆核退回") {
-          taskBadge = `<span class="badge-status-yellow">⚠️ 退回繼續運作</span>`;
-          taskDirectiveHtml = `
-            <div style="background:#fffbeb; border:1px solid #fef08a; border-radius:6px; padding:6px 10px; margin-top:6px; font-size:0.8rem; color:#b45309; line-height:1.4;">
-              <b>⚠️ 退回交辦事項：</b>${escapeHtml(pendingTask.manager_note || '請再次聯絡客戶了解現況')}
-              <div style="font-size:0.75rem; color:#92400e; margin-top:2px;">期限：${pendingTask.deadline} | 指派人：${pendingTask.manager}</div>
-            </div>
-          `;
-        } else if (pendingTask.task_type === "久未聯繫跟催") {
-          taskBadge = `<span class="badge-reassigned">📢 任務跟催</span>`;
-          taskDirectiveHtml = `
-            <div style="background:#f5f3ff; border:1px solid #ddd6fe; border-radius:6px; padding:6px 10px; margin-top:6px; font-size:0.8rem; color:#6d28d9; line-height:1.4;">
-              <b>📢 運作方向：</b>${escapeHtml(pendingTask.manager_note || '請於期限內排訪以完成銷案')}
-              <div style="font-size:0.75rem; color:#5b21b6; margin-top:2px;">要求期限：${pendingTask.deadline} | 指派人：${pendingTask.manager}</div>
-            </div>
-          `;
-        } else if (pendingTask.task_type === "商機指派方針") {
-          taskBadge = `<span class="badge-reassigned">💡 建議行動方案</span>`;
-          taskDirectiveHtml = `
-            <div style="background:#eff6ff; border:1px solid #bfdbfe; border-radius:6px; padding:6px 10px; margin-top:6px; font-size:0.8rem; color:#1d4ed8; line-height:1.4;">
-              <b>💡 建議行動方案：</b>${escapeHtml(pendingTask.manager_note || '')}
-              <div style="font-size:0.75rem; color:#1e40af; margin-top:2px;">期限：${pendingTask.deadline} | 交辦人：${pendingTask.manager}</div>
-            </div>
-          `;
-        }
-      }
+    // 模式切換：依業務分組 vs 依天數排序 (全域優先)
+    if (followUpViewMode === "sales") {
+      const salesGroups = {};
+      filtered.forEach(c => {
+        const sName = (c.client_owner || "未指定").trim();
+        if (!salesGroups[sName]) salesGroups[sName] = [];
+        salesGroups[sName].push(c);
+      });
 
-      const borderClass = c.is_pending_reassignment
-        ? "card-border-purple"
-        : (c.alert_level === "red" ? "card-border-red" : (c.alert_level === "yellow" ? "card-border-yellow" : "card-border-green"));
-      const badgeClass = c.alert_level === "red" ? "badge-status-red" : (c.alert_level === "yellow" ? "badge-status-yellow" : "badge-status-green");
-      const reassignedBadge = c.is_pending_reassignment ? `<span class="badge-reassigned">👑 指派他人運作</span>` : "";
-      const daysText = c.diff_days >= 999 ? "無更新紀錄" : `${c.diff_days} 天前更新`;
-      const dateInfo = c.reassign_date ? `📅 轉派日: ${c.reassign_date} (緩衝期)` : (c.visit_date ? `📅 最後拜訪: ${c.visit_date}` : "尚未拜訪");
-      const reassignedDetailHtml = (c.is_pending_reassignment && c.reassigned_info) ? `
-        <div class="reassigned-detail-box">
-          <b>👑 交辦事項：</b>${escapeHtml(c.reassigned_info)}
-        </div>
-      ` : "";
+      const sortedSalesKeys = Object.keys(salesGroups).sort((a, b) => {
+        const idxA = ORDERED_SALES_MEMBERS.indexOf(a);
+        const idxB = ORDERED_SALES_MEMBERS.indexOf(b);
+        if (idxA !== -1 && idxB !== -1) return idxA - idxB;
+        if (idxA !== -1) return -1;
+        if (idxB !== -1) return 1;
+        return a.localeCompare(b);
+      });
 
-      return `
-        <div class="follow-up-card ${borderClass}">
-          <div class="follow-up-card-header">
-            <div class="follow-up-client-title">
-              <span class="follow-up-client-name">${escapeHtml(c.client_name)}</span>
-              <span class="badge-tier">${escapeHtml(formatClientTier(c.tier_display))}</span>
-              ${taskBadge}
-              ${reassignedBadge}
-              <span class="${badgeClass}">${escapeHtml(c.alert_label)}</span>
+      const groupsHtml = sortedSalesKeys.map(sName => {
+        const gList = salesGroups[sName];
+        if (!gList || gList.length === 0) return "";
+        // 業務組內依未聯繫天數倒序排
+        gList.sort((a, b) => (b.diff_days || 0) - (a.diff_days || 0));
+
+        const redCount = gList.filter(i => i.alert_level === "red").length;
+        const yellowCount = gList.filter(i => i.alert_level === "yellow").length;
+        const cardsHtml = gList.map(c => renderFollowUpCardHtml(c)).join("");
+
+        return `
+          <div class="follow-up-sales-group">
+            <div class="follow-up-sales-group-header">
+              <div class="follow-up-sales-group-title">
+                <span class="follow-up-sales-group-avatar">👤</span>
+                <span class="follow-up-sales-group-name">${escapeHtml(sName)}</span>
+                <span class="follow-up-sales-group-badge">${gList.length} 家待聯繫</span>
+                ${redCount > 0 ? `<span class="follow-up-sales-group-badge-red">🔴 A級危急: ${redCount} 家</span>` : ''}
+                ${yellowCount > 0 ? `<span class="follow-up-sales-group-badge-yellow">🟡 提醒: ${yellowCount} 家</span>` : ''}
+              </div>
             </div>
-            <span class="follow-up-days-text ${c.alert_level === 'red' ? 'text-red' : 'text-yellow'}">
-              ${daysText}
-            </span>
+            <div class="follow-up-sales-group-cards">
+              ${cardsHtml}
+            </div>
           </div>
+        `;
+      }).join("");
 
-          <div class="follow-up-card-body">
-            <div style="display:flex; justify-content:space-between; flex-wrap:wrap; gap:4px;">
-              <span>👤 負責業務：${c.client_owner}</span>
-              <span>${dateInfo}</span>
-            </div>
-            ${c.latest_case_name ? `<div>💼 最新案件：${c.latest_case_name} ${c.estimated_amount > 0 ? `(${c.estimated_amount}萬)` : ''}</div>` : ''}
-            ${taskDirectiveHtml}
-            ${reassignedDetailHtml}
-          </div>
-
-          <div class="follow-up-card-actions">
-            ${isCurrentUserManager() ? `
-              <button type="button" class="btn-card-action btn-card-action-assign" data-client="${c.client_name}" data-owner="${c.client_owner}">
-                📢 任務交辦
-              </button>
-            ` : ''}
-            <button type="button" class="btn-card-action btn-card-action-nocontact" data-client="${c.client_name}" data-owner="${c.client_owner}" data-tier="${c.tier_display}" data-row="${c.row_index || ''}">
-              🚫 標記不聯繫
-            </button>
-            <button type="button" class="btn-card-action btn-card-action-visit" data-client="${c.client_name}">
-              📅 立即排訪
-            </button>
-          </div>
-        </div>
-      `;
-    }).join("");
+      followUpListContainer.innerHTML = groupsHtml;
+    } else {
+      // 依未聯繫天數倒序全域排列
+      filtered.sort((a, b) => (b.diff_days || 0) - (a.diff_days || 0));
+      followUpListContainer.innerHTML = filtered.map(c => renderFollowUpCardHtml(c)).join("");
+    }
 
     followUpListContainer.querySelectorAll(".btn-card-action-assign").forEach(btn => {
       btn.addEventListener("click", () => {
@@ -10290,57 +10373,101 @@ document.addEventListener("DOMContentLoaded", () => {
       return;
     }
 
-    kpiCaseListContainer.innerHTML = filtered.map(c => {
-      const isNew = (c.is_new_client === "新");
-      const isClosed = (c.is_closed_order === "V");
-      const isShipped = (c.is_shipped === "V");
-      const numAmt = parseFloat(c.estimated_amount);
-      const amtStr = (!isNaN(numAmt) && numAmt > 0) ? `${formatAmountDisplay(numAmt)} 萬` : "-";
-      const canDelete = (c.sales_name === viewer || c.client_owner === viewer || viewer === "曾維崧" || viewer.includes("維崧"));
+    // 🚀 依業務專屬帶狀分組 (依照 ORDERED_SALES_MEMBERS 順序)
+    const salesGroups = {};
+    filtered.forEach(c => {
+      const sName = (c.sales_name || c.client_owner || "未指定").trim();
+      if (!salesGroups[sName]) salesGroups[sName] = [];
+      salesGroups[sName].push(c);
+    });
 
-      // 支援多選中分類以多個膠囊標籤清晰排列
-      const subcatItems = (c.product_subcategory || "").split(/[,，]/).map(s => s.trim()).filter(Boolean);
-      const subcatTagsHtml = subcatItems.length > 0
-        ? subcatItems.map(s => `<span class="kpi-subcat-tag" style="font-size:0.75rem; background:#f1f5f9; color:#475569; padding:2px 8px; border-radius:12px; border:1px solid #cbd5e1; font-weight:600;">${escapeHtml(s)}</span>`).join(" ")
-        : '<span class="kpi-subcat-tag" style="font-size:0.75rem; background:#f1f5f9; color:#94a3b8; padding:2px 8px; border-radius:12px; border:1px solid #cbd5e1; font-weight:600;">未分類</span>';
+    const sortedSalesKeys = Object.keys(salesGroups).sort((a, b) => {
+      const idxA = ORDERED_SALES_MEMBERS.indexOf(a);
+      const idxB = ORDERED_SALES_MEMBERS.indexOf(b);
+      if (idxA !== -1 && idxB !== -1) return idxA - idxB;
+      if (idxA !== -1) return -1;
+      if (idxB !== -1) return 1;
+      return a.localeCompare(b);
+    });
+
+    const groupsHtml = sortedSalesKeys.map(sName => {
+      const gCases = salesGroups[sName];
+      if (!gCases || gCases.length === 0) return "";
+
+      const closedCount = gCases.filter(c => c.is_closed_order === "V").length;
+      const salesAmount = gCases.reduce((acc, cur) => acc + (parseFloat(cur.estimated_amount) || 0), 0);
+
+      const cardsHtml = gCases.map(c => {
+        const isNew = (c.is_new_client === "新");
+        const isClosed = (c.is_closed_order === "V");
+        const isShipped = (c.is_shipped === "V");
+        const numAmt = parseFloat(c.estimated_amount);
+        const amtStr = (!isNaN(numAmt) && numAmt > 0) ? `${formatAmountDisplay(numAmt)} 萬` : "-";
+        const canDelete = (c.sales_name === viewer || c.client_owner === viewer || viewer === "曾維崧" || viewer.includes("維崧"));
+
+        // 支援多選中分類以多個膠囊標籤清晰排列
+        const subcatItems = (c.product_subcategory || "").split(/[,，]/).map(s => s.trim()).filter(Boolean);
+        const subcatTagsHtml = subcatItems.length > 0
+          ? subcatItems.map(s => `<span class="kpi-subcat-tag" style="font-size:0.75rem; background:#f1f5f9; color:#475569; padding:2px 8px; border-radius:12px; border:1px solid #cbd5e1; font-weight:600;">${escapeHtml(s)}</span>`).join(" ")
+          : '<span class="kpi-subcat-tag" style="font-size:0.75rem; background:#f1f5f9; color:#94a3b8; padding:2px 8px; border-radius:12px; border:1px solid #cbd5e1; font-weight:600;">未分類</span>';
+
+        return `
+          <div class="kpi-card ${isNew ? 'is-new-client' : ''} ${isClosed ? 'is-closed' : ''} ${isShipped ? 'is-shipped' : ''}" data-row="${c.row_index}" style="cursor:pointer; background:${isShipped ? '#f8fafc' : '#ffffff'}; border-left:${isShipped ? '4px solid #0284c7' : ''};">
+            <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:6px;">
+              <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+                <span class="kpi-client-title" style="font-size:1.05rem; font-weight:700; color:#1e293b;">${escapeHtml(c.client_name)}</span>
+                ${isNew ? '<span class="kpi-badge-new" style="font-size:0.75rem; background:#2563eb; color:#ffffff; padding:1px 6px; border-radius:4px; font-weight:700;">🌟 新客戶開發</span>' : ''}
+                ${isShipped ? '<span class="kpi-badge-shipped" style="font-size:0.75rem; background:#0284c7; color:#ffffff; padding:1px 6px; border-radius:4px; font-weight:700;">📦 已出貨</span>' : ''}
+                ${subcatTagsHtml}
+                <span style="font-size:0.75rem; color:#64748b;">(${escapeHtml(c.sales_name || c.client_owner || '負責業務')})</span>
+              </div>
+              <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+                <span style="font-weight:700; color:#b45309; font-size:0.95rem;">${amtStr}</span>
+                <button type="button" class="btn-toggle-closed ${isClosed ? 'active' : ''}" data-row="${c.row_index}" style="padding:3px 8px; font-size:0.75rem; font-weight:700; border-radius:6px; border:1px solid ${isClosed ? '#16a34a' : '#cbd5e1'}; background:${isClosed ? '#f0fdf4' : '#ffffff'}; color:${isClosed ? '#15803d' : '#64748b'}; cursor:pointer;">
+                  ${isClosed ? '✅ 已取單 (V)' : '⬜ 未取單'}
+                </button>
+                ${isClosed ? `
+                  <button type="button" class="btn-toggle-shipped ${isShipped ? 'active' : ''}" data-row="${c.row_index}" style="padding:3px 7px; font-size:0.75rem; font-weight:600; border-radius:6px; border:1px solid ${isShipped ? '#0284c7' : '#bae6fd'}; background:${isShipped ? '#0284c7' : '#f0f9ff'}; color:${isShipped ? '#ffffff' : '#0369a1'}; cursor:pointer;" title="出貨封存（移出進行中，移入歷史案件區）">
+                    📦 ${isShipped ? '已出貨(封存)' : '出貨封存'}
+                  </button>
+                ` : ''}
+                ${canDelete ? `
+                  <button type="button" class="btn-delete-kpi-card" data-row="${c.row_index}" style="padding:2px 6px; font-size:0.85rem; border:none; background:transparent; cursor:pointer; color:#ef4444; border-radius:4px;" title="刪除此案件 (當事人權限)">
+                    🗑️
+                  </button>
+                ` : ''}
+              </div>
+            </div>
+            <div style="font-size:0.85rem; color:#334155; line-height:1.45; margin-bottom:6px; word-break:break-all;">
+              ${escapeHtml(c.status_desc || c.case_name || '-')}
+            </div>
+            <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.75rem; color:#64748b; border-top:1px dashed #e2e8f0; padding-top:4px;">
+              <span>📅 提出: ${escapeHtml(c.date || '-')} ｜ 🎯 預計取單: <strong>${escapeHtml(c.expected_month || '-')}</strong></span>
+              ${c.dependencies ? `<span style="color:#d97706; max-width:220px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${escapeHtml(c.dependencies)}">⚠️ ${escapeHtml(c.dependencies)}</span>` : ''}
+            </div>
+          </div>
+        `;
+      }).join("");
 
       return `
-        <div class="kpi-card ${isNew ? 'is-new-client' : ''} ${isClosed ? 'is-closed' : ''} ${isShipped ? 'is-shipped' : ''}" data-row="${c.row_index}" style="cursor:pointer; background:${isShipped ? '#f8fafc' : '#ffffff'}; border-left:${isShipped ? '4px solid #0284c7' : ''};">
-          <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:6px;">
-            <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
-              <span class="kpi-client-title" style="font-size:1.05rem; font-weight:700; color:#1e293b;">${escapeHtml(c.client_name)}</span>
-              ${isNew ? '<span class="kpi-badge-new" style="font-size:0.75rem; background:#2563eb; color:#ffffff; padding:1px 6px; border-radius:4px; font-weight:700;">🌟 新客戶開發</span>' : ''}
-              ${isShipped ? '<span class="kpi-badge-shipped" style="font-size:0.75rem; background:#0284c7; color:#ffffff; padding:1px 6px; border-radius:4px; font-weight:700;">📦 已出貨</span>' : ''}
-              ${subcatTagsHtml}
-              <span style="font-size:0.75rem; color:#64748b;">(${escapeHtml(c.sales_name || c.client_owner || '負責業務')})</span>
-            </div>
-            <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
-              <span style="font-weight:700; color:#b45309; font-size:0.95rem;">${amtStr}</span>
-              <button type="button" class="btn-toggle-closed ${isClosed ? 'active' : ''}" data-row="${c.row_index}" style="padding:3px 8px; font-size:0.75rem; font-weight:700; border-radius:6px; border:1px solid ${isClosed ? '#16a34a' : '#cbd5e1'}; background:${isClosed ? '#f0fdf4' : '#ffffff'}; color:${isClosed ? '#15803d' : '#64748b'}; cursor:pointer;">
-                ${isClosed ? '✅ 已取單 (V)' : '⬜ 未取單'}
-              </button>
-              ${isClosed ? `
-                <button type="button" class="btn-toggle-shipped ${isShipped ? 'active' : ''}" data-row="${c.row_index}" style="padding:3px 7px; font-size:0.75rem; font-weight:600; border-radius:6px; border:1px solid ${isShipped ? '#0284c7' : '#bae6fd'}; background:${isShipped ? '#0284c7' : '#f0f9ff'}; color:${isShipped ? '#ffffff' : '#0369a1'}; cursor:pointer;" title="出貨封存（移出進行中，移入歷史案件區）">
-                  📦 ${isShipped ? '已出貨(封存)' : '出貨封存'}
-                </button>
-              ` : ''}
-              ${canDelete ? `
-                <button type="button" class="btn-delete-kpi-card" data-row="${c.row_index}" style="padding:2px 6px; font-size:0.85rem; border:none; background:transparent; cursor:pointer; color:#ef4444; border-radius:4px;" title="刪除此案件 (當事人權限)">
-                  🗑️
-                </button>
-              ` : ''}
+        <div class="kpi-sales-group">
+          <div class="kpi-sales-group-header">
+            <div class="kpi-sales-group-title">
+              <span class="kpi-sales-group-avatar">👤</span>
+              <span class="kpi-sales-group-name">${escapeHtml(sName)}</span>
+              <span class="kpi-sales-group-badge">${gCases.length} 筆案件</span>
+              ${closedCount > 0 ? `<span class="kpi-sales-group-badge-closed">✅ 已取單 ${closedCount} 件</span>` : ''}
+              <span class="kpi-sales-group-amount">💼 商機總額：${formatAmountDisplay(salesAmount)} 萬元</span>
             </div>
           </div>
-          <div style="font-size:0.85rem; color:#334155; line-height:1.45; margin-bottom:6px; word-break:break-all;">
-            ${escapeHtml(c.status_desc || c.case_name || '-')}
-          </div>
-          <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.75rem; color:#64748b; border-top:1px dashed #e2e8f0; padding-top:4px;">
-            <span>📅 提出: ${escapeHtml(c.date || '-')} ｜ 🎯 預計取單: <strong>${escapeHtml(c.expected_month || '-')}</strong></span>
-            ${c.dependencies ? `<span style="color:#d97706; max-width:220px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${escapeHtml(c.dependencies)}">⚠️ ${escapeHtml(c.dependencies)}</span>` : ''}
+          <div class="kpi-sales-group-cards">
+            ${cardsHtml}
           </div>
         </div>
       `;
     }).join("");
+
+    kpiCaseListContainer.innerHTML = groupsHtml;
 
     // 綁定卡片點擊與按鈕操作
     kpiCaseListContainer.querySelectorAll(".kpi-card").forEach(card => {
