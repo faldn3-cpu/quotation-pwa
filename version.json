@@ -1,5 +1,5 @@
 {
-  "version": "2.05",
-  "updated_at": "2026-10-15 20:05:00",
-  "description": "支援多料號候選即時切換與庫存連動更新，導入單一版本主控機制"
+  "version": "2.06",
+  "updated_at": "2026-10-15 20:15:00",
+  "description": "修復料號顯示無料號：以本站 products.json 依型號補齊 Drive/GAS 產品之料號與候選清單"
 }

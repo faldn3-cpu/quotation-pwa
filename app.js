@@ -58,8 +58,8 @@ document.addEventListener("DOMContentLoaded", () => {
     }, 2800);
   }
 
-  // 🚀 版本自動同步與舊快取清理防護 (v 2.05)
-  const CURRENT_APP_VERSION = "2.05";
+  // 🚀 版本自動同步與舊快取清理防護 (v 2.06)
+  const CURRENT_APP_VERSION = "2.06";
   const appVersionInfo = document.getElementById("appVersionInfo");
   if (appVersionInfo) {
     appVersionInfo.textContent = "v " + CURRENT_APP_VERSION;
@@ -1828,6 +1828,56 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   // ====================================================
+  // 🔄 料號補齊：以本站 products.json 依型號補上 sku / candidates
+  // 原因：個人 Drive 與 GAS 來源的產品檔不含料號欄位
+  // ====================================================
+  let LOCAL_SKU_MAP = null;
+  async function ensureLocalSkuMap() {
+    if (LOCAL_SKU_MAP) return LOCAL_SKU_MAP;
+    try {
+      const res = await fetch("./products.json?v=" + CURRENT_APP_VERSION, { cache: "no-cache" });
+      if (!res.ok) throw new Error("HTTP " + res.status);
+      const arr = await res.json();
+      const map = {};
+      if (Array.isArray(arr)) {
+        arr.forEach(p => {
+          if (p && p.code && (p.sku || (p.candidates && p.candidates.length))) {
+            map[p.code] = { sku: p.sku || "", candidates: p.candidates || [] };
+          }
+        });
+      }
+      LOCAL_SKU_MAP = map;
+      console.log("[SKU] 本站料號對照載入完成，共", Object.keys(map).length, "筆");
+    } catch (e) {
+      console.warn("[SKU] 本站料號對照載入失敗：", e);
+      LOCAL_SKU_MAP = {};
+    }
+    return LOCAL_SKU_MAP;
+  }
+
+  function applySkuMapToProducts(products) {
+    if (!LOCAL_SKU_MAP || !Array.isArray(products)) return 0;
+    let n = 0;
+    products.forEach(p => {
+      if (p && !(p.candidates && p.candidates.length) && LOCAL_SKU_MAP[p.code]) {
+        p.sku = LOCAL_SKU_MAP[p.code].sku;
+        p.candidates = LOCAL_SKU_MAP[p.code].candidates;
+        n++;
+      }
+    });
+    return n;
+  }
+
+  async function enrichProductsWithSku() {
+    await ensureLocalSkuMap();
+    const n = applySkuMapToProducts(MOCK_PRODUCTS);
+    if (n > 0) {
+      localStorage.setItem("products_cache", JSON.stringify(MOCK_PRODUCTS));
+      console.log("[SKU] 已補齊料號資料：", n, "筆");
+    }
+  }
+
+  // ====================================================
   // 從業務員個人 Google Drive 讀取產品資料
   // 路徑：報價系統備份 / products.json
   // 若找不到個人備份檔或讀取失敗，自動降級調用 loadProductsFromGAS()
@@ -1897,6 +1947,7 @@ document.addEventListener("DOMContentLoaded", () => {
         MOCK_PRODUCTS = personalProducts;
         localStorage.setItem("products_cache", JSON.stringify(MOCK_PRODUCTS));
         console.log("[Drive] 個人產品資料同步成功，共", MOCK_PRODUCTS.length, "筆");
+        await enrichProductsWithSku();
         if (productModal && !productModal.classList.contains("hidden")) {
           performProductFilter(productSearch ? productSearch.value : "");
         }
@@ -1943,6 +1994,7 @@ document.addEventListener("DOMContentLoaded", () => {
         MOCK_PRODUCTS = data.data;
         localStorage.setItem("products_cache", JSON.stringify(MOCK_PRODUCTS));
         console.log("[GAS] 產品資料同步成功，共", MOCK_PRODUCTS.length, "筆");
+        await enrichProductsWithSku();
         if (productModal && !productModal.classList.contains("hidden")) {
           performProductFilter(productSearch ? productSearch.value : "");
         }
@@ -2927,6 +2979,28 @@ document.addEventListener("DOMContentLoaded", () => {
       const code = selectedProductCode;
       const name = selectedProductName;
       const productObj = MOCK_PRODUCTS.find(p => p.code === code) || {};
+
+      // 若產品資料缺少料號，即時以本站料號對照補齊
+      if (!(productObj.candidates && productObj.candidates.length) && !productObj.sku) {
+        if (LOCAL_SKU_MAP && LOCAL_SKU_MAP[code]) {
+          productObj.sku = LOCAL_SKU_MAP[code].sku;
+          productObj.candidates = LOCAL_SKU_MAP[code].candidates;
+        } else if (!LOCAL_SKU_MAP) {
+          ensureLocalSkuMap().then(() => {
+            applySkuMapToProducts(MOCK_PRODUCTS);
+            const m = LOCAL_SKU_MAP && LOCAL_SKU_MAP[code];
+            if (m && itemSkuMap[targetItemId] && itemSkuMap[targetItemId].code === code && !itemSkuMap[targetItemId].currentSku) {
+              itemSkuMap[targetItemId].candidates = m.candidates;
+              applySkuSelection(targetItemId, m.sku);
+              const sb = document.getElementById(`${targetItemId}-sku-switch-btn`);
+              if (sb && m.candidates.length > 1) {
+                sb.textContent = `🔄 切換 (${m.candidates.length})`;
+                sb.classList.remove("hidden");
+              }
+            }
+          });
+        }
+      }
 
       // 🚀 料號與候選清單處理 (選項 B: 現貨最多者優先置頂)
       let candidates = productObj.candidates || [];
