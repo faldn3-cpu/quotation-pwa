@@ -1842,16 +1842,17 @@
   <div id="permModal" class="modal hidden">
     <div class="modal-content" style="max-height:85vh; max-height:85dvh; display:flex; flex-direction:column; padding:1.25rem; max-width:500px;">
       <div class="modal-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.75rem; flex-shrink:0;">
-        <h3 style="margin:0; font-size:1.1rem; color:#1e1b4b; display:flex; align-items:center; gap:6px;">
-          👑 業務權限與在職名單管理 (曾維崧專屬)
+        <h3 id="permModalTitle" style="margin:0; font-size:1.1rem; color:#1e1b4b; display:flex; align-items:center; gap:6px;">
+          👑 業務權限與系統設定 (最高管理員專屬)
         </h3>
         <button id="btnClosePermModal" class="btn-close">&times;</button>
       </div>
 
-      <!-- 👑 雙分頁標籤組：在職名單管理 / 組員調閱權限 -->
+      <!-- 👑 三分頁標籤組：在職名單管理 / 組員調閱權限 / 主管名單與移交 -->
       <div class="perm-tabs-container">
-        <button type="button" id="btnTabPermMembers" class="perm-tab-btn active">👥 在職名單管理</button>
-        <button type="button" id="btnTabPermView" class="perm-tab-btn">🔐 組員調閱權限</button>
+        <button type="button" id="btnTabPermMembers" class="perm-tab-btn active">👥 在職名單</button>
+        <button type="button" id="btnTabPermView" class="perm-tab-btn">🔐 組員調閱</button>
+        <button type="button" id="btnTabPermManagers" class="perm-tab-btn">👑 主管與移交</button>
       </div>
 
       <!-- 分頁 1: 在職名單管理 (啟用/停用/新增/刪除) -->
@@ -1898,6 +1899,64 @@
           </div>
           <div id="permMembersCheckboxContainer" style="display:grid; grid-template-columns:1fr 1fr; gap:6px; padding:10px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px; max-height:220px; overflow-y:auto;">
             <!-- 動態填入核取方塊 -->
+          </div>
+        </div>
+      </div>
+
+      <!-- 分頁 3: 主管名單與移交 (最高權限轉讓 / 專案主管指派) -->
+      <div id="permManagersTabBody" class="modal-body hidden" style="overflow-y:auto; flex:1;">
+        <!-- 區塊 A：最高管理權限持有與移交 -->
+        <div style="background:#fef3c7; border:1px solid #fde68a; border-radius:8px; padding:10px 12px; margin-bottom:14px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+            <span style="font-weight:700; color:#92400e; font-size:0.88rem; display:flex; align-items:center; gap:4px;">
+              👑 最高管理權限持有者
+            </span>
+            <button type="button" id="btnToggleTransferBox" class="btn btn-sm" style="font-size:0.75rem; padding:3px 8px; background:#d97706; color:#ffffff; border:none; border-radius:4px; cursor:pointer;">
+              🔄 轉讓最高權限
+            </button>
+          </div>
+          <div style="font-size:0.85rem; color:#78350f;">
+            現任持有者：<strong id="labelCurrentSuperAdmin">曾維崧</strong> (<span id="labelCurrentSuperAdminEmail">tsengweisung@gmail.com</span>)
+          </div>
+
+          <!-- 轉讓展開表單 (預設隱藏) -->
+          <div id="transferSuperAdminBox" class="hidden" style="margin-top:10px; padding-top:10px; border-top:1px dashed #f59e0b;">
+            <div style="margin-bottom:8px;">
+              <label style="font-size:0.8rem; font-weight:600; color:#92400e; display:block; margin-bottom:2px;">1. 選擇接任同仁：</label>
+              <select id="selectTransferTarget" class="form-control" style="width:100%; font-size:0.85rem; padding:5px 8px; border:1px solid #d97706; border-radius:4px; background:#fff;">
+                <!-- 動態注入在職同仁 -->
+              </select>
+            </div>
+            <div style="margin-bottom:8px;">
+              <label style="font-size:0.8rem; font-weight:600; color:#92400e; display:block; margin-bottom:2px;">2. 接任者 Google 帳號 Email (實名綁定)：</label>
+              <input type="email" id="inputTransferEmail" class="search-input" placeholder="例如：user@gmail.com..." style="width:100%; font-size:0.85rem; padding:5px 8px; margin-bottom:0;">
+            </div>
+            <div style="font-size:0.75rem; color:#b91c1c; margin-bottom:8px; line-height:1.3;">
+              ⚠️ 警告：轉讓後您將立即失去最高管理權限及此設定視窗之存取權，請務必再三確認！
+            </div>
+            <div style="display:flex; justify-content:flex-end; gap:6px;">
+              <button type="button" id="btnCancelTransfer" class="btn btn-sm btn-secondary" style="font-size:0.75rem; padding:4px 10px;">取消</button>
+              <button type="button" id="btnExecuteTransfer" class="btn btn-sm btn-danger" style="font-size:0.75rem; padding:4px 12px; background:#dc2626; color:#fff; border:none; border-radius:4px; font-weight:600;">🚨 確認轉讓最高權限</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 區塊 B：專案主管名單設定 -->
+        <div>
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+            <label style="font-size:0.85rem; font-weight:700; color:#1e293b; margin:0;">
+              🎖️ 專案主管名單指派 (具專案維護與指派權限)
+            </label>
+            <div style="display:flex; gap:6px;">
+              <button type="button" id="btnMgrSelectAll" style="font-size:0.75rem; padding:2px 8px; border:1px solid #cbd5e1; border-radius:4px; background:#f8fafc; cursor:pointer;">全選</button>
+              <button type="button" id="btnMgrClearAll" style="font-size:0.75rem; padding:2px 8px; border:1px solid #cbd5e1; border-radius:4px; background:#f8fafc; cursor:pointer;">全清</button>
+            </div>
+          </div>
+          <p style="font-size:0.78rem; color:#64748b; margin-bottom:8px; line-height:1.3;">
+            經勾選之同仁將獲得專案主管身分，享有重點專案攻堅的「新增、修改、封存、刪除分頁」及「新客戶指派」權限。
+          </p>
+          <div id="permManagersCheckboxContainer" style="display:grid; grid-template-columns:1fr 1fr; gap:6px; padding:10px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px; max-height:190px; overflow-y:auto;">
+            <!-- 動態填入主管勾選核取方塊 -->
           </div>
         </div>
       </div>
@@ -2099,15 +2158,16 @@
     <div class="modal-content" style="max-height:90vh; max-height:90dvh; display:flex; flex-direction:column; padding:1.25rem; max-width:560px;">
       <div class="modal-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.75rem; flex-shrink:0;">
         <h3 style="margin:0; font-size:1.15rem; color:#c2410c; display:flex; align-items:center; gap:8px;">
-          ➕ 主管專屬：新客戶 / 新專案提供
+          ⚙️ 專案與客戶維護管理
         </h3>
         <button id="btnCloseManagerAddModal" class="btn-close">&times;</button>
       </div>
 
       <!-- 操作模式切換 -->
-      <div style="display:flex; gap:8px; border-bottom:1px solid #fed7aa; padding-bottom:8px; margin-bottom:12px; flex-shrink:0;">
-        <button type="button" id="btnTabModeAddClient" class="btn btn-sm btn-primary" style="font-size:0.85rem; padding:5px 12px; background:#ea580c; border-color:#c2410c;">➕ 指派新客戶</button>
-        <button type="button" id="btnTabModeCreateProject" class="btn btn-sm btn-secondary" style="font-size:0.85rem; padding:5px 12px;">📁 建立新專案分頁</button>
+      <div style="display:flex; gap:6px; border-bottom:1px solid #fed7aa; padding-bottom:8px; margin-bottom:12px; flex-shrink:0;">
+        <button type="button" id="btnTabModeAddClient" class="btn btn-sm btn-primary" style="font-size:0.82rem; padding:5px 10px; background:#ea580c; border-color:#c2410c;">➕ 指派新客戶</button>
+        <button type="button" id="btnTabModeCreateProject" class="btn btn-sm btn-secondary" style="font-size:0.82rem; padding:5px 10px;">📁 建立新專案</button>
+        <button type="button" id="btnTabModeManageProjects" class="btn btn-sm btn-secondary" style="font-size:0.82rem; padding:5px 10px;">🛠️ 專案分頁維護</button>
       </div>
 
       <div style="overflow-y:auto; flex:1; padding-right:4px;">
@@ -2188,6 +2248,16 @@
               </button>
             </div>
           </form>
+        </div>
+
+        <!-- 模式 C：專案維護 (更名/封存/刪除) -->
+        <div id="panelManageProjects" class="hidden">
+          <p style="font-size:0.8rem; color:#64748b; margin:0 0 10px 0;">
+            管理重點專案分頁之生命週期。封存專案將自看板隱藏但保留資料；僅有零客戶之空白專案可執行刪除。
+          </p>
+          <div id="projectManageListContainer" style="display:flex; flex-direction:column; gap:8px; max-height:280px; overflow-y:auto; padding-right:2px;">
+            <!-- 動態生成各專案卡片 -->
+          </div>
         </div>
       </div>
     </div>

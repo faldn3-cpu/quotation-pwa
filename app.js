@@ -58,8 +58,8 @@ document.addEventListener("DOMContentLoaded", () => {
     }, 2800);
   }
 
-  // 🚀 版本自動同步與舊快取清理防護 (v 2.00)
-  const CURRENT_APP_VERSION = "2.00";
+  // 🚀 版本自動同步與舊快取清理防護 (v 2.02)
+  const CURRENT_APP_VERSION = "2.02";
   const appVersionInfo = document.getElementById("appVersionInfo");
   if (appVersionInfo) {
     appVersionInfo.textContent = "v " + CURRENT_APP_VERSION;
@@ -70,7 +70,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if ('caches' in window) {
       caches.keys().then(keys => {
         keys.forEach(k => {
-          if (k !== 'quote-draft-v2.00') {
+          if (k !== 'quote-draft-v2.02') {
             caches.delete(k);
           }
         });
@@ -670,6 +670,86 @@ document.addEventListener("DOMContentLoaded", () => {
   const DEALER_SALES_MEMBERS = ["張何達", "葉仁豪", "邱文輝"];
   const REMINDER_DEALERS = ["赫力", "贊翔", "台瓷", "黃柏翰", "漢銓"];
 
+  // 👑 全域最高管理員與專案主管名單快取 (置頂避免 TDZ)
+  let cachedSuperAdmin = { name: "曾維崧", email: "tsengweisung@gmail.com" };
+  let cachedManagerList = ["曾維崧", "張何達", "曾仁君"];
+  let cachedAllProjectsMeta = [];
+
+  try {
+    const saSaved = localStorage.getItem("cached_super_admin");
+    if (saSaved) cachedSuperAdmin = JSON.parse(saSaved);
+    const mgrSaved = localStorage.getItem("cached_manager_list");
+    if (mgrSaved) cachedManagerList = JSON.parse(mgrSaved);
+    const projMetaSaved = localStorage.getItem("project_meta_cache");
+    if (projMetaSaved) cachedAllProjectsMeta = JSON.parse(projMetaSaved);
+  } catch(e) {}
+
+  // 👑 雲端動態檢視權限快取 (置頂避免 TDZ)
+  let cachedViewPermissions = {
+    "曾維崧": ["曾維崧", "張何達", "曾仁君", "葉仁豪", "溫達仁", "邱文輝", "楊家豪", "莊富丞", "何宛茹", "張書偉", "黃柏翰"],
+    "張何達": ["曾維崧", "張何達", "曾仁君", "葉仁豪", "溫達仁", "邱文輝", "楊家豪", "莊富丞", "何宛茹", "張書偉", "黃柏翰"],
+    "曾仁君": ["曾維崧", "張何達", "曾仁君", "葉仁豪", "溫達仁", "邱文輝", "楊家豪", "莊富丞", "何宛茹", "張書偉", "黃柏翰"],
+    "溫達仁": ["溫達仁", "楊家豪", "莊富丞", "何宛茹", "張書偉", "黃柏翰"],
+    "楊家豪": ["楊家豪", "何宛茹", "張書偉", "黃柏翰"],
+    "莊富丞": ["莊富丞", "何宛茹", "張書偉", "黃柏翰"]
+  };
+
+  // 👑 判定當前登入者是否具備最高管理員 (Super Admin) 身分
+  function isViewerSuperAdmin() {
+    const curName = (typeof getSalesName === "function") ? getSalesName() : "";
+    const pStr = localStorage.getItem("saved_user_profile");
+    let profEmail = "";
+    try {
+      if (pStr) profEmail = (JSON.parse(pStr).email || "").toLowerCase();
+    } catch(e) {}
+    if (typeof userProfile !== "undefined" && userProfile && userProfile.email) {
+      profEmail = userProfile.email.toLowerCase();
+    }
+    const adminEmail = (cachedSuperAdmin && cachedSuperAdmin.email) ? cachedSuperAdmin.email.toLowerCase() : "tsengweisung@gmail.com";
+    const adminName = (cachedSuperAdmin && cachedSuperAdmin.name) ? cachedSuperAdmin.name : "曾維崧";
+
+    if (profEmail && profEmail === adminEmail) return true;
+    if (curName && (curName === adminName || curName.includes(adminName) || adminName.includes(curName))) return true;
+    return false;
+  }
+
+  function isViewerWeiSong() {
+    return isViewerSuperAdmin();
+  }
+
+  // 👑 判定指定業務是否為專案主管 (含最高管理員與專案主管)
+  function isTopManager(viewer) {
+    const v = viewer || ((typeof getSalesName === "function") ? getSalesName() : "");
+    if (isViewerSuperAdmin()) return true;
+    if (Array.isArray(cachedManagerList) && cachedManagerList.length > 0) {
+      return cachedManagerList.some(m => v.includes(m) || m.includes(v));
+    }
+    return ["曾維崧", "張何達", "曾仁君"].some(m => v.includes(m) || m.includes(v));
+  }
+
+  // 🚀 判定當前業務是否具備團隊檢視權限
+  function isCurrentUserManager() {
+    const name = (typeof getSalesName === "function") ? getSalesName() : "";
+    if (isViewerSuperAdmin()) return true;
+    if (isTopManager(name)) return true;
+    if (cachedViewPermissions && cachedViewPermissions[name]) {
+      return cachedViewPermissions[name].some(m => m !== name);
+    }
+    const defaultMgrs = ["曾維崧", "張何達", "曾仁君", "溫達仁", "楊家豪", "莊富丞", "維崧", "何達", "仁君"];
+    return defaultMgrs.some(m => name.includes(m) || m.includes(name));
+  }
+
+  function updatePermModalButtonVisibility() {
+    const btn = btnOpenPermModal || document.getElementById("btnOpenPermModal");
+    if (btn) {
+      if (isViewerSuperAdmin()) {
+        btn.classList.remove("hidden");
+      } else {
+        btn.classList.add("hidden");
+      }
+    }
+  }
+
   // 🎯 23 項標準產品中分類代碼定義 (對齊試算表『中分類定義』工作表)
   // 🎯 23 項標準產品中分類代碼與四大分組定義 (完全依照圖二分組矩陣結構)
   const KPI_SUBCATEGORY_GROUPS = [
@@ -765,9 +845,9 @@ document.addEventListener("DOMContentLoaded", () => {
   // Service Worker 註冊與自動更新偵測
   // ====================================================
   if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('./sw.js?v=1.95')
+    navigator.serviceWorker.register('./sw.js?v=2.02')
       .then(reg => {
-        console.log('[PWA] Service Worker 已註冊 (v 1.95)', reg);
+        console.log('[PWA] Service Worker 已註冊 (v 2.02)', reg);
         // 主動檢查伺服器端是否有新版 sw.js
         reg.update();
 
@@ -798,6 +878,18 @@ document.addEventListener("DOMContentLoaded", () => {
   // ====================================================
   // 登入狀態記憶與自動進入
   // ====================================================
+  const urlParams = new URLSearchParams(window.location.search);
+  if (urlParams.get("logout") === "true") {
+    console.log("[Auth] 偵測到 logout 參數，清除本機登入憑證與狀態");
+    localStorage.removeItem("has_logged_in");
+    localStorage.removeItem("saved_display_name");
+    localStorage.removeItem("saved_user_profile");
+    localStorage.removeItem("google_access_token");
+    localStorage.removeItem("google_token_expires_at");
+    localStorage.removeItem("cached_backup_folder_id");
+    localStorage.removeItem("is_admin_user");
+  }
+
   let isSilentAuth = false;
   const hasLoggedIn = localStorage.getItem("has_logged_in") === "true";
   const savedDisplayName = localStorage.getItem("saved_display_name") || "已登入業務";
@@ -3349,8 +3441,11 @@ document.addEventListener("DOMContentLoaded", () => {
   const btnCloseManagerAddModal        = document.getElementById("btnCloseManagerAddModal");
   const btnTabModeAddClient            = document.getElementById("btnTabModeAddClient");
   const btnTabModeCreateProject        = document.getElementById("btnTabModeCreateProject");
+  const btnTabModeManageProjects       = document.getElementById("btnTabModeManageProjects");
   const panelAddClient                 = document.getElementById("panelAddClient");
   const panelCreateProject             = document.getElementById("panelCreateProject");
+  const panelManageProjects            = document.getElementById("panelManageProjects");
+  const projectManageListContainer     = document.getElementById("projectManageListContainer");
   const addClientProjectSelect         = document.getElementById("addClientProjectSelect");
   const singleClientInputs             = document.getElementById("singleClientInputs");
   const addClientName                  = document.getElementById("addClientName");
@@ -3527,25 +3622,6 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  // 👑 雲端動態檢視權限快取
-  let cachedViewPermissions = {
-    "曾維崧": ["曾維崧", "張何達", "曾仁君", "葉仁豪", "溫達仁", "邱文輝", "楊家豪", "莊富丞", "何宛茹", "張書偉", "黃柏翰"],
-    "張何達": ["曾維崧", "張何達", "曾仁君", "葉仁豪", "溫達仁", "邱文輝", "楊家豪", "莊富丞", "何宛茹", "張書偉", "黃柏翰"],
-    "曾仁君": ["曾維崧", "張何達", "曾仁君", "葉仁豪", "溫達仁", "邱文輝", "楊家豪", "莊富丞", "何宛茹", "張書偉", "黃柏翰"],
-    "溫達仁": ["溫達仁", "楊家豪", "莊富丞", "何宛茹", "張書偉", "黃柏翰"],
-    "楊家豪": ["楊家豪", "何宛茹", "張書偉", "黃柏翰"],
-    "莊富丞": ["莊富丞", "何宛茹", "張書偉", "黃柏翰"]
-  };
-
-  // 🚀 判定當前業務是否具備團隊檢視權限 (能看他人即具備團隊檢視權限)
-  function isCurrentUserManager() {
-    const name = getSalesName();
-    if (cachedViewPermissions && cachedViewPermissions[name]) {
-      return cachedViewPermissions[name].some(m => m !== name);
-    }
-    const defaultMgrs = ["曾維崧", "張何達", "曾仁君", "溫達仁", "楊家豪", "莊富丞", "維崧", "何達", "仁君"];
-    return defaultMgrs.some(m => name.includes(m) || m.includes(name));
-  }
 
   // 🚀 標準日期顯示格式化 (例如: 2026/09/24)
   function formatDisplayDate(val) {
@@ -3624,18 +3700,16 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   // ====================================================
-  // 👑 業務檢視權限設定 DOM 元件與曾維崧身分判定
+  // 👑 業務檢視權限設定 DOM 元件與最高管理員身分判定
   // ====================================================
   function isViewerWeiSong() {
-    const curName = (typeof getSalesName === "function") ? getSalesName() : "";
-    // 嚴格判定當前模擬/登入身分：只有當身分為「曾維崧」時才具備管理權限
-    return curName === "曾維崧" || curName.includes("維崧");
+    return isViewerSuperAdmin();
   }
 
   function updatePermModalButtonVisibility() {
     const btn = btnOpenPermModal || document.getElementById("btnOpenPermModal");
     if (btn) {
-      if (isViewerWeiSong()) {
+      if (isViewerSuperAdmin()) {
         btn.classList.remove("hidden");
       } else {
         btn.classList.add("hidden");
@@ -3644,7 +3718,7 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   // ====================================================
-  // 👑 管理員身分模擬切換器設置 (tsengweisung@gmail.com 專屬或本地測試)
+  // 👑 管理員身分模擬切換器設置 (最高管理員專屬或本地測試)
   // ====================================================
   function setupAdminImpersonator() {
     if (!adminImpersonateBar || !adminImpersonateSelect) return;
@@ -3653,9 +3727,10 @@ document.addEventListener("DOMContentLoaded", () => {
     try {
       if (pStr) profEmail = (JSON.parse(pStr).email || "").toLowerCase();
     } catch(e) {}
+    const adminEmail = (cachedSuperAdmin && cachedSuperAdmin.email) ? cachedSuperAdmin.email.toLowerCase() : "tsengweisung@gmail.com";
     const isAdmin = localStorage.getItem("is_admin_user") === "true" ||
-      (userProfile && userProfile.email && userProfile.email.toLowerCase() === "tsengweisung@gmail.com") ||
-      profEmail === "tsengweisung@gmail.com" ||
+      (userProfile && userProfile.email && userProfile.email.toLowerCase() === adminEmail) ||
+      profEmail === adminEmail ||
       isTestEnvironment();
 
     if (isAdmin) {
@@ -4521,15 +4596,28 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   // ====================================================
-  // 👑 業務權限與在職名單管理模組 (曾維崧專屬 - 雙 Tab 架構)
+  // 👑 業務權限與系統設定模組 (最高管理員專屬 - 三分頁架構)
   // ====================================================
   const permModal = document.getElementById("permModal");
   const btnClosePermModal = document.getElementById("btnClosePermModal");
   const btnCancelPermModal = document.getElementById("btnCancelPermModal");
   const btnTabPermMembers = document.getElementById("btnTabPermMembers");
   const btnTabPermView = document.getElementById("btnTabPermView");
+  const btnTabPermManagers = document.getElementById("btnTabPermManagers");
   const permMembersTabBody = document.getElementById("permMembersTabBody");
   const permViewTabBody = document.getElementById("permViewTabBody");
+  const permManagersTabBody = document.getElementById("permManagersTabBody");
+  const labelCurrentSuperAdmin = document.getElementById("labelCurrentSuperAdmin");
+  const labelCurrentSuperAdminEmail = document.getElementById("labelCurrentSuperAdminEmail");
+  const btnToggleTransferBox = document.getElementById("btnToggleTransferBox");
+  const transferSuperAdminBox = document.getElementById("transferSuperAdminBox");
+  const selectTransferTarget = document.getElementById("selectTransferTarget");
+  const inputTransferEmail = document.getElementById("inputTransferEmail");
+  const btnCancelTransfer = document.getElementById("btnCancelTransfer");
+  const btnExecuteTransfer = document.getElementById("btnExecuteTransfer");
+  const btnMgrSelectAll = document.getElementById("btnMgrSelectAll");
+  const btnMgrClearAll = document.getElementById("btnMgrClearAll");
+  const permManagersCheckboxContainer = document.getElementById("permManagersCheckboxContainer");
   const inputNewMemberName = document.getElementById("inputNewMemberName");
   const btnAddNewMember = document.getElementById("btnAddNewMember");
   const activeMembersListContainer = document.getElementById("activeMembersListContainer");
@@ -4542,20 +4630,65 @@ document.addEventListener("DOMContentLoaded", () => {
   let addedSalesMembers = [];
   let deletedSalesMembers = [];
 
-  // 雙 Tab 切換
-  if (btnTabPermMembers && btnTabPermView) {
-    btnTabPermMembers.addEventListener("click", () => {
-      btnTabPermMembers.classList.add("active");
-      btnTabPermView.classList.remove("active");
-      if (permMembersTabBody) permMembersTabBody.classList.remove("hidden");
-      if (permViewTabBody) permViewTabBody.classList.add("hidden");
-    });
-    btnTabPermView.addEventListener("click", () => {
-      btnTabPermView.classList.add("active");
-      btnTabPermMembers.classList.remove("active");
-      if (permViewTabBody) permViewTabBody.classList.remove("hidden");
-      if (permMembersTabBody) permMembersTabBody.classList.add("hidden");
-    });
+  // 三分頁切換
+  function switchPermTab(tab) {
+    if (btnTabPermMembers) btnTabPermMembers.classList.toggle("active", tab === "members");
+    if (btnTabPermView) btnTabPermView.classList.toggle("active", tab === "view");
+    if (btnTabPermManagers) btnTabPermManagers.classList.toggle("active", tab === "managers");
+
+    if (permMembersTabBody) permMembersTabBody.classList.toggle("hidden", tab !== "members");
+    if (permViewTabBody) permViewTabBody.classList.toggle("hidden", tab !== "view");
+    if (permManagersTabBody) permManagersTabBody.classList.toggle("hidden", tab !== "managers");
+
+    if (tab === "managers") {
+      renderPermManagersTab();
+    }
+  }
+
+  if (btnTabPermMembers) {
+    btnTabPermMembers.addEventListener("click", () => switchPermTab("members"));
+  }
+  if (btnTabPermView) {
+    btnTabPermView.addEventListener("click", () => switchPermTab("view"));
+  }
+  if (btnTabPermManagers) {
+    btnTabPermManagers.addEventListener("click", () => switchPermTab("managers"));
+  }
+
+  // 渲染分頁 3：主管名單與移交
+  function renderPermManagersTab() {
+    if (labelCurrentSuperAdmin) {
+      labelCurrentSuperAdmin.textContent = cachedSuperAdmin.name || "曾維崧";
+    }
+    if (labelCurrentSuperAdminEmail) {
+      labelCurrentSuperAdminEmail.textContent = cachedSuperAdmin.email || "tsengweisung@gmail.com";
+    }
+    if (transferSuperAdminBox) {
+      transferSuperAdminBox.classList.add("hidden");
+    }
+    if (inputTransferEmail) {
+      inputTransferEmail.value = "";
+    }
+    if (selectTransferTarget) {
+      const saName = cachedSuperAdmin.name || "曾維崧";
+      const candidates = ACTIVE_SALES_MEMBERS.filter(m => m !== saName);
+      selectTransferTarget.innerHTML = candidates.map(m => `
+        <option value="${escapeHtml(m)}">👤 ${escapeHtml(m)}</option>
+      `).join("");
+    }
+    if (permManagersCheckboxContainer) {
+      const saName = cachedSuperAdmin.name || "曾維崧";
+      permManagersCheckboxContainer.innerHTML = ACTIVE_SALES_MEMBERS.map(m => {
+        const isSA = (m === saName);
+        const isMgr = isSA || (Array.isArray(cachedManagerList) && cachedManagerList.includes(m));
+        return `
+          <label style="display:flex; align-items:center; gap:6px; font-size:0.85rem; color:${isSA ? '#92400e' : '#1e293b'}; cursor:${isSA ? 'not-allowed' : 'pointer'}; background:${isSA ? '#fef3c7' : '#ffffff'}; padding:6px 8px; border-radius:4px; border:1px solid ${isSA ? '#fde68a' : '#cbd5e1'};">
+            <input type="checkbox" class="perm-manager-checkbox" value="${escapeHtml(m)}" ${isMgr ? "checked" : ""} ${isSA ? "disabled" : ""}>
+            <span>👤 ${escapeHtml(m)} ${isSA ? '<span style="font-size:0.72rem; color:#d97706; font-weight:700;">(最高管理)</span>' : ''}</span>
+          </label>
+        `;
+      }).join("");
+    }
   }
 
   // 渲染 Tab 1 在職名單管理列表
@@ -4632,7 +4765,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const viewer = getSalesName();
     const allowed = (cachedViewPermissions && cachedViewPermissions[viewer]) ? cachedViewPermissions[viewer] : [viewer];
-    const isTopMgr = ["曾維崧", "張何達", "曾仁君"].some(m => viewer.includes(m) || m.includes(viewer));
+    const isTopMgr = isTopManager(viewer);
     const authorizedMembers = isTopMgr ? ACTIVE_SALES_MEMBERS : ACTIVE_SALES_MEMBERS.filter(m => allowed.includes(m));
     const finalMembers = authorizedMembers.length ? authorizedMembers : [viewer];
 
@@ -4727,6 +4860,14 @@ document.addEventListener("DOMContentLoaded", () => {
       const data = await res.json();
       if (data && data.status === "ok") {
         if (data.permissions) cachedViewPermissions = data.permissions;
+        if (data.super_admin) {
+          cachedSuperAdmin = data.super_admin;
+          localStorage.setItem("cached_super_admin", JSON.stringify(cachedSuperAdmin));
+        }
+        if (Array.isArray(data.manager_list) && data.manager_list.length > 0) {
+          cachedManagerList = data.manager_list;
+          localStorage.setItem("cached_manager_list", JSON.stringify(cachedManagerList));
+        }
         if (Array.isArray(data.active_sales_members) && data.active_sales_members.length > 0) {
           ACTIVE_SALES_MEMBERS = data.active_sales_members;
           localStorage.setItem("active_sales_members_cache", JSON.stringify(ACTIVE_SALES_MEMBERS));
@@ -4735,6 +4876,7 @@ document.addEventListener("DOMContentLoaded", () => {
           ALL_CONFIGURED_MEMBERS = data.all_members;
           localStorage.setItem("all_configured_members_cache", JSON.stringify(ALL_CONFIGURED_MEMBERS));
         }
+        updatePermModalButtonVisibility();
         refreshAllSalesDropdowns();
       }
     } catch(e) {
@@ -4744,6 +4886,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function populatePermModal(targetUser) {
     renderActiveMembersList();
+    renderPermManagersTab();
     if (!permTargetUserSelect || !permMembersCheckboxContainer) return;
     
     const user = targetUser || permTargetUserSelect.value || ACTIVE_SALES_MEMBERS[0] || ORDERED_SALES_MEMBERS[0];
@@ -4767,12 +4910,12 @@ document.addEventListener("DOMContentLoaded", () => {
 
   if (btnOpenPermModal) {
     btnOpenPermModal.addEventListener("click", async () => {
-      if (!isViewerWeiSong()) {
-        showToast("⚠️ 僅曾維崧主管具備權限管理功能", "warning");
+      if (!isViewerSuperAdmin()) {
+        showToast("⚠️ 僅最高管理員具備權限管理功能", "warning");
         return;
       }
       // 預設切至 Tab 1 在職名單管理
-      if (btnTabPermMembers) btnTabPermMembers.click();
+      switchPermTab("members");
       populatePermModal(permTargetUserSelect ? permTargetUserSelect.value : null);
       if (permModal) permModal.classList.remove("hidden");
       // 背景靜默更新雲端最新名單
@@ -4816,6 +4959,104 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
+  // 👑 分頁 3：最高權限轉讓與主管名單互動按鈕
+  if (btnToggleTransferBox) {
+    btnToggleTransferBox.addEventListener("click", () => {
+      if (transferSuperAdminBox) {
+        transferSuperAdminBox.classList.toggle("hidden");
+      }
+    });
+  }
+
+  if (btnCancelTransfer) {
+    btnCancelTransfer.addEventListener("click", () => {
+      if (transferSuperAdminBox) {
+        transferSuperAdminBox.classList.add("hidden");
+      }
+    });
+  }
+
+  if (btnMgrSelectAll) {
+    btnMgrSelectAll.addEventListener("click", () => {
+      if (!permManagersCheckboxContainer) return;
+      permManagersCheckboxContainer.querySelectorAll(".perm-manager-checkbox:not(:disabled)").forEach(cb => cb.checked = true);
+    });
+  }
+
+  if (btnMgrClearAll) {
+    btnMgrClearAll.addEventListener("click", () => {
+      if (!permManagersCheckboxContainer) return;
+      permManagersCheckboxContainer.querySelectorAll(".perm-manager-checkbox:not(:disabled)").forEach(cb => cb.checked = false);
+    });
+  }
+
+  // 👑 執行最高管理權限安全移交 (雙重確認 + Google 帳號 Email 實名轉讓)
+  if (btnExecuteTransfer) {
+    btnExecuteTransfer.addEventListener("click", async () => {
+      const targetName = selectTransferTarget ? selectTransferTarget.value.trim() : "";
+      const targetEmail = inputTransferEmail ? inputTransferEmail.value.trim().toLowerCase() : "";
+
+      if (!targetName) {
+        alert("請選擇接任同仁！");
+        return;
+      }
+      if (!targetEmail || !targetEmail.includes("@")) {
+        alert("請輸入接任同仁之有效 Google 帳號 Email！");
+        if (inputTransferEmail) inputTransferEmail.focus();
+        return;
+      }
+
+      const confirm1 = confirm(`【極重大安全警告】\n\n您即將把系統「最高管理員」權限實名轉讓給：\n👤 姓名：${targetName}\n📧 Email：${targetEmail}\n\n轉讓一旦完成，您將立即失去最高管理權限，日後需由「${targetName}」再次轉讓方可復原。\n\n請問您確定要繼續執行移交轉讓嗎？`);
+      if (!confirm1) return;
+
+      const confirmCode = prompt(`【實名移交最終驗證】\n請在下方輸入英文字母「TRANSFER」以正式授權移交：`);
+      if (confirmCode !== "TRANSFER") {
+        alert("授權驗證碼不符，轉讓程序已安全終止。");
+        return;
+      }
+
+      btnExecuteTransfer.disabled = true;
+      btnExecuteTransfer.textContent = "⏳ 移交處理中...";
+
+      try {
+        const payload = {
+          action: "transfer_super_admin",
+          viewer: getSalesName(),
+          target_name: targetName,
+          target_email: targetEmail,
+          confirmation: "TRANSFER",
+          access_token: localStorage.getItem("google_access_token") || ""
+        };
+
+        const res = await fetch(GAS_URL, {
+          method: "POST",
+          headers: { "Content-Type": "text/plain;charset=utf-8" },
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+
+        if (data && data.status === "ok") {
+          showToast(`👑 最高權限已成功轉讓予「${targetName}」！`, "success");
+          cachedSuperAdmin = { name: targetName, email: targetEmail };
+          if (!cachedManagerList.includes(targetName)) cachedManagerList.push(targetName);
+          localStorage.setItem("cached_super_admin", JSON.stringify(cachedSuperAdmin));
+          localStorage.setItem("cached_manager_list", JSON.stringify(cachedManagerList));
+
+          if (permModal) permModal.classList.add("hidden");
+          updatePermModalButtonVisibility();
+          refreshAllSalesDropdowns();
+        } else {
+          throw new Error(data && data.msg ? data.msg : "轉讓失敗");
+        }
+      } catch(err) {
+        alert(`轉讓失敗：${err.message || err}`);
+      } finally {
+        btnExecuteTransfer.disabled = false;
+        btnExecuteTransfer.textContent = "🚨 確認轉讓最高權限";
+      }
+    });
+  }
+
   // 💾 儲存權限設定與在職名冊 (樂觀更新 Optimistic UI，秒開秒存)
   if (btnSavePermissions) {
     btnSavePermissions.addEventListener("click", () => {
@@ -4830,14 +5071,29 @@ document.addEventListener("DOMContentLoaded", () => {
         checkedMembers.unshift(targetUser);
       }
 
+      // 蒐集分頁 3 主管名單
+      const checkedManagers = [];
+      if (cachedSuperAdmin && cachedSuperAdmin.name) {
+        checkedManagers.push(cachedSuperAdmin.name);
+      }
+      if (permManagersCheckboxContainer) {
+        permManagersCheckboxContainer.querySelectorAll(".perm-manager-checkbox:checked").forEach(cb => {
+          if (!checkedManagers.includes(cb.value)) {
+            checkedManagers.push(cb.value);
+          }
+        });
+      }
+
       // 1. 立即樂觀更新本機快取與所有選單
       localStorage.setItem("active_sales_members_cache", JSON.stringify(ACTIVE_SALES_MEMBERS));
       localStorage.setItem("all_configured_members_cache", JSON.stringify(ALL_CONFIGURED_MEMBERS));
       if (targetUser) cachedViewPermissions[targetUser] = checkedMembers;
+      cachedManagerList = checkedManagers;
+      localStorage.setItem("cached_manager_list", JSON.stringify(cachedManagerList));
       refreshAllSalesDropdowns();
 
       // 2. 立即提示成功並關閉對話盒
-      showToast("✅ 已成功儲存在職名單與檢視權限設定", "success");
+      showToast("✅ 已成功儲存在職名單、檢視權限與主管名單設定", "success");
       if (permModal) permModal.classList.add("hidden");
 
       // 3. 背景非同步同步至 Google 試算表
@@ -4867,6 +5123,15 @@ document.addEventListener("DOMContentLoaded", () => {
         });
         fetch(`${GAS_URL}?${paramsPerm.toString()}`).catch(err => console.warn("背景同步調閱權限異常:", err));
       }
+
+      // 背景同步主管名單
+      const paramsMgr = new URLSearchParams({
+        action: "save_manager_list",
+        viewer: getSalesName(),
+        managers: checkedManagers.join(","),
+        access_token: localStorage.getItem("google_access_token") || ""
+      });
+      fetch(`${GAS_URL}?${paramsMgr.toString()}`).catch(err => console.warn("背景同步主管名單異常:", err));
 
       teamDailyCache.clear();
       if (currentViewingDate) {
@@ -5494,7 +5759,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (monthlyReportSalesSelect) {
       const myName = getSalesName();
       const allowedMembers = (cachedViewPermissions && cachedViewPermissions[myName]) ? cachedViewPermissions[myName] : [myName];
-      const isTopMgr = ["曾維崧", "張何達", "曾仁君"].includes(myName);
+      const isTopMgr = isTopManager(myName);
       const membersToShow = isTopMgr ? ACTIVE_SALES_MEMBERS : ACTIVE_SALES_MEMBERS.filter(m => allowedMembers.includes(m));
 
       const cur = monthlyReportSalesSelect.value || "";
@@ -5565,7 +5830,7 @@ document.addEventListener("DOMContentLoaded", () => {
         if (monthlyReportSalesSelect) {
           const myName = getSalesName();
           const allowedMembers = (cachedViewPermissions && cachedViewPermissions[myName]) ? cachedViewPermissions[myName] : [myName];
-          const isTopMgr = ["曾維崧", "張何達", "曾仁君"].includes(myName);
+          const isTopMgr = isTopManager(myName);
           const membersToShow = isTopMgr ? ACTIVE_SALES_MEMBERS : ACTIVE_SALES_MEMBERS.filter(m => allowedMembers.includes(m));
 
           if (membersToShow.length > 1) {
@@ -5809,7 +6074,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (ogsmReportSalesSelect) {
       const myName = getSalesName();
       const allowedMembers = (cachedViewPermissions && cachedViewPermissions[myName]) ? cachedViewPermissions[myName] : [myName];
-      const isTopMgr = ["曾維崧", "張何達", "曾仁君"].some(m => myName.includes(m) || m.includes(myName));
+      const isTopMgr = isTopManager(myName);
       const membersToShow = isTopMgr ? ACTIVE_SALES_MEMBERS : ACTIVE_SALES_MEMBERS.filter(m => allowedMembers.includes(m));
 
       const cur = ogsmReportSalesSelect.value || "";
@@ -5874,7 +6139,7 @@ document.addEventListener("DOMContentLoaded", () => {
         if (ogsmReportSalesSelect) {
           const myName = getSalesName();
           const allowedMembers = (cachedViewPermissions && cachedViewPermissions[myName]) ? cachedViewPermissions[myName] : [myName];
-          const isTopMgr = ["曾維崧", "張何達", "曾仁君"].includes(myName);
+          const isTopMgr = isTopManager(myName);
           const membersToShow = isTopMgr ? ACTIVE_SALES_MEMBERS : ACTIVE_SALES_MEMBERS.filter(m => allowedMembers.includes(m));
 
           if (membersToShow.length > 1) {
@@ -8465,7 +8730,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const viewer = currentSales;
     const allowed = (cachedViewPermissions && cachedViewPermissions[viewer]) ? cachedViewPermissions[viewer] : [viewer];
-    const isTopMgr = ["曾維崧", "張何達", "曾仁君"].some(m => viewer.includes(m) || m.includes(viewer));
+    const isTopMgr = isTopManager(viewer);
 
     let userCrmRecords = crmRecords;
     if (!isTopMgr) {
@@ -9769,7 +10034,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (kpiSalesFilter) {
       const viewer = getSalesName();
       const allowed = (cachedViewPermissions && cachedViewPermissions[viewer]) ? cachedViewPermissions[viewer] : [viewer];
-      const isTopMgr = ["曾維崧", "張何達", "曾仁君"].some(m => viewer.includes(m) || m.includes(viewer));
+      const isTopMgr = isTopManager(viewer);
 
       if (isTopMgr) {
         const allList = ACTIVE_SALES_MEMBERS.length ? ACTIVE_SALES_MEMBERS : (allowed.length ? allowed : ALL_SALES_MEMBERS);
@@ -9871,7 +10136,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const viewer = getSalesName();
     const allowed = (cachedViewPermissions && cachedViewPermissions[viewer]) ? cachedViewPermissions[viewer] : [viewer];
-    const isTopMgr = ["曾維崧", "張何達", "曾仁君"].some(m => viewer.includes(m) || m.includes(viewer));
+    const isTopMgr = isTopManager(viewer);
 
     // 主管向雲端索取時，直接要求「全體業務」大總冊，一次到位
     const fetchTargetSales = isTopMgr ? "全體業務" : (allowed.length > 1 ? "授權業務總覽" : viewer);
@@ -9914,7 +10179,7 @@ document.addEventListener("DOMContentLoaded", () => {
       try {
         const viewer = getSalesName();
         const allowed = (cachedViewPermissions && cachedViewPermissions[viewer]) ? cachedViewPermissions[viewer] : [viewer];
-        const isTopMgr = ["曾維崧", "張何達", "曾仁君"].some(m => viewer.includes(m) || m.includes(viewer));
+        const isTopMgr = isTopManager(viewer);
         const fetchTargetSales = isTopMgr ? "全體業務" : (allowed.length > 1 ? "授權業務總覽" : viewer);
         const params = new URLSearchParams({
           action: "get_kpi_cases",
@@ -9939,7 +10204,7 @@ document.addEventListener("DOMContentLoaded", () => {
   function updateKpiTabCounters() {
     const viewer = getSalesName();
     const allowed = (cachedViewPermissions && cachedViewPermissions[viewer]) ? cachedViewPermissions[viewer] : [viewer];
-    const isTopMgr = ["曾維崧", "張何達", "曾仁君"].some(m => viewer.includes(m) || m.includes(viewer));
+    const isTopMgr = isTopManager(viewer);
 
     let baseCases = kpiAllCases;
     if (!isTopMgr) {
@@ -9971,7 +10236,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const viewer = getSalesName();
     const allowed = (cachedViewPermissions && cachedViewPermissions[viewer]) ? cachedViewPermissions[viewer] : [viewer];
-    const isTopMgr = ["曾維崧", "張何達", "曾仁君"].some(m => viewer.includes(m) || m.includes(viewer));
+    const isTopMgr = isTopManager(viewer);
 
     let filtered = kpiAllCases.slice();
     if (!isTopMgr) {
@@ -10799,7 +11064,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (projectSalesFilter) {
       const viewer = getSalesName();
       const allowed = (cachedViewPermissions && cachedViewPermissions[viewer]) ? cachedViewPermissions[viewer] : [viewer];
-      const isTopMgr = ["曾維崧", "張何達", "曾仁君"].some(m => viewer.includes(m) || m.includes(viewer));
+      const isTopMgr = isTopManager(viewer);
 
       if (isTopMgr) {
         const allList = ACTIVE_SALES_MEMBERS.length ? ACTIVE_SALES_MEMBERS : (allowed.length ? allowed : ALL_SALES_MEMBERS);
@@ -10825,7 +11090,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     if (btnOpenManagerAddModal) {
       const viewer = getSalesName();
-      const isTopMgr = ["曾維崧", "張何達", "曾仁君"].some(m => viewer.includes(m) || m.includes(viewer));
+      const isTopMgr = isTopManager(viewer);
       btnOpenManagerAddModal.classList.toggle("hidden", !isTopMgr);
     }
 
@@ -10850,6 +11115,10 @@ document.addEventListener("DOMContentLoaded", () => {
     let hasLoadedFromCache = false;
     if (!forceRefresh) {
       try {
+        const metaCachedStr = localStorage.getItem("project_meta_cache");
+        if (metaCachedStr) {
+          cachedAllProjectsMeta = JSON.parse(metaCachedStr) || [];
+        }
         const cachedStr = localStorage.getItem("project_cache_data");
         if (cachedStr) {
           const cached = JSON.parse(cachedStr);
@@ -10895,6 +11164,10 @@ document.addEventListener("DOMContentLoaded", () => {
       if (data && data.status === "ok") {
         projectDataStore = data.data || {};
         projectNamesList = data.projects || [];
+        if (Array.isArray(data.all_projects_meta)) {
+          cachedAllProjectsMeta = data.all_projects_meta;
+          localStorage.setItem("project_meta_cache", JSON.stringify(cachedAllProjectsMeta));
+        }
         localStorage.setItem("project_cache_data", JSON.stringify({
           data: projectDataStore,
           projects: projectNamesList,
@@ -10952,6 +11225,10 @@ document.addEventListener("DOMContentLoaded", () => {
         if (data && data.status === "ok") {
           projectDataStore = data.data || {};
           projectNamesList = data.projects || [];
+          if (Array.isArray(data.all_projects_meta)) {
+            cachedAllProjectsMeta = data.all_projects_meta;
+            localStorage.setItem("project_meta_cache", JSON.stringify(cachedAllProjectsMeta));
+          }
           localStorage.setItem("project_cache_data", JSON.stringify({
             data: projectDataStore,
             projects: projectNamesList,
@@ -11139,7 +11416,7 @@ document.addEventListener("DOMContentLoaded", () => {
     activeProjectCard = card;
 
     const viewer = getSalesName();
-    const isTopMgr = ["曾維崧", "張何達", "曾仁君"].some(m => viewer.includes(m) || m.includes(viewer));
+    const isTopMgr = isTopManager(viewer);
 
     if (detailLampBadge) detailLampBadge.textContent = card.lamp || "🟢";
     if (detailClientTitle) detailClientTitle.textContent = card.client_name;
@@ -11456,8 +11733,17 @@ document.addEventListener("DOMContentLoaded", () => {
       btnTabModeCreateProject.className = (mode === "project") ? "btn btn-sm btn-primary" : "btn btn-sm btn-secondary";
       btnTabModeCreateProject.style.background = (mode === "project") ? "#ea580c" : "";
     }
+    if (btnTabModeManageProjects) {
+      btnTabModeManageProjects.className = (mode === "manage") ? "btn btn-sm btn-primary" : "btn btn-sm btn-secondary";
+      btnTabModeManageProjects.style.background = (mode === "manage") ? "#ea580c" : "";
+    }
     if (panelAddClient) panelAddClient.classList.toggle("hidden", mode !== "client");
     if (panelCreateProject) panelCreateProject.classList.toggle("hidden", mode !== "project");
+    if (panelManageProjects) panelManageProjects.classList.toggle("hidden", mode !== "manage");
+
+    if (mode === "manage") {
+      renderProjectManageList();
+    }
   }
 
   async function submitManagerAddClient() {
@@ -11612,6 +11898,194 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
+  // 🛠️ 渲染專案分頁維護清單 (更名 / 封存 / 防呆刪除)
+  function renderProjectManageList() {
+    if (!projectManageListContainer) return;
+
+    let metaList = cachedAllProjectsMeta;
+    if (!metaList || metaList.length === 0) {
+      metaList = projectNamesList.map(p => ({
+        sheet_name: p,
+        display_name: p.replace(/^\[封存\]/, ""),
+        is_archived: p.indexOf("[封存]") === 0,
+        client_count: (projectDataStore[p] || []).length
+      }));
+    }
+
+    if (metaList.length === 0) {
+      projectManageListContainer.innerHTML = '<div style="text-align:center; padding:20px; color:#94a3b8; font-size:0.85rem;">目前無任何專案分頁資料</div>';
+      return;
+    }
+
+    projectManageListContainer.innerHTML = metaList.map(item => {
+      const isArchived = item.is_archived;
+      const count = item.client_count || 0;
+      const sName = item.sheet_name;
+      const dName = item.display_name;
+
+      return `
+        <div style="background:#ffffff; border:1px solid ${isArchived ? '#fed7aa' : '#e2e8f0'}; border-radius:6px; padding:10px 12px; display:flex; justify-content:space-between; align-items:center; gap:8px;">
+          <div style="flex:1; min-width:0;">
+            <div style="display:flex; align-items:center; gap:6px; margin-bottom:4px;">
+              <strong style="font-size:0.88rem; color:#1e293b; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
+                ${escapeHtml(dName)}
+              </strong>
+              ${isArchived 
+                ? '<span style="font-size:0.72rem; color:#c2410c; background:#ffedd5; padding:1px 6px; border-radius:4px; font-weight:600;">📁 已封存</span>' 
+                : '<span style="font-size:0.72rem; color:#16a34a; background:#dcfce7; padding:1px 6px; border-radius:4px; font-weight:600;">🟢 運作中</span>'}
+            </div>
+            <div style="font-size:0.78rem; color:#64748b;">
+              客戶案件：<span style="font-weight:600; color:${count > 0 ? '#1e293b' : '#94a3b8'};">${count} 筆</span>
+              ${count > 0 ? '<span style="color:#ef4444; font-size:0.72rem; margin-left:4px;">(不可刪除)</span>' : '<span style="color:#10b981; font-size:0.72rem; margin-left:4px;">(空白可刪除)</span>'}
+            </div>
+          </div>
+          <div style="display:flex; gap:5px; flex-shrink:0;">
+            <button type="button" class="btn btn-sm btn-outline-secondary btn-rename-proj" data-proj="${escapeHtml(sName)}" data-disp="${escapeHtml(dName)}" style="font-size:0.75rem; padding:3px 8px;" title="重新命名專案">
+              ✏️ 更名
+            </button>
+            <button type="button" class="btn btn-sm btn-archive-proj" data-proj="${escapeHtml(sName)}" data-archive="${isArchived ? 'false' : 'true'}" style="font-size:0.75rem; padding:3px 8px; background:${isArchived ? '#f1f5f9' : '#fff7ed'}; border:1px solid ${isArchived ? '#cbd5e1' : '#fdba74'}; color:${isArchived ? '#334155' : '#c2410c'};" title="${isArchived ? '重啟專案' : '封存專案'}">
+              ${isArchived ? '🔄 重啟' : '📦 封存'}
+            </button>
+            <button type="button" class="btn btn-sm btn-delete-proj" data-proj="${escapeHtml(sName)}" data-count="${count}" style="font-size:0.75rem; padding:3px 8px; background:${count > 0 ? '#f1f5f9' : '#fef2f2'}; border:1px solid ${count > 0 ? '#e2e8f0' : '#fca5a5'}; color:${count > 0 ? '#94a3b8' : '#dc2626'}; cursor:${count > 0 ? 'not-allowed' : 'pointer'};" title="${count > 0 ? '尚有客戶案件，無法刪除' : '刪除空白分頁'}">
+              🗑️ 刪除
+            </button>
+          </div>
+        </div>
+      `;
+    }).join("");
+
+    // 綁定更名按鈕
+    projectManageListContainer.querySelectorAll(".btn-rename-proj").forEach(btn => {
+      btn.addEventListener("click", async () => {
+        const oldName = btn.dataset.proj;
+        const currentDisp = btn.dataset.disp;
+        const newName = prompt(`請輸入專案「${currentDisp}」的新名稱：\n（系統將自動確保以「專案」結尾）`, currentDisp);
+        if (!newName || newName.trim() === currentDisp.trim()) return;
+
+        const viewer = getSalesName();
+        const token = localStorage.getItem("google_access_token") || "";
+
+        try {
+          showToast("⏳ 正在更名專案分頁...", "info");
+          const payload = {
+            action: "manager_project_action",
+            action_type: "rename_project",
+            access_token: token,
+            viewer: viewer,
+            old_name: oldName,
+            new_name: newName.trim()
+          };
+          const res = await fetch(GAS_URL, {
+            method: "POST",
+            headers: { "Content-Type": "text/plain;charset=utf-8" },
+            body: JSON.stringify(payload)
+          });
+          const data = await res.json();
+          if (data && data.status === "ok") {
+            showToast(data.msg || "專案已成功更名！", "success");
+            currentProjectName = data.project_name || newName;
+            loadProjectCases(true);
+            setTimeout(() => renderProjectManageList(), 600);
+          } else {
+            throw new Error(data && data.msg ? data.msg : "更名失敗");
+          }
+        } catch(err) {
+          alert(`更名失敗：${err.message || err}`);
+        }
+      });
+    });
+
+    // 綁定封存/重啟按鈕
+    projectManageListContainer.querySelectorAll(".btn-archive-proj").forEach(btn => {
+      btn.addEventListener("click", async () => {
+        const pName = btn.dataset.proj;
+        const toArchive = btn.dataset.archive === "true";
+        const actionText = toArchive ? "封存" : "重啟";
+
+        const msg = toArchive
+          ? `確定要封存專案「${pName}」嗎？\n\n封存後：\n• 此專案將自重點專案看板分頁中隱藏。\n• 試算表分頁更名為「[封存]${pName}」並完整保留資料。\n• 您隨時可以在此管理視窗中「🔄 重啟」此專案。`
+          : `確定要重啟專案「${pName}」嗎？\n\n重啟後：\n• 此專案將重新出現在重點專案看板分頁中供業務填報。`;
+
+        if (!confirm(msg)) return;
+
+        const viewer = getSalesName();
+        const token = localStorage.getItem("google_access_token") || "";
+
+        try {
+          showToast(`⏳ 正在${actionText}專案...`, "info");
+          const payload = {
+            action: "manager_project_action",
+            action_type: "archive_project",
+            access_token: token,
+            viewer: viewer,
+            project_name: pName
+          };
+          const res = await fetch(GAS_URL, {
+            method: "POST",
+            headers: { "Content-Type": "text/plain;charset=utf-8" },
+            body: JSON.stringify(payload)
+          });
+          const data = await res.json();
+          if (data && data.status === "ok") {
+            showToast(data.msg || `專案已成功${actionText}！`, "success");
+            loadProjectCases(true);
+            setTimeout(() => renderProjectManageList(), 600);
+          } else {
+            throw new Error(data && data.msg ? data.msg : `${actionText}失敗`);
+          }
+        } catch(err) {
+          alert(`${actionText}失敗：${err.message || err}`);
+        }
+      });
+    });
+
+    // 綁定刪除按鈕 (防呆機制：有客戶案件嚴格禁止刪除)
+    projectManageListContainer.querySelectorAll(".btn-delete-proj").forEach(btn => {
+      btn.addEventListener("click", async () => {
+        const pName = btn.dataset.proj;
+        const count = parseInt(btn.dataset.count || "0", 10);
+
+        if (count > 0) {
+          alert(`⚠️ 【系統安全防禦機制】\n\n專案「${pName}」內尚有 ${count} 筆客戶案件紀錄，系統嚴禁直接刪除！\n\n若該專案不再執行，請改用「📦 封存」功能，以確保過往報價與業務歷程完整留存。`);
+          return;
+        }
+
+        if (!confirm(`【極重大刪除警告】\n\n專案「${pName}」目前為空白專案（0 筆客戶案件）。\n確定要永久刪除此試算表分頁嗎？\n\n⚠️ 此操作無法復原！`)) {
+          return;
+        }
+
+        const viewer = getSalesName();
+        const token = localStorage.getItem("google_access_token") || "";
+
+        try {
+          showToast("⏳ 正在刪除空白專案分頁...", "info");
+          const payload = {
+            action: "manager_project_action",
+            action_type: "delete_project",
+            access_token: token,
+            viewer: viewer,
+            project_name: pName
+          };
+          const res = await fetch(GAS_URL, {
+            method: "POST",
+            headers: { "Content-Type": "text/plain;charset=utf-8" },
+            body: JSON.stringify(payload)
+          });
+          const data = await res.json();
+          if (data && data.status === "ok") {
+            showToast(data.msg || "空白專案已成功刪除！", "success");
+            loadProjectCases(true);
+            setTimeout(() => renderProjectManageList(), 600);
+          } else {
+            throw new Error(data && data.msg ? data.msg : "刪除失敗");
+          }
+        } catch(err) {
+          alert(`刪除失敗：${err.message || err}`);
+        }
+      });
+    });
+  }
+
   function initProjectTrackingModule() {
     if (btnOpenProjectTrackingModal) {
       btnOpenProjectTrackingModal.addEventListener("click", openProjectTrackingModal);
@@ -11680,6 +12154,9 @@ document.addEventListener("DOMContentLoaded", () => {
     }
     if (btnTabModeCreateProject) {
       btnTabModeCreateProject.addEventListener("click", () => switchManagerAddTab("project"));
+    }
+    if (btnTabModeManageProjects) {
+      btnTabModeManageProjects.addEventListener("click", () => switchManagerAddTab("manage"));
     }
     if (btnCancelAddClient) {
       btnCancelAddClient.addEventListener("click", () => {
