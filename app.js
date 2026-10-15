@@ -11088,10 +11088,14 @@ document.addEventListener("DOMContentLoaded", () => {
       }
     }
 
+    const viewer = getSalesName();
+    const isTopMgr = isTopManager(viewer);
     if (btnOpenManagerAddModal) {
-      const viewer = getSalesName();
-      const isTopMgr = isTopManager(viewer);
       btnOpenManagerAddModal.classList.toggle("hidden", !isTopMgr);
+    }
+    const btnOpenProjectManageModal = document.getElementById("btnOpenProjectManageModal");
+    if (btnOpenProjectManageModal) {
+      btnOpenProjectManageModal.classList.toggle("hidden", !isTopMgr);
     }
 
     if (projectSearchInput) projectSearchInput.value = "";
@@ -11347,7 +11351,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     if (filtered.length === 0) {
       projectCardsContainer.innerHTML = `
-        <div style="text-align:center; padding:40px 20px; color:#94a3b8; grid-column:1 / -1;">
+        <div style="text-align:center; padding:40px 20px; color:#94a3b8; width:100%;">
           <div style="font-size:2.2rem; margin-bottom:8px;">🔥</div>
           查無符合條件之專案客戶
         </div>
@@ -11355,57 +11359,116 @@ document.addEventListener("DOMContentLoaded", () => {
       return;
     }
 
-    projectCardsContainer.innerHTML = filtered.map((c, idx) => {
-      let lampClass = "lamp-green";
-      if (c.lamp === "⚡") {
-        lampClass = "lamp-support";
-      } else if (c.lamp === "🆕") {
-        lampClass = "lamp-unfiled";
-      } else if (c.lamp === "🔴") {
-        lampClass = "lamp-red";
-      }
+    // 🚀 依業務專屬帶狀分組 (按照 ORDERED_SALES_MEMBERS 順序)
+    const salesGroups = {};
+    const salesOrder = Array.isArray(ACTIVE_SALES_MEMBERS) && ACTIVE_SALES_MEMBERS.length ? ACTIVE_SALES_MEMBERS : ORDERED_SALES_MEMBERS;
 
-      const hasSupport = (c.support_need && c.support_need !== "無" && c.support_need.indexOf("✅已處理") !== 0);
+    filtered.forEach(c => {
+      const sName = (c.sales_name || "未指定").trim();
+      if (!salesGroups[sName]) salesGroups[sName] = [];
+      salesGroups[sName].push(c);
+    });
+
+    // 業務內部客戶卡片排序：⚡ ➔ 🆕 ➔ 🔴 ➔ 🟢，同燈號按最後更新時間倒序
+    const lampWeight = { "⚡": 1, "🆕": 2, "🔴": 3, "🟢": 4 };
+    Object.keys(salesGroups).forEach(sName => {
+      salesGroups[sName].sort((a, b) => {
+        const wA = lampWeight[a.lamp] || 5;
+        const wB = lampWeight[b.lamp] || 5;
+        if (wA !== wB) return wA - wB;
+        return (b.updated_at || "").localeCompare(a.updated_at || "");
+      });
+    });
+
+    // 業務分組順序：嚴格依照 salesOrder 順序排列
+    const sortedSalesKeys = Object.keys(salesGroups).sort((a, b) => {
+      const idxA = salesOrder.indexOf(a);
+      const idxB = salesOrder.indexOf(b);
+      const posA = idxA >= 0 ? idxA : 999;
+      const posB = idxB >= 0 ? idxB : 999;
+      if (posA !== posB) return posA - posB;
+      return a.localeCompare(b);
+    });
+
+    // 保存平鋪清單供卡片點擊事件索引
+    const flatCardList = [];
+
+    const groupsHtml = sortedSalesKeys.map(sName => {
+      const gCards = salesGroups[sName];
+      if (!gCards || gCards.length === 0) return "";
+
+      const cardsHtml = gCards.map(c => {
+        const globalIdx = flatCardList.length;
+        flatCardList.push(c);
+
+        let lampClass = "lamp-green";
+        if (c.lamp === "⚡") {
+          lampClass = "lamp-support";
+        } else if (c.lamp === "🆕") {
+          lampClass = "lamp-unfiled";
+        } else if (c.lamp === "🔴") {
+          lampClass = "lamp-red";
+        }
+
+        const hasSupport = (c.support_need && c.support_need !== "無" && c.support_need.indexOf("✅已處理") !== 0);
+
+        return `
+          <div class="project-card ${lampClass}" data-client-idx="${globalIdx}">
+            <div class="project-card-header">
+              <span class="project-card-title">
+                <span>${c.lamp}</span>
+                <span>${escapeHtml(c.client_name)}</span>
+              </span>
+              <span class="project-card-sales">👤 ${escapeHtml(c.sales_name || "未指定")}</span>
+            </div>
+
+            <div class="project-card-meta">
+              <span class="project-card-stage">${escapeHtml(c.stage || "0.未接觸")}</span>
+              ${c.product ? `<span class="project-card-product">📦 ${escapeHtml(c.product)}</span>` : ''}
+              ${c.client_window ? `<span style="color:#64748b;">窗口: ${escapeHtml(c.client_window)}</span>` : ''}
+            </div>
+
+            ${hasSupport ? `
+              <div class="project-card-support-callout">
+                ⚡ 支援：${escapeHtml(c.support_need)}
+              </div>
+            ` : ''}
+
+            <div class="project-card-progress">
+              ${c.progress ? escapeHtml(c.progress) : '<span style="color:#94a3b8; font-style:italic;">尚無推進進度紀錄（點擊進入初訪填寫）</span>'}
+            </div>
+
+            <div class="project-card-footer">
+              <span>下一步: <strong style="color:#0f172a;">${c.next_date ? escapeHtml(c.next_date) : '-'}</strong></span>
+              <span>更新: ${c.updated_at ? escapeHtml(c.updated_at.split(' ')[0]) : '未建檔'}</span>
+            </div>
+          </div>
+        `;
+      }).join("");
 
       return `
-        <div class="project-card ${lampClass}" data-client-idx="${idx}">
-          <div class="project-card-header">
-            <span class="project-card-title">
-              <span>${c.lamp}</span>
-              <span>${escapeHtml(c.client_name)}</span>
-            </span>
-            <span class="project-card-sales">👤 ${escapeHtml(c.sales_name || "未指定")}</span>
-          </div>
-
-          <div class="project-card-meta">
-            <span class="project-card-stage">${escapeHtml(c.stage || "0.未接觸")}</span>
-            ${c.product ? `<span class="project-card-product">📦 ${escapeHtml(c.product)}</span>` : ''}
-            ${c.client_window ? `<span style="color:#64748b;">窗口: ${escapeHtml(c.client_window)}</span>` : ''}
-          </div>
-
-          ${hasSupport ? `
-            <div class="project-card-support-callout">
-              ⚡ 支援：${escapeHtml(c.support_need)}
+        <div class="project-sales-group">
+          <div class="project-sales-group-header">
+            <div class="project-sales-group-title">
+              <span class="project-sales-group-avatar">👤</span>
+              <span class="project-sales-group-name">${escapeHtml(sName)}</span>
+              <span class="project-sales-group-badge">${gCards.length} 家專案客戶</span>
             </div>
-          ` : ''}
-
-          <div class="project-card-progress">
-            ${c.progress ? escapeHtml(c.progress) : '<span style="color:#94a3b8; font-style:italic;">尚無推進進度紀錄（點擊進入初訪填寫）</span>'}
           </div>
-
-          <div class="project-card-footer">
-            <span>下一步: <strong style="color:#0f172a;">${c.next_date ? escapeHtml(c.next_date) : '-'}</strong></span>
-            <span>更新: ${c.updated_at ? escapeHtml(c.updated_at.split(' ')[0]) : '未建檔'}</span>
+          <div class="project-sales-group-cards">
+            ${cardsHtml}
           </div>
         </div>
       `;
     }).join("");
 
+    projectCardsContainer.innerHTML = groupsHtml;
+
     projectCardsContainer.querySelectorAll(".project-card").forEach(el => {
       el.addEventListener("click", () => {
         const idx = parseInt(el.dataset.clientIdx, 10);
-        if (filtered[idx]) {
-          openProjectDetailModal(filtered[idx]);
+        if (flatCardList[idx]) {
+          openProjectDetailModal(flatCardList[idx]);
         }
       });
     });
@@ -11696,7 +11759,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
-  function openManagerAddModal() {
+  function openManagerAddModal(defaultTab = "client") {
     if (!projectManagerAddModal) return;
 
     if (addClientProjectSelect) {
@@ -11720,7 +11783,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (batchClientInputs) batchClientInputs.classList.add("hidden");
     if (singleClientInputs) singleClientInputs.classList.remove("hidden");
 
-    switchManagerAddTab("client");
+    switchManagerAddTab(defaultTab === "manage" ? "manage" : (defaultTab === "project" ? "project" : "client"));
     projectManagerAddModal.classList.remove("hidden");
   }
 
@@ -11881,10 +11944,33 @@ document.addEventListener("DOMContentLoaded", () => {
       const data = await res.json();
 
       if (data && data.status === "ok") {
+        const createdName = data.project_name || rawName;
+        // 🚀 樂觀更新：立即更新專案清單與快取
+        if (!projectNamesList.includes(createdName)) {
+          projectNamesList.push(createdName);
+        }
+        if (Array.isArray(cachedAllProjectsMeta)) {
+          if (!cachedAllProjectsMeta.some(m => m.sheet_name === createdName)) {
+            cachedAllProjectsMeta.push({
+              sheet_name: createdName,
+              display_name: createdName.replace(/^\[封存\]/, ""),
+              is_archived: false,
+              client_count: 0
+            });
+            localStorage.setItem("project_meta_cache", JSON.stringify(cachedAllProjectsMeta));
+          }
+        }
+        if (!projectDataStore[createdName]) {
+          projectDataStore[createdName] = [];
+        }
+
         showToast(data.msg || "新專案分頁建立成功！", "success");
         if (projectManagerAddModal) projectManagerAddModal.classList.add("hidden");
-        currentProjectName = data.project_name || rawName;
-        loadProjectCases(true);
+        currentProjectName = createdName;
+        renderProjectTabs();
+        updateProjectCounters();
+        renderProjectCards();
+        fetchProjectCasesInBackground();
       } else {
         throw new Error(data && data.msg ? data.msg : "建立失敗");
       }
@@ -11962,6 +12048,30 @@ document.addEventListener("DOMContentLoaded", () => {
         const newName = prompt(`請輸入專案「${currentDisp}」的新名稱：\n（系統將自動確保以「專案」結尾）`, currentDisp);
         if (!newName || newName.trim() === currentDisp.trim()) return;
 
+        let trimmedNew = newName.trim();
+        if (!/專案$/.test(trimmedNew)) trimmedNew += "專案";
+
+        // 🚀 樂觀更新 (Optimistic UI) 立即變更本地狀態
+        if (Array.isArray(cachedAllProjectsMeta)) {
+          const m = cachedAllProjectsMeta.find(x => x.sheet_name === oldName);
+          if (m) {
+            m.sheet_name = trimmedNew;
+            m.display_name = trimmedNew.replace(/^\[封存\]/, "");
+          }
+          localStorage.setItem("project_meta_cache", JSON.stringify(cachedAllProjectsMeta));
+        }
+        const pIdx = projectNamesList.indexOf(oldName);
+        if (pIdx >= 0) projectNamesList[pIdx] = trimmedNew;
+        if (currentProjectName === oldName) currentProjectName = trimmedNew;
+        if (projectDataStore[oldName]) {
+          projectDataStore[trimmedNew] = projectDataStore[oldName];
+          delete projectDataStore[oldName];
+        }
+
+        renderProjectManageList();
+        renderProjectTabs();
+        renderProjectCards();
+
         const viewer = getSalesName();
         const token = localStorage.getItem("google_access_token") || "";
 
@@ -11973,7 +12083,7 @@ document.addEventListener("DOMContentLoaded", () => {
             access_token: token,
             viewer: viewer,
             old_name: oldName,
-            new_name: newName.trim()
+            new_name: trimmedNew
           };
           const res = await fetch(GAS_URL, {
             method: "POST",
@@ -11983,14 +12093,13 @@ document.addEventListener("DOMContentLoaded", () => {
           const data = await res.json();
           if (data && data.status === "ok") {
             showToast(data.msg || "專案已成功更名！", "success");
-            currentProjectName = data.project_name || newName;
-            loadProjectCases(true);
-            setTimeout(() => renderProjectManageList(), 600);
+            fetchProjectCasesInBackground();
           } else {
             throw new Error(data && data.msg ? data.msg : "更名失敗");
           }
         } catch(err) {
           alert(`更名失敗：${err.message || err}`);
+          loadProjectCases(true);
         }
       });
     });
@@ -12008,6 +12117,41 @@ document.addEventListener("DOMContentLoaded", () => {
 
         if (!confirm(msg)) return;
 
+        const oldSheetName = pName;
+        const newSheetName = toArchive 
+          ? (pName.startsWith("[封存]") ? pName : `[封存]${pName}`)
+          : pName.replace(/^\[封存\]/, "");
+        const newDispName = newSheetName.replace(/^\[封存\]/, "");
+
+        // 🚀 1. 立即樂觀更新 (Optimistic UI)：更新 cachedAllProjectsMeta
+        if (Array.isArray(cachedAllProjectsMeta)) {
+          const targetMeta = cachedAllProjectsMeta.find(m => m.sheet_name === oldSheetName || m.display_name === newDispName);
+          if (targetMeta) {
+            targetMeta.sheet_name = newSheetName;
+            targetMeta.display_name = newDispName;
+            targetMeta.is_archived = toArchive;
+          }
+          localStorage.setItem("project_meta_cache", JSON.stringify(cachedAllProjectsMeta));
+        }
+
+        // 🚀 2. 立即更新 projectNamesList 與 currentProjectName
+        if (toArchive) {
+          projectNamesList = projectNamesList.filter(p => p !== oldSheetName && p !== newSheetName);
+          if (currentProjectName === oldSheetName || currentProjectName === newSheetName) {
+            currentProjectName = projectNamesList[0] || "";
+          }
+        } else {
+          if (!projectNamesList.includes(newSheetName)) {
+            projectNamesList.push(newSheetName);
+          }
+        }
+
+        // 🚀 3. 立即重新渲染維護清單與看板標籤 (0.1 秒秒開秒關，徹底阻絕重複點擊)
+        renderProjectManageList();
+        renderProjectTabs();
+        updateProjectCounters();
+        renderProjectCards();
+
         const viewer = getSalesName();
         const token = localStorage.getItem("google_access_token") || "";
 
@@ -12018,7 +12162,7 @@ document.addEventListener("DOMContentLoaded", () => {
             action_type: "archive_project",
             access_token: token,
             viewer: viewer,
-            project_name: pName
+            project_name: oldSheetName
           };
           const res = await fetch(GAS_URL, {
             method: "POST",
@@ -12028,13 +12172,13 @@ document.addEventListener("DOMContentLoaded", () => {
           const data = await res.json();
           if (data && data.status === "ok") {
             showToast(data.msg || `專案已成功${actionText}！`, "success");
-            loadProjectCases(true);
-            setTimeout(() => renderProjectManageList(), 600);
+            fetchProjectCasesInBackground();
           } else {
             throw new Error(data && data.msg ? data.msg : `${actionText}失敗`);
           }
         } catch(err) {
           alert(`${actionText}失敗：${err.message || err}`);
+          loadProjectCases(true);
         }
       });
     });
@@ -12053,6 +12197,22 @@ document.addEventListener("DOMContentLoaded", () => {
         if (!confirm(`【極重大刪除警告】\n\n專案「${pName}」目前為空白專案（0 筆客戶案件）。\n確定要永久刪除此試算表分頁嗎？\n\n⚠️ 此操作無法復原！`)) {
           return;
         }
+
+        // 🚀 樂觀更新：立即自本地快取與清單中移除
+        if (Array.isArray(cachedAllProjectsMeta)) {
+          cachedAllProjectsMeta = cachedAllProjectsMeta.filter(m => m.sheet_name !== pName);
+          localStorage.setItem("project_meta_cache", JSON.stringify(cachedAllProjectsMeta));
+        }
+        projectNamesList = projectNamesList.filter(p => p !== pName);
+        if (currentProjectName === pName) {
+          currentProjectName = projectNamesList[0] || "";
+        }
+        delete projectDataStore[pName];
+
+        renderProjectManageList();
+        renderProjectTabs();
+        updateProjectCounters();
+        renderProjectCards();
 
         const viewer = getSalesName();
         const token = localStorage.getItem("google_access_token") || "";
@@ -12074,13 +12234,13 @@ document.addEventListener("DOMContentLoaded", () => {
           const data = await res.json();
           if (data && data.status === "ok") {
             showToast(data.msg || "空白專案已成功刪除！", "success");
-            loadProjectCases(true);
-            setTimeout(() => renderProjectManageList(), 600);
+            fetchProjectCasesInBackground();
           } else {
             throw new Error(data && data.msg ? data.msg : "刪除失敗");
           }
         } catch(err) {
           alert(`刪除失敗：${err.message || err}`);
+          loadProjectCases(true);
         }
       });
     });
@@ -12141,8 +12301,12 @@ document.addEventListener("DOMContentLoaded", () => {
       btnDetailChangeOwner.addEventListener("click", changeOwnerAction);
     }
 
+    const btnOpenProjectManageModal = document.getElementById("btnOpenProjectManageModal");
+    if (btnOpenProjectManageModal) {
+      btnOpenProjectManageModal.addEventListener("click", () => openManagerAddModal("manage"));
+    }
     if (btnOpenManagerAddModal) {
-      btnOpenManagerAddModal.addEventListener("click", openManagerAddModal);
+      btnOpenManagerAddModal.addEventListener("click", () => openManagerAddModal("client"));
     }
     if (btnCloseManagerAddModal) {
       btnCloseManagerAddModal.addEventListener("click", () => {

@@ -3134,23 +3134,92 @@ input:focus {
   color: #ffffff;
 }
 
-/* 卡片排版：手機單欄，電腦平板多欄響應式網格 */
+/* 專案看板標籤容器 */
+.project-tabs-header-wrap {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
+.project-btn-manage {
+  transition: all 0.2s ease;
+}
+.project-btn-manage:hover {
+  background: #ffedd5 !important;
+  border-color: #ea580c !important;
+  color: #9a3412 !important;
+  transform: translateY(-1px);
+}
+
+/* 卡片主容器：業務分組垂直清單 */
 .project-cards-container {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* 業務專屬帶狀分組區塊 */
+.project-sales-group {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 10px 12px 12px 12px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+}
+
+.project-sales-group-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 6px;
+  margin-bottom: 10px;
+  border-bottom: 1.5px solid #fed7aa;
+}
+
+.project-sales-group-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.project-sales-group-avatar {
+  font-size: 1.05rem;
+}
+
+.project-sales-group-name {
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: #1e293b;
+  letter-spacing: -0.2px;
+}
+
+.project-sales-group-badge {
+  font-size: 0.72rem;
+  font-weight: 700;
+  background: #fff7ed;
+  color: #c2410c;
+  border: 1px solid #fdba74;
+  padding: 2px 8px;
+  border-radius: 12px;
+}
+
+/* 業務內部客戶卡片網格 (電腦版每列3張換行，手機版單欄循序) */
+.project-sales-group-cards {
   display: grid;
   grid-template-columns: 1fr;
   gap: 10px;
-  align-content: start;
 }
 
 @media (min-width: 768px) {
-  .project-cards-container {
+  .project-sales-group-cards {
     grid-template-columns: repeat(2, 1fr);
     gap: 12px;
   }
 }
 
 @media (min-width: 1200px) {
-  .project-cards-container {
+  .project-sales-group-cards {
     grid-template-columns: repeat(3, 1fr);
   }
 }

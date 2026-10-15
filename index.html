@@ -1984,14 +1984,19 @@
         <button id="btnCloseProjectTrackingModal" class="btn-close">&times;</button>
       </div>
 
-      <!-- 專案動態標籤切換列 (Tab) -->
-      <div id="projectTabsNav" class="project-tabs-nav" style="display:flex; gap:6px; overflow-x:auto; padding-bottom:4px; margin-bottom:6px; flex-shrink:0; border-bottom:1px solid #fed7aa;">
-        <!-- 由 JS 動態生成專案分頁標籤 -->
+      <!-- 專案動態標籤列容器：左側滾動標籤，右側固定「🛠️ 專案編輯」按鈕 -->
+      <div class="project-tabs-header-wrap" style="display:flex; justify-content:space-between; align-items:center; gap:8px; padding-bottom:6px; margin-bottom:8px; flex-shrink:0; border-bottom:1px solid #fed7aa;">
+        <div id="projectTabsNav" class="project-tabs-nav" style="display:flex; gap:6px; overflow-x:auto; flex:1; min-width:0; padding-bottom:2px;">
+          <!-- 由 JS 動態生成專案分頁標籤 -->
+        </div>
+        <button type="button" id="btnOpenProjectManageModal" class="btn btn-secondary btn-sm hidden project-btn-manage" style="white-space:nowrap; flex-shrink:0; font-size:0.8rem; padding:4px 10px; background:#fff7ed; border:1px solid #fdba74; color:#c2410c; font-weight:700; border-radius:6px; cursor:pointer;" title="專案分頁管理 (更名/封存/刪除/建立專案)">
+          🛠️ 專案編輯
+        </button>
       </div>
 
       <!-- 主管與篩選工具列 (專屬響應式三列式排版) -->
       <div class="project-toolbar-box">
-        <!-- 第 1 列：責任業務篩選 + 主管新增按鈕 -->
+        <!-- 第 1 列：責任業務篩選 + 主管指派新客戶按鈕 -->
         <div class="project-toolbar-row-top">
           <div class="project-sales-picker">
             <label for="projectSalesFilter" style="font-size:0.8rem; font-weight:700; color:#431407; white-space:nowrap;">負責擔當：</label>
@@ -1999,8 +2004,8 @@
               <!-- 動態載入 -->
             </select>
           </div>
-          <button type="button" id="btnOpenManagerAddModal" class="btn btn-primary btn-sm hidden project-btn-add" title="主管新增專案或指派客戶">
-            ➕ 新增專案/客戶
+          <button type="button" id="btnOpenManagerAddModal" class="btn btn-primary btn-sm hidden project-btn-add" title="指派新客戶至當前專案">
+            ➕ 指派新客戶
           </button>
         </div>
 
