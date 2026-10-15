@@ -58,26 +58,40 @@ document.addEventListener("DOMContentLoaded", () => {
     }, 2800);
   }
 
-  // 🚀 版本自動同步與舊快取清理防護 (v 2.03)
-  const CURRENT_APP_VERSION = "2.03";
+  // 🚀 版本自動同步與舊快取清理防護 (v 2.05)
+  const CURRENT_APP_VERSION = "2.05";
   const appVersionInfo = document.getElementById("appVersionInfo");
   if (appVersionInfo) {
     appVersionInfo.textContent = "v " + CURRENT_APP_VERSION;
   }
   const lastAppVersion = localStorage.getItem("app_version");
-  if (lastAppVersion !== CURRENT_APP_VERSION) {
+  
+  // 檢查既有 products_cache 是否為缺少 candidates/sku 的舊版格式
+  let needProductCacheReset = false;
+  try {
+    const existingCache = JSON.parse(localStorage.getItem("products_cache") || "[]");
+    if (existingCache.length > 0 && !existingCache.some(p => p.candidates && p.candidates.length > 0)) {
+      console.log("[VersionUpdate] 偵測到本機產品快取缺少料號對照欄位，標記需強制更新...");
+      needProductCacheReset = true;
+    }
+  } catch(e) {}
+
+  if (lastAppVersion !== CURRENT_APP_VERSION || needProductCacheReset) {
     console.log(`[VersionUpdate] 偵測到版本更新 (${lastAppVersion || "舊版"} -> ${CURRENT_APP_VERSION})`);
     if ('caches' in window) {
       caches.keys().then(keys => {
         keys.forEach(k => {
-          if (k !== 'quote-draft-v2.03') {
+          if (k !== 'quote-draft-v' + CURRENT_APP_VERSION) {
             caches.delete(k);
           }
         });
       });
     }
-    // ⚠️ 僅清理每日庫存快取，嚴禁清除 products_cache 與 customers_cache 離線主檔，防止離線打單資料遺失
+    // 清理庫存快取與舊版無料號產品快取
     localStorage.removeItem("inventory_cache");
+    if (needProductCacheReset || lastAppVersion !== CURRENT_APP_VERSION) {
+      localStorage.removeItem("products_cache");
+    }
     localStorage.setItem("app_version", CURRENT_APP_VERSION);
   }
 
@@ -853,9 +867,9 @@ document.addEventListener("DOMContentLoaded", () => {
   // Service Worker 註冊與自動更新偵測
   // ====================================================
   if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('./sw.js?v=2.02')
+    navigator.serviceWorker.register('./sw.js?v=' + CURRENT_APP_VERSION)
       .then(reg => {
-        console.log('[PWA] Service Worker 已註冊 (v 2.02)', reg);
+        console.log('[PWA] Service Worker 已註冊 (v ' + CURRENT_APP_VERSION + ')', reg);
         // 主動檢查伺服器端是否有新版 sw.js
         reg.update();
 
@@ -1901,6 +1915,25 @@ document.addEventListener("DOMContentLoaded", () => {
   // 從 GAS 代理讀取產品資料
   // ====================================================
   async function loadProductsFromGAS() {
+    // 🚀 優先嘗試載入本站打包之 products.json (保證涵蓋 6,606 款關聯料號與即時 candidates)
+    try {
+      const localRes = await fetch("./products.json?v=" + CURRENT_APP_VERSION);
+      if (localRes.ok) {
+        const localData = await localRes.json();
+        if (Array.isArray(localData) && localData.length > 0) {
+          MOCK_PRODUCTS = localData;
+          localStorage.setItem("products_cache", JSON.stringify(MOCK_PRODUCTS));
+          console.log("[Local] 成功載入本站完整產品與料號資料，共", MOCK_PRODUCTS.length, "筆");
+          if (productModal && !productModal.classList.contains("hidden")) {
+            performProductFilter(productSearch ? productSearch.value : "");
+          }
+          return;
+        }
+      }
+    } catch(e) {
+      console.warn("[Local] 讀取本站 products.json 略過，轉向遠端 GAS", e);
+    }
+
     try {
       const res = await fetch(`${GAS_URL}?action=get_products`);
       if (!res.ok) throw new Error("GAS 回應錯誤：" + res.status);
