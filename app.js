@@ -58,8 +58,8 @@ document.addEventListener("DOMContentLoaded", () => {
     }, 2800);
   }
 
-  // 🚀 版本自動同步與舊快取清理防護 (v 2.06)
-  const CURRENT_APP_VERSION = "2.06";
+  // 🚀 版本自動同步與舊快取清理防護 (v 2.07)
+  const CURRENT_APP_VERSION = "2.07";
   const appVersionInfo = document.getElementById("appVersionInfo");
   if (appVersionInfo) {
     appVersionInfo.textContent = "v " + CURRENT_APP_VERSION;
@@ -2529,15 +2529,15 @@ document.addEventListener("DOMContentLoaded", () => {
           <button type="button" class="item-remove" onclick="document.getElementById('${itemId}').remove(); setTimeout(() => { calculateTotal(); refreshItemIndices(); }, 50);">&times;</button>
         </div>
 
-        <!-- 🚀 [新增] 料號展示與切換列 -->
-        <div class="item-sku-row hidden" id="${itemId}-sku-row" style="display:flex; justify-content:space-between; align-items:center; background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px; padding:6px 10px; margin-top:8px; margin-bottom:10px; font-size:0.82rem;">
-          <div style="display:flex; align-items:center; gap:6px; overflow:hidden;">
-            <span style="color:#64748b; font-weight:600; flex-shrink:0;">料號：</span>
-            <span id="${itemId}-sku-display" style="font-family:Consolas, Monaco, monospace; font-weight:700; color:#1e293b; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">-</span>
+        <!-- 🚀 料號展示與切換列：第一行標題+切換鈕，第二行完整料號（最多 16 字元，不截斷） -->
+        <div class="item-sku-row hidden" id="${itemId}-sku-row" style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px; padding:6px 10px; margin-top:8px; margin-bottom:10px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; gap:8px; min-height:26px;">
+            <span style="color:#64748b; font-weight:600; font-size:0.82rem;">料號</span>
+            <button type="button" id="${itemId}-sku-switch-btn" class="btn btn-secondary hidden" style="padding:2px 8px; font-size:0.75rem; border-radius:4px; flex-shrink:0; background:#eff6ff; color:#2563eb; border-color:#bfdbfe; font-weight:600; cursor:pointer;">
+              🔄 切換料號
+            </button>
           </div>
-          <button type="button" id="${itemId}-sku-switch-btn" class="btn btn-secondary hidden" style="padding:2px 8px; font-size:0.75rem; border-radius:4px; flex-shrink:0; margin-left:8px; background:#eff6ff; color:#2563eb; border-color:#bfdbfe; font-weight:600; cursor:pointer;">
-            🔄 切換料號
-          </button>
+          <div id="${itemId}-sku-display" style="font-family:Consolas, Monaco, monospace; font-weight:700; font-size:1rem; letter-spacing:0.02em; color:#1e293b; white-space:normal; word-break:break-all; line-height:1.4; margin-top:2px;">-</div>
         </div>
 
         <div class="item-grid">

@@ -1,5 +1,5 @@
 {
-  "version": "2.06",
+  "version": "2.07",
   "updated_at": "2026-10-15 20:15:00",
-  "description": "修復料號顯示無料號：以本站 products.json 依型號補齊 Drive/GAS 產品之料號與候選清單"
+  "description": "料號改為獨立整行完整顯示（最多 16 字元不截斷），切換按鈕移至標題列"
 }
