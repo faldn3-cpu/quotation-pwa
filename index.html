@@ -2277,9 +2277,28 @@
     </div>
   </div>
 
-  <!-- 🚀 畫面右下角簡潔版本訊息 (字體小、不佔用頂部空間) -->
-  <div class="app-version-bottom-right" id="appVersionInfo">v 2.03</div>
+  <!-- 🔄 [新增] 料號切換對話框 (Modal) -->
+  <div id="skuModal" class="modal hidden">
+    <div class="modal-content" style="max-height:80vh; max-height:80dvh; display:flex; flex-direction:column; padding:1.1rem; max-width:440px;">
+      <div class="modal-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.75rem; flex-shrink:0;">
+        <h3 style="margin:0; font-size:1.05rem; color:#1e293b; display:flex; align-items:center; gap:6px;">
+          🔄 選擇關聯料號
+        </h3>
+        <button id="btnCloseSkuModal" class="btn-close">&times;</button>
+      </div>
+      <div style="font-size:0.85rem; color:#64748b; margin-bottom:10px;" id="skuModalModelTitle">型號：-</div>
+      <div id="skuModalList" style="overflow-y:auto; flex:1; display:flex; flex-direction:column; gap:8px;">
+        <!-- 動態渲染各料號與現貨數量 -->
+      </div>
+      <div class="modal-footer" style="padding-top:0.75rem; border-top:1px solid #e2e8f0; display:flex; justify-content:flex-end; margin-top:0.75rem; flex-shrink:0;">
+        <button type="button" id="btnCancelSkuModal" class="btn btn-secondary" style="font-size:0.85rem; padding:6px 16px;">關閉</button>
+      </div>
+    </div>
+  </div>
 
-  <script src="app.js?v=2.03"></script>
+  <!-- 🚀 畫面右下角簡潔版本訊息 (字體小、不佔用頂部空間) -->
+  <div class="app-version-bottom-right" id="appVersionInfo">v 2.05</div>
+
+  <script src="app.js?v=2.05"></script>
 </body>
 </html>

@@ -618,6 +618,14 @@ document.addEventListener("DOMContentLoaded", () => {
   const btnConfirmCustomDelivery = document.getElementById("btnConfirmCustomDelivery");
   const deliveryModalResults     = document.getElementById("deliveryModalResults");
 
+  // 🔄 料號切換 Modal 與資料映射
+  const skuModal                 = document.getElementById("skuModal");
+  const btnCloseSkuModal         = document.getElementById("btnCloseSkuModal");
+  const btnCancelSkuModal        = document.getElementById("btnCancelSkuModal");
+  const skuModalModelTitle       = document.getElementById("skuModalModelTitle");
+  const skuModalList             = document.getElementById("skuModalList");
+  const itemSkuMap               = {}; // 各品項關聯料號快取：{ [itemId]: { code, candidates, currentSku } }
+
   let currentEditingItemIndex = -1;
   let currentEditingDeliveryItemId = null;
   let selectedProductCode = null;
@@ -2435,6 +2443,18 @@ document.addEventListener("DOMContentLoaded", () => {
           <span id="${itemId}-order-badge" class="order-item-badge hidden">訂購品</span>
           <button type="button" class="item-remove" onclick="document.getElementById('${itemId}').remove(); setTimeout(() => { calculateTotal(); refreshItemIndices(); }, 50);">&times;</button>
         </div>
+
+        <!-- 🚀 [新增] 料號展示與切換列 -->
+        <div class="item-sku-row hidden" id="${itemId}-sku-row" style="display:flex; justify-content:space-between; align-items:center; background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px; padding:6px 10px; margin-top:8px; margin-bottom:10px; font-size:0.82rem;">
+          <div style="display:flex; align-items:center; gap:6px; overflow:hidden;">
+            <span style="color:#64748b; font-weight:600; flex-shrink:0;">料號：</span>
+            <span id="${itemId}-sku-display" style="font-family:Consolas, Monaco, monospace; font-weight:700; color:#1e293b; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">-</span>
+          </div>
+          <button type="button" id="${itemId}-sku-switch-btn" class="btn btn-secondary hidden" style="padding:2px 8px; font-size:0.75rem; border-radius:4px; flex-shrink:0; margin-left:8px; background:#eff6ff; color:#2563eb; border-color:#bfdbfe; font-weight:600; cursor:pointer;">
+            🔄 切換料號
+          </button>
+        </div>
+
         <div class="item-grid">
           <div>
             <label id="${itemId}-stock-label">庫存數量</label>
@@ -2482,10 +2502,18 @@ document.addEventListener("DOMContentLoaded", () => {
         </div>
         <input type="hidden" name="item_code" id="${itemId}-code">
         <input type="hidden" name="item_name" id="${itemId}-name">
+        <input type="hidden" name="item_sku" id="${itemId}-sku">
       </div>
     `;
     itemsContainer.insertAdjacentHTML('beforeend', itemHTML);
     refreshItemIndices();
+
+    const switchBtn = document.getElementById(`${itemId}-sku-switch-btn`);
+    if (switchBtn) {
+      switchBtn.addEventListener("click", () => {
+        openSkuModal(itemId);
+      });
+    }
 
     const deliveryInput = document.getElementById(`${itemId}-delivery`);
     if (deliveryInput) {
@@ -2866,14 +2894,63 @@ document.addEventListener("DOMContentLoaded", () => {
       const code = selectedProductCode;
       const name = selectedProductName;
       const productObj = MOCK_PRODUCTS.find(p => p.code === code) || {};
-      
-      const qty = getStockQty(code);
-      let stockStr = "";
-      if (qty !== null) {
-        stockStr = String(qty);
-      } else {
-        stockStr = "-";
+
+      // 🚀 料號與候選清單處理 (選項 B: 現貨最多者優先置頂)
+      let candidates = productObj.candidates || [];
+      if (candidates.length === 0 && productObj.sku) {
+        candidates = [{ sku: productObj.sku, desc: "標準品", is_standard: true }];
       }
+
+      let chosenSku = productObj.sku || "";
+      if (candidates.length > 0) {
+        const scored = candidates.map(c => {
+          const q = getStockQty(c.sku);
+          return { ...c, stock: (q !== null) ? q : -1 };
+        });
+        scored.sort((a, b) => b.stock - a.stock);
+        if (scored[0].stock > 0) {
+          chosenSku = scored[0].sku;
+        } else {
+          const std = candidates.find(c => c.is_standard);
+          chosenSku = std ? std.sku : candidates[0].sku;
+        }
+      }
+
+      // 紀錄至品項快取映射
+      itemSkuMap[targetItemId] = {
+        code: code,
+        candidates: candidates,
+        currentSku: chosenSku
+      };
+
+      // 顯示料號資訊列與切換按鈕
+      const skuRow = document.getElementById(`${targetItemId}-sku-row`);
+      const skuDisplay = document.getElementById(`${targetItemId}-sku-display`);
+      const skuInput = document.getElementById(`${targetItemId}-sku`);
+      const switchBtn = document.getElementById(`${targetItemId}-sku-switch-btn`);
+
+      if (skuRow) skuRow.classList.remove("hidden");
+      if (skuDisplay) skuDisplay.textContent = chosenSku || "無料號";
+      if (skuInput) skuInput.value = chosenSku;
+
+      if (switchBtn) {
+        if (candidates.length > 1) {
+          switchBtn.textContent = `🔄 切換 (${candidates.length})`;
+          switchBtn.classList.remove("hidden");
+        } else {
+          switchBtn.classList.add("hidden");
+        }
+      }
+
+      // 庫存查詢：優先採用 chosenSku，fallback 至型號 code
+      let effectiveStock = null;
+      if (chosenSku) {
+        effectiveStock = getStockQty(chosenSku);
+      }
+      if (effectiveStock === null) {
+        effectiveStock = getStockQty(code);
+      }
+      const stockStr = (effectiveStock !== null) ? String(effectiveStock) : "-";
       
       const dPrice = productObj.dealer_price ? `$${Number(productObj.dealer_price).toLocaleString()}` : "未定";
       
@@ -2895,7 +2972,7 @@ document.addEventListener("DOMContentLoaded", () => {
       const stockEl = document.getElementById(`${targetItemId}-stock-qty`);
       if (stockEl) {
         stockEl.value = stockStr;
-        stockEl.style.color = (qty !== null && qty > 0) || productObj.stock === "IN_STOCK" ? "#059669" : "#dc2626";
+        stockEl.style.color = (effectiveStock !== null && effectiveStock > 0) || productObj.stock === "IN_STOCK" ? "#059669" : "#dc2626";
       }
       
       // 🚀 訂購品標籤更新
@@ -2920,6 +2997,95 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   // ====================================================
+  // 🔄 料號切換 Modal 控制邏輯
+  // ====================================================
+  function openSkuModal(itemId) {
+    const data = itemSkuMap[itemId];
+    if (!data || !data.candidates || data.candidates.length === 0) return;
+
+    if (skuModalModelTitle) {
+      skuModalModelTitle.textContent = `型號：${data.code}`;
+    }
+
+    if (skuModalList) {
+      skuModalList.innerHTML = "";
+      data.candidates.forEach(cand => {
+        const isCurrent = cand.sku === data.currentSku;
+        const stock = getStockQty(cand.sku);
+        const hasStock = (stock !== null && stock > 0);
+        const stockBadgeText = (stock !== null) ? (hasStock ? `現貨 ${stock}` : "現貨 0") : "未在庫";
+        const badgeClass = hasStock ? "stock-in" : "stock-order";
+
+        const card = document.createElement("div");
+        card.style.cssText = `
+          padding: 10px 12px;
+          border: 2px solid ${isCurrent ? "var(--primary-color, #2563eb)" : "#e2e8f0"};
+          background: ${isCurrent ? "#eff6ff" : "#ffffff"};
+          border-radius: 8px;
+          cursor: pointer;
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          transition: all 0.15s ease;
+        `;
+        card.innerHTML = `
+          <div>
+            <div style="font-family:Consolas, Monaco, monospace; font-weight:700; font-size:0.95rem; color:#1e293b;">
+              ${cand.sku} ${isCurrent ? '<span style="font-size:0.75rem; color:#2563eb; font-weight:600; margin-left:4px;">(目前選用)</span>' : ''}
+            </div>
+            <div style="font-size:0.78rem; color:#64748b; margin-top:2px;">
+              ${cand.desc || (cand.is_standard ? "標準品" : "訂製品 / 特殊品")}
+            </div>
+          </div>
+          <span class="stock-badge ${badgeClass}">${stockBadgeText}</span>
+        `;
+
+        card.addEventListener("click", () => {
+          applySkuSelection(itemId, cand.sku);
+          if (skuModal) skuModal.classList.add("hidden");
+        });
+
+        skuModalList.appendChild(card);
+      });
+    }
+
+    if (skuModal) skuModal.classList.remove("hidden");
+  }
+
+  function applySkuSelection(itemId, chosenSku) {
+    if (!itemSkuMap[itemId]) return;
+    itemSkuMap[itemId].currentSku = chosenSku;
+
+    const skuDisplay = document.getElementById(`${itemId}-sku-display`);
+    const skuInput = document.getElementById(`${itemId}-sku`);
+    if (skuDisplay) skuDisplay.textContent = chosenSku;
+    if (skuInput) skuInput.value = chosenSku;
+
+    // 🚀 即時連動更新該品項之庫存數量與警示顏色
+    let newStock = getStockQty(chosenSku);
+    if (newStock === null) {
+      newStock = getStockQty(itemSkuMap[itemId].code);
+    }
+    const stockEl = document.getElementById(`${itemId}-stock-qty`);
+    if (stockEl) {
+      stockEl.value = (newStock !== null) ? String(newStock) : "-";
+      stockEl.style.color = (newStock !== null && newStock > 0) ? "#059669" : "#dc2626";
+    }
+  }
+
+  if (btnCloseSkuModal && skuModal) {
+    btnCloseSkuModal.addEventListener("click", () => skuModal.classList.add("hidden"));
+  }
+  if (btnCancelSkuModal && skuModal) {
+    btnCancelSkuModal.addEventListener("click", () => skuModal.classList.add("hidden"));
+  }
+  if (skuModal) {
+    skuModal.addEventListener("click", (e) => {
+      if (e.target === skuModal) skuModal.classList.add("hidden");
+    });
+  }
+
+  // ====================================================
   // 送出草稿
   // ====================================================
   document.getElementById("draftForm").addEventListener("submit", async (e) => {
@@ -2938,6 +3104,7 @@ document.addEventListener("DOMContentLoaded", () => {
     itemRows.forEach(row => {
       const code     = row.querySelector("input[name='item_code']").value;
       const name     = row.querySelector("input[name='item_name']").value;
+      const sku      = row.querySelector("input[name='item_sku']")?.value || "";
       const qty      = row.querySelector("input[name='quantity']").value;
       const sugPrice = row.querySelector("input[name='suggested_price']").value;
       const sugDiscount = row.querySelector("input[name='suggested_discount']").value;
@@ -2948,6 +3115,7 @@ document.addEventListener("DOMContentLoaded", () => {
         items.push({ 
           code, 
           name, 
+          sku: sku || undefined,
           quantity: parseInt(qty), 
           suggested_price: parseFloat(sugPrice) || null,
           suggested_discount: parseFloat(sugDiscount) || null,
@@ -3086,16 +3254,22 @@ document.addEventListener("DOMContentLoaded", () => {
         if (!isNaN(priceNum)) priceStr = priceNum.toLocaleString();
       }
 
+      const sku = row.querySelector("input[name='item_sku']")?.value || "";
       const deliveryStr = deliveryTime.trim() || "待確認";
 
-      const block = [
-        `產品：\t${code}`,
+      const lines = [
+        `產品：\t${code}`
+      ];
+      if (sku) {
+        lines.push(`料號：\t${sku}`);
+      }
+      lines.push(
         `規格：\t${name}`,
         `數量：\t${qty}\tEA`,
         `貴司入手單價： ${priceStr} \t元(未稅)`,
         `交期：\t${deliveryStr}`
-      ].join("\n");
-      resultBlocks.push(block);
+      );
+      resultBlocks.push(lines.join("\n"));
     });
 
     return resultBlocks.join("\n\n");
