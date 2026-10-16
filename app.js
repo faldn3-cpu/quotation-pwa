@@ -58,8 +58,8 @@ document.addEventListener("DOMContentLoaded", () => {
     }, 2800);
   }
 
-  // 🚀 版本自動同步與舊快取清理防護 (v 2.08)
-  const CURRENT_APP_VERSION = "2.08";
+  // 🚀 版本自動同步與舊快取清理防護 (v 2.07)
+  const CURRENT_APP_VERSION = "2.07";
   const appVersionInfo = document.getElementById("appVersionInfo");
   if (appVersionInfo) {
     appVersionInfo.textContent = "v " + CURRENT_APP_VERSION;
@@ -3879,42 +3879,7 @@ document.addEventListener("DOMContentLoaded", () => {
       .replace(/'/g, "&#039;");
   }
 
-  // 👤 業務三字全名轉換對照表 (防範兩字簡稱造成分頁與試算表資料不一致)
-  const SALES_FULL_NAME_MAP = {
-    "仁豪": "葉仁豪", "富丞": "莊富丞", "仁君": "曾仁君", "維崧": "曾維崧",
-    "何達": "張何達", "達仁": "溫達仁", "家豪": "楊家豪", "宛茹": "何宛茹",
-    "書偉": "張書偉", "柏翰": "黃柏翰", "文輝": "邱文輝", "瑞騏": "謝瑞騏"
-  };
-
-  function normalizeSalesName(name) {
-    if (!name) return "";
-    const clean = String(name).trim().replace(/^👤\s*/, "").replace(/^🧪\s*/, "").replace(/\s*\(測試\)\s*/g, "").replace(/\s*\(👑\)\s*/g, "");
-    return SALES_FULL_NAME_MAP[clean] || clean;
-  }
-
-  // 🕒 前端安全台灣標準時間字串解析引擎 (支援上午/下午字串與 Date 物件轉為毫秒數)
-  function parseTwDateTimeSafe(val) {
-    if (!val) return 0;
-    if (val instanceof Date) return val.getTime();
-    const s = String(val).trim();
-    const m = s.match(/^(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})\s*(上午|下午)?\s*(\d{1,2}):(\d{1,2})(?::(\d{1,2}))?/);
-    if (m) {
-      let y = parseInt(m[1], 10);
-      let mo = parseInt(m[2], 10) - 1;
-      let d = parseInt(m[3], 10);
-      let ampm = m[4];
-      let h = parseInt(m[5], 10);
-      let mi = parseInt(m[6], 10);
-      let sc = m[7] ? parseInt(m[7], 10) : 0;
-      if (ampm === "下午" && h < 12) h += 12;
-      if (ampm === "上午" && h === 12) h = 0;
-      return new Date(y, mo, d, h, mi, sc).getTime();
-    }
-    const fallback = new Date(s);
-    return isNaN(fallback.getTime()) ? 0 : fallback.getTime();
-  }
-
-  // 取得當前登入業務員真實全名 (用於 Google Sheet 分頁對應與 CRM 責任人標記)
+  // 取得當前登入業務員真實姓名 (用於 Google Sheet 分頁對應)
   function getSalesName() {
     const cached = localStorage.getItem("saved_display_name");
     let name = "";
@@ -3925,7 +3890,8 @@ document.addEventListener("DOMContentLoaded", () => {
     } else {
       name = "曾仁君";
     }
-    return normalizeSalesName(name) || "曾仁君";
+    if (name === "仁君") name = "曾仁君";
+    return name || "曾仁君";
   }
 
   function sortSalesMembers(list) {
@@ -5567,20 +5533,13 @@ document.addEventListener("DOMContentLoaded", () => {
       btnSubmitCrmModal.disabled = true;
       btnSubmitCrmModal.textContent = "⚡ 正在同步至 CRM 試算表...";
 
-        const cleanUserName = normalizeSalesName(userName);
-        const cleanClientOwner = normalizeSalesName(clientOwner || userName);
-        const cleanVisitDate = (visitDate || "").replace(/-/g, "/");
-        const cleanChannel = channel || "直販";
-        const cleanCompChannel = (compChannel === "無" || compChannel === "none") ? "" : compChannel;
-        const cleanLostRetrieved = (isLostRetrieved === "無" || isLostRetrieved === "none" || isLostRetrieved === "否") ? "" : isLostRetrieved;
-        const cleanActionPlan = actionPlan || "出差到客戶端拜訪";
-
+      try {
         const params = new URLSearchParams({
           action: "sync_ogsm_to_crm",
-          user_name: cleanUserName,
-          visit_date: cleanVisitDate,
+          user_name: userName,
+          visit_date: visitDate,
           client_name: clientName,
-          client_owner: cleanClientOwner,
+          client_owner: clientOwner,
           purpose_or_project: purpose,
           status_description: statusDesc,
           promoted_products: promotedProducts,
@@ -5589,11 +5548,11 @@ document.addEventListener("DOMContentLoaded", () => {
           dependencies: dependencies,
           competing_brand: brand,
           industry: industry,
-          channel: cleanChannel,
-          comp_channel: cleanCompChannel,
+          channel: channel,
+          comp_channel: compChannel,
           client_nature: clientNature,
-          is_lost_retrieved: cleanLostRetrieved,
-          action_plan: cleanActionPlan
+          is_lost_retrieved: isLostRetrieved,
+          action_plan: actionPlan
         });
 
         const res = await fetch(`${GAS_URL}?${params.toString()}`);
@@ -6198,10 +6157,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
     let html = "";
     const sortedRecords = [...records].sort((a, b) => {
-      const ta = parseTwDateTimeSafe(a.latest_update_raw || a.latest_update);
-      const tb = parseTwDateTimeSafe(b.latest_update_raw || b.latest_update);
-      if (tb !== ta) return tb - ta;
-      return (b.row_index || 0) - (a.row_index || 0);
+      const ta = new Date(a.latest_update || 0).getTime() || 0;
+      const tb = new Date(b.latest_update || 0).getTime() || 0;
+      return tb - ta;
     });
 
     const seenQuoteIds = new Set();
@@ -7689,10 +7647,10 @@ document.addEventListener("DOMContentLoaded", () => {
         try {
           const crmPayload = {
             action: "sync_ogsm_to_crm",
-            user_name: normalizeSalesName(salesName),
-            visit_date: (dateStr || "").replace(/-/g, "/"),
+            user_name: salesName,
+            visit_date: dateStr,
             client_name: clientName,
-            client_owner: normalizeSalesName(clientOwner || salesName),
+            client_owner: clientOwner || salesName,
             purpose_or_project: content,
             status_description: result,
             promoted_products: promotedProducts,
@@ -7701,11 +7659,11 @@ document.addEventListener("DOMContentLoaded", () => {
             dependencies: dependencies,
             competing_brand: competingBrand,
             industry: industry,
-            channel: channel || "直販",
-            comp_channel: (compChannel === "無" || compChannel === "none") ? "" : compChannel,
+            channel: channel,
+            comp_channel: compChannel,
             client_nature: clientType,
-            is_lost_retrieved: (isLostRetrieved === "無" || isLostRetrieved === "none" || isLostRetrieved === "否") ? "" : isLostRetrieved,
-            action_plan: actionPlan || "出差到客戶端拜訪",
+            is_lost_retrieved: isLostRetrieved,
+            action_plan: actionPlan,
             is_kpi_case: isKpiCase,
             product_subcategory: productSubcategory,
             is_closed_order: isClosedOrder,
@@ -8039,20 +7997,13 @@ document.addEventListener("DOMContentLoaded", () => {
             alert("更新失敗：" + (data.msg || "未知錯誤"));
           }
         } else {
+          // 無 row_index → 新建 CRM（呼叫 sync_ogsm_to_crm）
           const salesName = getSalesName();
-          const cleanUserName = normalizeSalesName(salesName);
-          const cleanClientOwner = normalizeSalesName(clientOwner || salesName);
-          const cleanVisitDate = (visitDate || "").replace(/-/g, "/");
-          const cleanChannel = channel || "直販";
-          const cleanCompChannel = (compChannel === "無" || compChannel === "none") ? "" : compChannel;
-          const cleanLostRetrieved = (isLostRetrieved === "無" || isLostRetrieved === "none" || isLostRetrieved === "否") ? "" : isLostRetrieved;
-          const cleanActionPlan = actionPlan || "出差到客戶端拜訪";
-
           const params = new URLSearchParams({
             action: "sync_ogsm_to_crm",
-            user_name: cleanUserName,
+            user_name: salesName,
             client_name: clientName,
-            client_owner: cleanClientOwner,
+            client_owner: clientOwner || salesName,
             purpose_or_project: caseName,
             status_description: statusDesc,
             promoted_products: products,
@@ -8060,13 +8011,13 @@ document.addEventListener("DOMContentLoaded", () => {
             estimated_amount: amount,
             competing_brand: brand,
             dependencies: dependencies,
-            visit_date: cleanVisitDate,
+            visit_date: visitDate,
             industry: industry,
-            channel: cleanChannel,
-            comp_channel: cleanCompChannel,
+            channel: channel,
+            comp_channel: compChannel,
             client_nature: clientNature,
-            is_lost_retrieved: cleanLostRetrieved,
-            action_plan: cleanActionPlan
+            is_lost_retrieved: isLostRetrieved,
+            action_plan: actionPlan
           });
 
           const res = await fetch(`${GAS_URL}?${params.toString()}`);

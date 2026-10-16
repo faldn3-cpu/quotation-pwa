@@ -15,7 +15,7 @@
   
   <!-- Google Fonts: Inter -->
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=2.08">
+  <link rel="stylesheet" href="style.css?v=2.07">
   <style>
     .custom-delivery-box { display: flex !important; gap: 8px !important; align-items: center !important; }
     .custom-delivery-box .search-input { flex: 1 !important; margin-bottom: 0 !important; }
@@ -492,13 +492,13 @@
             </label>
             <select id="ogsmSelectType" class="search-input" required style="cursor:pointer; background:#ffffff;">
               <option value="">-- 請選擇客戶性質 --</option>
-              <option value="A客戶 - 大手客戶 & 既有客戶">A客戶 - 大手客戶 &amp; 既有客戶</option>
-              <option value="B客戶 - 前一年新成交">B客戶 - 前一年新成交</option>
-              <option value="C客戶 - 預計開發及今年新成交">C客戶 - 預計開發及今年新成交</option>
-              <option value="D-A客戶 - 經銷商 大手客戶 & 既有客戶">D-A客戶 - 經銷商 大手客戶 &amp; 既有客戶</option>
-              <option value="D-B客戶 - 經銷商 前一年新成交">D-B客戶 - 經銷商 前一年新成交</option>
-              <option value="D-C客戶 - 經銷商 預計開發及今年新成交">D-C客戶 - 經銷商 預計開發及今年新成交</option>
-              <option value="其他">其他</option>
+              <option value="(A) 直賣A級">(A) 直賣A級（大手客戶 &amp; 既有客戶）</option>
+              <option value="(B) 直賣B級">(B) 直賣B級（前一年新成交）</option>
+              <option value="(C) 直賣C級">(C) 直賣C級（預計開發及今年新成交）</option>
+              <option value="(D-A) 經銷A級">(D-A) 經銷A級（經銷商大手客戶 &amp; 既有客戶）</option>
+              <option value="(D-B) 經銷B級">(D-B) 經銷B級（經銷商前一年新成交）</option>
+              <option value="(D-C) 經銷C級">(D-C) 經銷C級（經銷商預計開發及今年新成交）</option>
+              <option value="(O) 其它">(O) 其它</option>
             </select>
           </div>
 
@@ -568,8 +568,10 @@
               <div class="form-group" style="margin-bottom:0.85rem;">
                 <label for="ogsmInputChannel" style="font-weight:600; font-size:0.85rem; margin-bottom:4px; display:block;">通路商</label>
                 <select id="ogsmInputChannel" class="search-input" style="cursor:pointer; background:#ffffff; margin-bottom:0;">
+                  <option value="">-- 請選擇通路商 --</option>
                   <option value="直販">直販</option>
                   <option value="二次店">二次店</option>
+                  <option value="上控廠商">上控廠商</option>
                   <option value="經銷商">經銷商</option>
                   <option value="其他">其他</option>
                 </select>
@@ -603,12 +605,8 @@
                 <label for="ogsmInputLostRetrieved" style="font-weight:600; font-size:0.85rem; margin-bottom:4px; display:block;">是否為流失客戶取回（選填）</label>
                 <select id="ogsmInputLostRetrieved" class="search-input" style="cursor:pointer; background:#ffffff; margin-bottom:0;">
                   <option value="無">無</option>
-                  <option value="曾仁君 - 新林電機、新碩自動">曾仁君 - 新林電機、新碩自動</option>
-                  <option value="溫達仁 - 崇翌科技、台銨科技、全美自動、泓發機電、協易機械、鑫詮科技、迎傑機電、由田新技、祥侑企業、梭特科技">溫達仁 - 崇翌科技、台銨科技、全美自動、泓發機電、協易機械、鑫詮科技、迎傑機電、由田新技、祥侑企業、梭特科技</option>
-                  <option value="楊家豪 - 順瀅企業、宇貫企業">楊家豪 - 順瀅企業、宇貫企業</option>
-                  <option value="謝瑞騏 - 福星機電、德世達科、磊登自動、睿明科技、碩聯自動">謝瑞騏 - 福星機電、德世達科、磊登自動、睿明科技、碩聯自動</option>
-                  <option value="莊富丞 - 東佑達奈、叡億機械、理豐智動、東典科技">莊富丞 - 東佑達奈、叡億機械、理豐智動、東典科技</option>
-                  <option value="張書偉 - 鴻績工業、汎得自動、達詳自動、捷惠自動">張書偉 - 鴻績工業、汎得自動、達詳自動、捷惠自動</option>
+                  <option value="是 - 成功取回">是 - 成功取回</option>
+                  <option value="爭取中 / 評估中">爭取中 / 評估中</option>
                 </select>
               </div>
 
@@ -824,8 +822,8 @@
               </label>
               <select id="crmSelectChannel" class="search-input" style="font-size:0.85rem; padding:6px 8px; margin-bottom:0;">
                 <option value="直販">直販</option>
-                <option value="二次店">二次店</option>
                 <option value="經銷商">經銷商</option>
+                <option value="代理商">代理商</option>
                 <option value="其他">其他</option>
               </select>
             </div>
@@ -856,13 +854,9 @@
                 是否為流失客戶取回 (選填)
               </label>
               <select id="crmSelectLostRetrieved" class="search-input" style="font-size:0.85rem; padding:6px 8px; margin-bottom:0;">
-                <option value="無">無</option>
-                <option value="曾仁君 - 新林電機、新碩自動">曾仁君 - 新林電機、新碩自動</option>
-                <option value="溫達仁 - 崇翌科技、台銨科技、全美自動、泓發機電、協易機械、鑫詮科技、迎傑機電、由田新技、祥侑企業、梭特科技">溫達仁 - 崇翌科技、台銨科技、全美自動、泓發機電、協易機械、鑫詮科技、迎傑機電、由田新技、祥侑企業、梭特科技</option>
-                <option value="楊家豪 - 順瀅企業、宇貫企業">楊家豪 - 順瀅企業、宇貫企業</option>
-                <option value="謝瑞騏 - 福星機電、德世達科、磊登自動、睿明科技、碩聯自動">謝瑞騏 - 福星機電、德世達科、磊登自動、睿明科技、碩聯自動</option>
-                <option value="莊富丞 - 東佑達奈、叡億機械、理豐智動、東典科技">莊富丞 - 東佑達奈、叡億機械、理豐智動、東典科技</option>
-                <option value="張書偉 - 鴻績工業、汎得自動、達詳自動、捷惠自動">張書偉 - 鴻績工業、汎得自動、達詳自動、捷惠自動</option>
+                <option value="">-- 無 / 否 --</option>
+                <option value="是">是</option>
+                <option value="評估中">評估中</option>
               </select>
             </div>
           </div>
@@ -2303,8 +2297,8 @@
   </div>
 
   <!-- 🚀 畫面右下角簡潔版本訊息 (字體小、不佔用頂部空間) -->
-  <div class="app-version-bottom-right" id="appVersionInfo">v 2.08</div>
+  <div class="app-version-bottom-right" id="appVersionInfo">v 2.07</div>
 
-  <script src="app.js?v=2.08"></script>
+  <script src="app.js?v=2.07"></script>
 </body>
 </html>
